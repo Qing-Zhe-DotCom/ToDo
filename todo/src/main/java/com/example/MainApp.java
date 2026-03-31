@@ -1,77 +1,57 @@
 package com.example;
 
-import java.sql.SQLException;
+import com.example.controller.MainController;
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.image.Image;
+import javafx.stage.Stage;
 
-import com.example.databaseutil.ScheduleDAO;
-import com.example.model.Schedule;
-
-public class MainApp {
-    public static void main(String[] args) {
-        System.out.println("Hello World!");
-        // Schedule schedule = new Schedule("Task 1", "Description 1", "2023-12-31", false);
-        // ScheduleDAO scheduleDAO = new ScheduleDAO();
-        // try {
-        //     int rowsAffected = scheduleDAO.addSchedule(schedule);
-        //     System.out.println("Rows affected: " + rowsAffected);
-        // } catch (SQLException e) {
-        //     System.err.println("Error adding schedule: " + e.getMessage());
-        // }
-        //删除日程
-        // ScheduleDAO scheduleDAO = new ScheduleDAO();
-        // try {
-        //     int rowsAffected = scheduleDAO.deleteSchedule(1);
-        //     System.out.println("Rows affected: " + rowsAffected);
-        // } catch (SQLException e) {
-        //     System.err.println("Error deleting schedule: " + e.getMessage());
-        // }
-       //写一个查询所有日程的方法
-      //写一个查询所有日程的方法
-    //     ScheduleDAO scheduleDAO = new ScheduleDAO();
-    //     try {
-    //         List<Schedule> schedules = scheduleDAO.getAllSchedules();
-            
-    //         System.out.println("\n=== 日程列表 (共" + schedules.size() + "项) ===");
-    //         if (schedules.isEmpty()) {
-    //             System.out.println("暂无日程安排");
-    //         } else {
-    //             for (int i = 0; i < schedules.size(); i++) {
-    //                 Schedule schedule = schedules.get(i);
-    //                 String status = schedule.isCompleted() ? "✅ 已完成" : "⏳ 待完成";
-    //                 System.out.printf("%d. [%s] %s - 截止: %s%n", 
-    //                         i + 1, status, schedule.getName(), schedule.getDueDate());
-    //                 if (schedule.getDescription() != null && !schedule.getDescription().isEmpty()) {
-    //                     System.out.println("   描述: " + schedule.getDescription());
-    //                 }
-    //                 System.out.println();
-    //             }
-    //         }
-    //     } catch (SQLException e) {
-    //         System.err.println("查询日程失败: " + e.getMessage());
-    //     }
-    // }    
-    // 测试查询特定ID的日程
-        System.out.println("\n=== 测试查询特定ID日程 ===");
+public class MainApp extends Application {
+    
+    private static final String APP_TITLE = "ToDo 日程管理";
+    private static final double MIN_WIDTH = 1200;
+    private static final double MIN_HEIGHT = 700;
+    
+    private MainController mainController;
+    
+    @Override
+    public void start(Stage primaryStage) {
         try {
-            ScheduleDAO scheduleDAO = new ScheduleDAO();
-            Schedule specificSchedule = scheduleDAO.getScheduleById(2); // 查询ID为1的日程
+            mainController = new MainController();
             
-            if (specificSchedule != null) {
-                System.out.println("找到日程:");
-                System.out.println("ID: " + specificSchedule.getId());
-                System.out.println("名称: " + specificSchedule.getName());
-                System.out.println("描述: " + specificSchedule.getDescription());
-                System.out.println("截止日期: " + specificSchedule.getDueDate());
-                System.out.println("完成状态: " + (specificSchedule.isCompleted() ? "已完成" : "未完成"));
-                System.out.println("创建时间: " + specificSchedule.getCreatedAt());
-                System.out.println("更新时间: " + specificSchedule.getUpdatedAt());
-            } else {
-                System.out.println("未找到ID为1的日程");
-            }
-        } catch (SQLException e) {
-            System.err.println("查询特定日程失败: " + e.getMessage());
+            Scene scene = new Scene(mainController.getRoot(), MIN_WIDTH, MIN_HEIGHT);
+            
+            // 加载默认主题
+            scene.getStylesheets().add(getClass().getResource("/styles/light-theme.css").toExternalForm());
+            
+            primaryStage.setTitle(APP_TITLE);
+            primaryStage.setScene(scene);
+            primaryStage.setMinWidth(MIN_WIDTH);
+            primaryStage.setMinHeight(MIN_HEIGHT);
+            
+            // 设置应用图标（如果有的话）
+            // primaryStage.getIcons().add(new Image(getClass().getResourceAsStream("/images/app-icon.png")));
+            
+            primaryStage.show();
+            
+            // 初始化控制器
+            mainController.initialize();
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("启动应用失败: " + e.getMessage());
         }
     }
-
-
-
+    
+    @Override
+    public void stop() {
+        // 应用关闭时的清理工作
+        if (mainController != null) {
+            mainController.shutdown();
+        }
+    }
+    
+    public static void main(String[] args) {
+        launch(args);
+    }
 }
