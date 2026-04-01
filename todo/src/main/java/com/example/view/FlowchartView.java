@@ -28,8 +28,8 @@ public class FlowchartView implements View {
         titleLabel.getStyleClass().add("label-title");
 
         // 开发中提示
-        Label developingLabel = new Label("🚧 功能开发中 🚧");
-        developingLabel.setStyle("-fx-font-size: 24px; -fx-text-fill: #ff9800;");
+        Label developingLabel = new Label("日程流程图功能正在开发中...");
+        developingLabel.getStyleClass().add("developing-label");
 
         // 说明文字
         Label descriptionLabel = new Label("该功能将展示日程之间的依赖关系和执行流程\n敬请期待后续版本更新");

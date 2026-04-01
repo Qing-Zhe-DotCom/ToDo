@@ -49,7 +49,8 @@ public class TimelineView implements View {
     private static final double AXIS_LABEL_Y = 10;
     private static final double AXIS_LINE_Y = 40;
     private static final double TRACK_TOP = 56;
-    private static final double CARD_HEIGHT = 80;
+    private static final double CARD_HEIGHT = 44;
+    private static final double CARD_STACK_OFFSET = 52;
     private static final double CARD_INSET_X = 8;
     private static final double BOTTOM_PADDING = 48;
     private static final double MIN_INLINE_TITLE_WIDTH = 60;
@@ -129,8 +130,9 @@ public class TimelineView implements View {
 
         timelineContainer.getChildren().addAll(scrollPane, timelineStateLabel);
 
-        Button newScheduleBtn = new Button("+ 新建日程");
-        newScheduleBtn.getStyleClass().add("button");
+        Button newScheduleBtn = new Button("新建日程");
+        newScheduleBtn.setGraphic(controller.createSvgIcon("/icons/macaron-logo-new-schedule.svg", null, 20));
+        newScheduleBtn.getStyleClass().add("fab-button");
         newScheduleBtn.setOnAction(e -> controller.openNewScheduleDialog());
 
         HBox buttonBox = new HBox(newScheduleBtn);
@@ -148,8 +150,16 @@ public class TimelineView implements View {
         titleLabel.getStyleClass().add("label-title");
 
         styleComboBox = new ComboBox<>();
-        styleComboBox.getItems().addAll("经典实体卡片", "现代毛玻璃", "极简线框", "扁平马卡龙", "赛博霓虹");
-        styleComboBox.setValue("经典实体卡片");
+        styleComboBox.getItems().addAll(
+            "经典实体卡片", 
+            "清新扁平",
+            "温馨治愈风",
+            "现代高级极简风",
+            "新粗野主义",
+            "Material You",
+            "拟物浮雕风"
+        );
+        styleComboBox.setValue("温馨治愈风");
         styleComboBox.setOnAction(e -> refresh());
 
         Region spacer = new Region();
@@ -296,18 +306,19 @@ public class TimelineView implements View {
 
     private double appendGroup(List<Schedule> schedules, String title, double startY, LocalDate minDate, LocalDate maxDate, List<TimelineEntry> entries) {
         Label headerLabel = new Label(title);
-        headerLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #888888; -fx-font-size: 13px;");
+        headerLabel.getStyleClass().add("timeline-group-header");
         headerLabel.setLayoutX(LEFT_PADDING);
         headerLabel.setLayoutY(startY + 10);
         timelinePane.getChildren().add(headerLabel);
         
         Line sep = new Line(LEFT_PADDING, startY + 35, LEFT_PADDING + 200, startY + 35);
-        sep.setStroke(getAxisColor());
-        sep.setOpacity(0.3);
+        sep.getStyleClass().add("timeline-group-sep");
         timelinePane.getChildren().add(sep);
 
         double cardStartY = startY + 50;
-        java.util.Map<LocalDate, Integer> dateCount = new java.util.HashMap<>();
+        
+        // 改进的堆叠算法，处理不同长度日程的重叠
+        List<TimelineEntry> groupEntries = new ArrayList<>();
         int maxStack = -1;
 
         for (Schedule schedule : schedules) {
@@ -318,35 +329,52 @@ public class TimelineView implements View {
             if (minDate != null && eDate.isBefore(minDate)) continue;
             if (maxDate != null && sDate.isAfter(maxDate)) continue;
 
-            int stackIndex = dateCount.getOrDefault(sDate, 0);
-            dateCount.put(sDate, stackIndex + 1);
+            // 寻找第一个不冲突的层级
+            int stackIndex = 0;
+            boolean conflict = true;
+            while (conflict) {
+                conflict = false;
+                for (TimelineEntry existing : groupEntries) {
+                    // 如果存在重叠并且分配在同一层级
+                    if (existing.getCardY() == cardStartY + stackIndex * CARD_STACK_OFFSET &&
+                        !sDate.isAfter(existing.getEndDate()) && 
+                        !eDate.isBefore(existing.getStartDate())) {
+                        conflict = true;
+                        stackIndex++;
+                        break;
+                    }
+                }
+            }
+            
             maxStack = Math.max(maxStack, stackIndex);
             
-            double cardY = cardStartY + stackIndex * 20;
-            entries.add(new TimelineEntry(schedule, sDate, eDate, cardY));
+            double cardY = cardStartY + stackIndex * CARD_STACK_OFFSET;
+            TimelineEntry entry = new TimelineEntry(schedule, sDate, eDate, cardY);
+            groupEntries.add(entry);
+            entries.add(entry);
         }
         
         if (maxStack == -1) {
             Label emptyLabel = new Label("暂无该类日程");
-            emptyLabel.setStyle("-fx-text-fill: #bbbbbb; -fx-font-size: 12px;");
+            emptyLabel.getStyleClass().add("timeline-group-empty");
             emptyLabel.setLayoutX(LEFT_PADDING);
             emptyLabel.setLayoutY(cardStartY);
             timelinePane.getChildren().add(emptyLabel);
             return cardStartY + 30 + 20;
         }
         
-        return cardStartY + CARD_HEIGHT + maxStack * 20 + 30; // 30 padding bottom
+        return cardStartY + (maxStack + 1) * CARD_STACK_OFFSET + 20; // 20 padding bottom
     }
 
     private void renderTracksBackground(double totalWidth, double paneHeight) {
         double contentWidth = totalWidth - LEFT_PADDING - RIGHT_PADDING;
 
         Rectangle trackBackground = new Rectangle(LEFT_PADDING, TRACK_TOP, contentWidth, Math.max(0, paneHeight - TRACK_TOP - BOTTOM_PADDING));
-        trackBackground.setFill(getTrackFillColor(0));
+        trackBackground.getStyleClass().add("timeline-track-bg");
         timelinePane.getChildren().add(trackBackground);
 
         Line topSeparator = new Line(LEFT_PADDING, TRACK_TOP, totalWidth - RIGHT_PADDING, TRACK_TOP);
-        topSeparator.setStroke(getTrackSeparatorColor());
+        topSeparator.getStyleClass().add("timeline-track-sep");
         timelinePane.getChildren().add(topSeparator);
 
         Line bottomSeparator = new Line(
@@ -355,18 +383,15 @@ public class TimelineView implements View {
             totalWidth - RIGHT_PADDING,
             paneHeight - BOTTOM_PADDING
         );
-        bottomSeparator.setStroke(getTrackSeparatorColor());
-        bottomSeparator.setOpacity(0.9);
+        bottomSeparator.getStyleClass().add("timeline-track-sep");
         timelinePane.getChildren().add(bottomSeparator);
     }
 
     private void renderDateAxis(LocalDate minDate, LocalDate maxDate, double totalWidth, double paneHeight) {
-        Color axisColor = getAxisColor();
-        Color gridColor = getGridColor();
-        double gridBottom = paneHeight - BOTTOM_PADDING / 2;
+                double gridBottom = paneHeight - BOTTOM_PADDING / 2;
 
         Line axisLine = new Line(LEFT_PADDING, AXIS_LINE_Y, totalWidth - RIGHT_PADDING, AXIS_LINE_Y);
-        axisLine.setStroke(axisColor);
+        axisLine.getStyleClass().add("timeline-axis-line");
         axisLine.setStrokeWidth(2);
         timelinePane.getChildren().add(axisLine);
 
@@ -377,17 +402,16 @@ public class TimelineView implements View {
 
             if (current.equals(LocalDate.now())) {
                 Rectangle todayHighlight = new Rectangle(x, 0, DAY_WIDTH, gridBottom);
-                todayHighlight.setFill(getTodayHighlightColor());
+                todayHighlight.getStyleClass().add("timeline-today-highlight");
                 timelinePane.getChildren().add(todayHighlight);
             }
 
             Line gridLine = new Line(x, AXIS_LINE_Y, x, gridBottom);
-            gridLine.setStroke(gridColor);
-            gridLine.setOpacity(0.55);
+            gridLine.getStyleClass().add("timeline-grid-line");
             timelinePane.getChildren().add(gridLine);
 
             Line tick = new Line(x, AXIS_LINE_Y - 4, x, AXIS_LINE_Y + 6);
-            tick.setStroke(axisColor);
+            tick.getStyleClass().add("timeline-axis-tick");
             timelinePane.getChildren().add(tick);
 
             Label dateLabel = new Label(current.format(DATE_FORMATTER));
@@ -397,8 +421,7 @@ public class TimelineView implements View {
             dateLabel.setLayoutX(x);
             dateLabel.setLayoutY(AXIS_LABEL_Y);
             if (current.equals(LocalDate.now())) {
-                dateLabel.setTextFill(getAccentColor());
-                dateLabel.setStyle("-fx-font-weight: bold;");
+                dateLabel.getStyleClass().add("timeline-date-today");
             }
             timelinePane.getChildren().add(dateLabel);
 
@@ -408,12 +431,11 @@ public class TimelineView implements View {
 
         double finalX = LEFT_PADDING + dayIndex * DAY_WIDTH;
         Line finalGridLine = new Line(finalX, AXIS_LINE_Y, finalX, gridBottom);
-        finalGridLine.setStroke(gridColor);
-        finalGridLine.setOpacity(0.55);
+        finalGridLine.getStyleClass().add("timeline-grid-line");
         timelinePane.getChildren().add(finalGridLine);
 
         Line finalTick = new Line(finalX, AXIS_LINE_Y - 4, finalX, AXIS_LINE_Y + 6);
-        finalTick.setStroke(axisColor);
+        finalTick.getStyleClass().add("timeline-axis-tick");
         timelinePane.getChildren().add(finalTick);
     }
 
@@ -437,119 +459,79 @@ public class TimelineView implements View {
         scheduleCard.setLayoutX(startX);
         scheduleCard.setLayoutY(cardY);
         scheduleCard.getStyleClass().add("timeline-schedule-card");
+        
+        String currentStyle = styleComboBox != null ? styleComboBox.getValue() : "温馨治愈风";
+        if ("经典实体卡片".equals(currentStyle)) scheduleCard.getStyleClass().add("style-classic");
+        else if ("清新扁平".equals(currentStyle)) scheduleCard.getStyleClass().add("style-fresh");
+        else if ("温馨治愈风".equals(currentStyle)) scheduleCard.getStyleClass().add("style-cozy");
+        else if ("现代高级极简风".equals(currentStyle)) scheduleCard.getStyleClass().add("style-modern-minimal");
+        else if ("新粗野主义".equals(currentStyle)) scheduleCard.getStyleClass().add("style-neo-brutalism");
+        else if ("Material You".equals(currentStyle)) scheduleCard.getStyleClass().add("style-material-you");
+        else if ("拟物浮雕风".equals(currentStyle)) scheduleCard.getStyleClass().add("style-neumorphism");
+        
         scheduleCard.setUserData(schedule);
         if (controller.isScheduleSelected(schedule)) {
             scheduleCard.getStyleClass().add("timeline-schedule-selected");
         }
+        
+        // Pseudo classes for states
+        if (schedule.isCompleted()) scheduleCard.pseudoClassStateChanged(javafx.css.PseudoClass.getPseudoClass("completed"), true);
+        if (schedule.isOverdue()) scheduleCard.pseudoClassStateChanged(javafx.css.PseudoClass.getPseudoClass("overdue"), true);
+        if ("高".equals(schedule.getPriority())) scheduleCard.pseudoClassStateChanged(javafx.css.PseudoClass.getPseudoClass("priority-high"), true);
+        else if ("中".equals(schedule.getPriority())) scheduleCard.pseudoClassStateChanged(javafx.css.PseudoClass.getPseudoClass("priority-medium"), true);
+        else if ("低".equals(schedule.getPriority())) scheduleCard.pseudoClassStateChanged(javafx.css.PseudoClass.getPseudoClass("priority-low"), true);
+
         double baseViewOrder = -(cardY * 10000 + startX);
         scheduleCard.setViewOrder(baseViewOrder);
 
-        String currentStyle = styleComboBox != null ? styleComboBox.getValue() : "经典实体卡片";
-
-        javafx.scene.effect.DropShadow dropShadow = new javafx.scene.effect.DropShadow();
-        if ("经典实体卡片".equals(currentStyle)) {
-            dropShadow.setRadius(12);
-            dropShadow.setOffsetY(4);
-            dropShadow.setColor(Color.color(0, 0, 0, 0.15));
-        } else if ("现代毛玻璃".equals(currentStyle)) {
-            dropShadow.setRadius(20);
-            dropShadow.setOffsetY(8);
-            dropShadow.setColor(Color.color(getAccentColor().getRed(), getAccentColor().getGreen(), getAccentColor().getBlue(), 0.1));
-        } else if ("赛博霓虹".equals(currentStyle)) {
-            Color neon = getScheduleAccentColor(schedule);
-            dropShadow.setRadius(15);
-            dropShadow.setSpread(0.4);
-            dropShadow.setColor(Color.color(neon.getRed(), neon.getGreen(), neon.getBlue(), 0.6));
-        } else {
-            dropShadow = null;
-        }
-        
-        if (dropShadow != null) {
-            scheduleCard.setEffect(dropShadow);
-        }
-
         Rectangle cardBackground = new Rectangle(width, CARD_HEIGHT);
-        cardBackground.setArcWidth(12);
-        cardBackground.setArcHeight(12);
-        
-        if ("极简线框".equals(currentStyle)) {
-            cardBackground.setFill(Color.TRANSPARENT);
-            cardBackground.setStroke(getScheduleAccentColor(schedule));
-            cardBackground.setStrokeWidth(2);
-        } else if ("现代毛玻璃".equals(currentStyle)) {
-            Color accent = getScheduleAccentColor(schedule);
-            cardBackground.setFill(Color.color(accent.getRed(), accent.getGreen(), accent.getBlue(), 0.15));
-            cardBackground.setStroke(Color.color(accent.getRed(), accent.getGreen(), accent.getBlue(), 0.3));
-        } else if ("扁平马卡龙".equals(currentStyle)) {
-            Color accent = getScheduleAccentColor(schedule);
-            cardBackground.setFill(Color.color(accent.getRed(), accent.getGreen(), accent.getBlue(), 0.25));
-            cardBackground.setStroke(Color.TRANSPARENT);
-            cardBackground.setArcWidth(24);
-            cardBackground.setArcHeight(24);
-        } else if ("赛博霓虹".equals(currentStyle)) {
-            cardBackground.setFill(Color.web("#121212"));
-            cardBackground.setStroke(getScheduleAccentColor(schedule));
-            cardBackground.setStrokeWidth(2);
-        } else {
-            cardBackground.setFill(getCardFillColor());
-            cardBackground.setStroke(getCardBorderColor());
-        }
+        cardBackground.getStyleClass().add("card-bg");
 
         Rectangle accentBar = new Rectangle(6, CARD_HEIGHT);
-        accentBar.setArcWidth(12);
-        accentBar.setArcHeight(12);
-        accentBar.setFill(getScheduleAccentColor(schedule));
-        if ("现代毛玻璃".equals(currentStyle) || "极简线框".equals(currentStyle) || "扁平马卡龙".equals(currentStyle) || "赛博霓虹".equals(currentStyle)) {
-            accentBar.setVisible(false); // Don't need accent bar for these styles
-        }
-        StackPane.setAlignment(accentBar, Pos.CENTER_LEFT);
+        accentBar.getStyleClass().add("card-accent-bar");
 
-        VBox contentBox = new VBox(6);
-        contentBox.setPadding(new Insets(12, 10, 12, 16));
-        contentBox.setAlignment(Pos.TOP_LEFT);
+        // 改进布局：将标题和日期放入水平容器以防止重叠，并处理截断
+        HBox contentBox = new HBox(10);
+        contentBox.setAlignment(Pos.CENTER_LEFT);
+        contentBox.setPadding(new Insets(0, 10, 0, 12));
+        contentBox.setPrefSize(width, CARD_HEIGHT);
         contentBox.setMouseTransparent(true);
 
         Label titleLabel = new Label(schedule.getName());
-        titleLabel.getStyleClass().add("timeline-card-title");
-        titleLabel.setTextFill("赛博霓虹".equals(currentStyle) ? Color.WHITE : getCardTextColor());
-        titleLabel.setMaxWidth(Math.max(0, width - 24));
+        titleLabel.getStyleClass().add("card-title");
+        // 确保标题长时显示省略号
         titleLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
-        titleLabel.setWrapText(false);
-        titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-overrun: ellipsis; -fx-ellipsis-string: '...';");
-
+        
         Label dateLabel = new Label(entryStart.format(DATE_FORMATTER) + " - " + entryEnd.format(DATE_FORMATTER));
-        dateLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: " + ("赛博霓虹".equals(currentStyle) ? "#aaaaaa;" : "#888888;"));
+        dateLabel.getStyleClass().add("card-date");
+        dateLabel.setMinWidth(Region.USE_PREF_SIZE); // 防止日期被过度压缩
 
-        contentBox.getChildren().addAll(titleLabel, dateLabel);
-
-        if (width < MIN_INLINE_TITLE_WIDTH) {
+        // 处理过短的卡片
+        if (width < 80) {
             dateLabel.setVisible(false);
             dateLabel.setManaged(false);
-            contentBox.setPadding(new Insets(8, 6, 8, 10));
-            titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-overrun: ellipsis; -fx-ellipsis-string: '...';");
-            titleLabel.setMaxWidth(Math.max(0, width - 14));
         }
 
+        HBox.setHgrow(titleLabel, Priority.ALWAYS);
+        contentBox.getChildren().addAll(titleLabel, dateLabel);
+
         scheduleCard.getChildren().addAll(cardBackground, accentBar, contentBox);
+        StackPane.setAlignment(accentBar, Pos.CENTER_LEFT);
 
         if (entryStart.isBefore(minDate)) {
             Rectangle leftClip = new Rectangle(8, CARD_HEIGHT);
-            leftClip.setFill("赛博霓虹".equals(currentStyle) ? Color.web("#121212") : Color.WHITE);
-            leftClip.setOpacity(0.45);
+            leftClip.getStyleClass().add("card-clip");
             StackPane.setAlignment(leftClip, Pos.CENTER_LEFT);
             scheduleCard.getChildren().add(leftClip);
         }
 
         if (entryEnd.isAfter(maxDate)) {
             Rectangle rightClip = new Rectangle(8, CARD_HEIGHT);
-            rightClip.setFill("赛博霓虹".equals(currentStyle) ? Color.web("#121212") : Color.WHITE);
-            rightClip.setOpacity(0.45);
+            rightClip.getStyleClass().add("card-clip");
             StackPane.setAlignment(rightClip, Pos.CENTER_RIGHT);
             scheduleCard.getChildren().add(rightClip);
         }
 
-        Color hoverFill = getCardHoverFillColor();
-        
         ScaleTransition scaleIn = new ScaleTransition(Duration.millis(150), scheduleCard);
         scaleIn.setToX(1.02);
         scaleIn.setToY(1.05);
@@ -568,39 +550,14 @@ public class TimelineView implements View {
 
         scheduleCard.setOnMouseEntered(e -> {
             scheduleCard.setViewOrder(baseViewOrder - 1_000_000);
-            if ("经典实体卡片".equals(currentStyle)) {
-                cardBackground.setFill(hoverFill);
-            } else if ("赛博霓虹".equals(currentStyle)) {
-                cardBackground.setFill(Color.web("#202020"));
-            }
-            if (!"扁平马卡龙".equals(currentStyle)) {
-                cardBackground.setStroke(getScheduleAccentColor(schedule));
-            }
+            scheduleCard.pseudoClassStateChanged(javafx.css.PseudoClass.getPseudoClass("hover"), true);
             scaleIn.playFromStart();
             transIn.playFromStart();
         });
 
         scheduleCard.setOnMouseExited(e -> {
             scheduleCard.setViewOrder(baseViewOrder);
-
-            if ("极简线框".equals(currentStyle)) {
-                cardBackground.setFill(Color.TRANSPARENT);
-                cardBackground.setStroke(getScheduleAccentColor(schedule));
-            } else if ("现代毛玻璃".equals(currentStyle)) {
-                Color accent = getScheduleAccentColor(schedule);
-                cardBackground.setFill(Color.color(accent.getRed(), accent.getGreen(), accent.getBlue(), 0.15));
-                cardBackground.setStroke(Color.color(accent.getRed(), accent.getGreen(), accent.getBlue(), 0.3));
-            } else if ("扁平马卡龙".equals(currentStyle)) {
-                Color accent = getScheduleAccentColor(schedule);
-                cardBackground.setFill(Color.color(accent.getRed(), accent.getGreen(), accent.getBlue(), 0.25));
-                cardBackground.setStroke(Color.TRANSPARENT);
-            } else if ("赛博霓虹".equals(currentStyle)) {
-                cardBackground.setFill(Color.web("#121212"));
-                cardBackground.setStroke(getScheduleAccentColor(schedule));
-            } else {
-                cardBackground.setFill(getCardFillColor());
-                cardBackground.setStroke(getCardBorderColor());
-            }
+            scheduleCard.pseudoClassStateChanged(javafx.css.PseudoClass.getPseudoClass("hover"), false);
             scaleOut.playFromStart();
             transOut.playFromStart();
         });
@@ -734,73 +691,6 @@ public class TimelineView implements View {
             return schedule.getDueDate();
         }
         return schedule.getStartDate();
-    }
-
-    private boolean isDarkTheme() {
-        return "dark".equals(controller.getCurrentTheme());
-    }
-
-    private Color getAccentColor() {
-        return isDarkTheme() ? Color.web("#4fc3f7") : Color.web("#2196f3");
-    }
-
-    private Color getGridColor() {
-        return isDarkTheme() ? Color.web("#3a3a3a") : Color.web("#e0e0e0");
-    }
-
-    private Color getAxisColor() {
-        return isDarkTheme() ? Color.web("#6d6d6d") : Color.web("#c2c2c2");
-    }
-
-    private Color getTrackFillColor(int laneIndex) {
-        if (isDarkTheme()) {
-            return laneIndex % 2 == 0 ? Color.web("#202224") : Color.web("#1b1d1f");
-        }
-        return laneIndex % 2 == 0 ? Color.web("#fbfbfc") : Color.web("#f5f7f9");
-    }
-
-    private Color getTrackSeparatorColor() {
-        return isDarkTheme() ? Color.web("#2f3235") : Color.web("#ebedf0");
-    }
-
-    private Color getTodayHighlightColor() {
-        Color accent = getAccentColor();
-        return Color.color(accent.getRed(), accent.getGreen(), accent.getBlue(), isDarkTheme() ? 0.12 : 0.09);
-    }
-
-    private Color getCardFillColor() {
-        return isDarkTheme() ? Color.web("#2b2f33") : Color.web("#ffffff");
-    }
-
-    private Color getCardHoverFillColor() {
-        return isDarkTheme() ? Color.web("#33383d") : Color.web("#f8fbff");
-    }
-
-    private Color getCardBorderColor() {
-        return isDarkTheme() ? Color.web("#3d4348") : Color.web("#dde3ea");
-    }
-
-    private Color getCardTextColor() {
-        return isDarkTheme() ? Color.web("#f3f5f7") : Color.web("#1f2933");
-    }
-
-    private Color getScheduleAccentColor(Schedule schedule) {
-        if (schedule.isCompleted()) {
-            return isDarkTheme() ? Color.web("#81c784") : Color.web("#43a047");
-        }
-        if (schedule.isOverdue()) {
-            return isDarkTheme() ? Color.web("#ef5350") : Color.web("#e53935");
-        }
-        if ("高".equals(schedule.getPriority())) {
-            return Color.web("#ef5350");
-        }
-        if ("中".equals(schedule.getPriority())) {
-            return Color.web("#ffb300");
-        }
-        if ("低".equals(schedule.getPriority())) {
-            return Color.web("#42a5f5");
-        }
-        return getAccentColor();
     }
 
     private String buildTooltipText(Schedule schedule, LocalDate startDate, LocalDate endDate) {

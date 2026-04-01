@@ -5,11 +5,10 @@ import com.example.controller.MainController;
 import java.awt.Taskbar;
 import java.awt.Taskbar.Feature;
 import java.io.InputStream;
-import java.util.Locale;
-
-import javax.xml.parsers.DocumentBuilderFactory;
+import java.awt.image.BufferedImage;
 
 import javafx.application.Application;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
@@ -17,21 +16,18 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
-import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
 
 public class MainApp extends Application {
     
     private static final String APP_TITLE = "ToDo 日程管理";
+    private static final String APP_ICON_RESOURCE = "/icons/macaron_todo_icon.png";
     private static final double MIN_WIDTH = 1200;
     private static final double MIN_HEIGHT = 700;
     
     private MainController mainController;
+    private Stage primaryStageRef;
+    private Image baseIconImage;
     
     @Override
     public void start(Stage primaryStage) {
@@ -46,19 +42,12 @@ public class MainApp extends Application {
             // 将场景对象传递给控制器
             mainController.setScene(scene);
             
+            primaryStageRef = primaryStage;
             primaryStage.setTitle(APP_TITLE);
             primaryStage.setScene(scene);
             primaryStage.setMinWidth(MIN_WIDTH);
             primaryStage.setMinHeight(MIN_HEIGHT);
-            primaryStage.getIcons().setAll(
-                createAppIconImage(16),
-                createAppIconImage(24),
-                createAppIconImage(32),
-                createAppIconImage(48),
-                createAppIconImage(64),
-                createAppIconImage(128),
-                createAppIconImage(256)
-            );
+            applyAppIcons(0);
             applyWindowBadge(primaryStage, 0);
             
             primaryStage.show();
@@ -92,212 +81,105 @@ public class MainApp extends Application {
                 stage.setTitle(APP_TITLE);
             }
         }
+        applyAppIcons(pendingCount);
         try {
             if (!Taskbar.isTaskbarSupported()) {
                 return;
             }
             Taskbar taskbar = Taskbar.getTaskbar();
-            if (!taskbar.isSupported(Feature.ICON_BADGE_TEXT)) {
-                return;
+            if (taskbar.isSupported(Feature.ICON_IMAGE)) {
+                Image baseImage = loadBaseIconImage();
+                if (baseImage != null && pendingCount <= 0) {
+                    BufferedImage awtImage = SwingFXUtils.fromFXImage(baseImage, null);
+                    taskbar.setIconImage(awtImage);
+                } else {
+                    BufferedImage awtImage = SwingFXUtils.fromFXImage(createAppIconImage(64, pendingCount), null);
+                    taskbar.setIconImage(awtImage);
+                }
             }
-            String badgeText;
-            if (pendingCount <= 0) {
-                badgeText = "";
-            } else if (pendingCount > 99) {
-                badgeText = "99+";
-            } else {
-                badgeText = String.valueOf(pendingCount);
+            if (taskbar.isSupported(Feature.ICON_BADGE_TEXT)) {
+                String badgeText;
+                if (pendingCount <= 0) {
+                    badgeText = "";
+                } else if (pendingCount > 99) {
+                    badgeText = "99+";
+                } else {
+                    badgeText = String.valueOf(pendingCount);
+                }
+                taskbar.setIconBadge(badgeText);
             }
-            taskbar.setIconBadge(badgeText);
         } catch (Exception ignored) {
         }
     }
 
-    private Image createAppIconImage(int size) {
-        try (InputStream stream = getClass().getResourceAsStream("/icons/macaron_todo_icon.svg")) {
-            if (stream == null) {
-                return createFallbackIconImage(size);
-            }
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            factory.setNamespaceAware(false);
-            Document document = factory.newDocumentBuilder().parse(stream);
-            Element svg = document.getDocumentElement();
-            double[] viewBox = parseViewBox(svg.getAttribute("viewBox"));
-
-            Canvas canvas = new Canvas(size, size);
-            GraphicsContext gc = canvas.getGraphicsContext2D();
-            gc.clearRect(0, 0, size, size);
-
-            double viewWidth = Math.max(1, viewBox[2]);
-            double viewHeight = Math.max(1, viewBox[3]);
-            double scale = Math.min(size / viewWidth, size / viewHeight);
-            double offsetX = (size - viewWidth * scale) / 2.0;
-            double offsetY = (size - viewHeight * scale) / 2.0;
-
-            gc.save();
-            gc.translate(offsetX, offsetY);
-            gc.scale(scale, scale);
-            gc.translate(-viewBox[0], -viewBox[1]);
-            renderSvgChildren(svg, gc);
-            gc.restore();
-
-            WritableImage image = new WritableImage(size, size);
-            canvas.snapshot(new SnapshotParameters(), image);
-            return image;
-        } catch (Exception ex) {
-            return createFallbackIconImage(size);
-        }
-    }
-
-    private void renderSvgChildren(Element parent, GraphicsContext gc) {
-        NodeList children = parent.getChildNodes();
-        for (int i = 0; i < children.getLength(); i++) {
-            if (!(children.item(i) instanceof Element)) {
-                continue;
-            }
-            Element element = (Element) children.item(i);
-            String tag = element.getTagName().toLowerCase(Locale.ROOT);
-            if ("g".equals(tag)) {
-                gc.save();
-                applyTransform(gc, element.getAttribute("transform"));
-                renderSvgChildren(element, gc);
-                gc.restore();
-                continue;
-            }
-            if ("circle".equals(tag)) {
-                drawCircle(gc, element);
-                continue;
-            }
-            if ("rect".equals(tag)) {
-                drawRect(gc, element);
-                continue;
-            }
-            if ("text".equals(tag)) {
-                drawText(gc, element);
-            }
-        }
-    }
-
-    private void drawCircle(GraphicsContext gc, Element element) {
-        double cx = parseDouble(element.getAttribute("cx"));
-        double cy = parseDouble(element.getAttribute("cy"));
-        double r = parseDouble(element.getAttribute("r"));
-        Color fill = parseColor(element.getAttribute("fill"), Color.TRANSPARENT);
-        gc.setFill(fill);
-        gc.fillOval(cx - r, cy - r, r * 2, r * 2);
-    }
-
-    private void drawRect(GraphicsContext gc, Element element) {
-        double x = parseDouble(element.getAttribute("x"));
-        double y = parseDouble(element.getAttribute("y"));
-        double width = parseDouble(element.getAttribute("width"));
-        double height = parseDouble(element.getAttribute("height"));
-        double rx = parseDouble(element.getAttribute("rx"));
-        Color fill = parseColor(element.getAttribute("fill"), Color.TRANSPARENT);
-        gc.setFill(fill);
-        if (rx > 0) {
-            double arc = rx * 2;
-            gc.fillRoundRect(x, y, width, height, arc, arc);
-        } else {
-            gc.fillRect(x, y, width, height);
-        }
-    }
-
-    private void drawText(GraphicsContext gc, Element element) {
-        double x = parseDouble(element.getAttribute("x"));
-        double y = parseDouble(element.getAttribute("y"));
-        double fontSize = parseDoubleOrDefault(element.getAttribute("font-size"), 12);
-        String fontFamily = firstFontFamily(element.getAttribute("font-family"));
-        String weight = element.getAttribute("font-weight");
-        FontWeight fontWeight = "bold".equalsIgnoreCase(weight) ? FontWeight.BOLD : FontWeight.NORMAL;
-        gc.setFont(Font.font(fontFamily, fontWeight, fontSize));
-        gc.setFill(parseColor(element.getAttribute("fill"), Color.BLACK));
-        String anchor = element.getAttribute("text-anchor");
-        if ("middle".equalsIgnoreCase(anchor)) {
-            gc.setTextAlign(TextAlignment.CENTER);
-        } else if ("end".equalsIgnoreCase(anchor)) {
-            gc.setTextAlign(TextAlignment.RIGHT);
-        } else {
-            gc.setTextAlign(TextAlignment.LEFT);
-        }
-        String text = element.getTextContent() == null ? "" : element.getTextContent().trim();
-        gc.fillText(text, x, y);
-    }
-
-    private void applyTransform(GraphicsContext gc, String transform) {
-        if (transform == null || transform.isBlank()) {
+    private void applyAppIcons(int pendingCount) {
+        if (primaryStageRef == null) {
             return;
         }
-        String value = transform.trim();
-        if (value.startsWith("rotate")) {
-            int start = value.indexOf('(');
-            int end = value.lastIndexOf(')');
-            if (start < 0 || end <= start) {
-                return;
+        
+        Image baseImage = loadBaseIconImage();
+        if (baseImage != null && pendingCount <= 0) {
+            // 当没有角标时，直接使用原图，防止 Canvas snapshot 导致透明通道或抗锯齿丢失
+            primaryStageRef.getIcons().setAll(baseImage);
+            return;
+        }
+        
+        primaryStageRef.getIcons().setAll(
+            createAppIconImage(16, pendingCount),
+            createAppIconImage(24, pendingCount),
+            createAppIconImage(32, pendingCount),
+            createAppIconImage(48, pendingCount),
+            createAppIconImage(64, pendingCount),
+            createAppIconImage(128, pendingCount),
+            createAppIconImage(256, pendingCount)
+        );
+    }
+
+    private Image createAppIconImage(int size, int pendingCount) {
+        Image source = loadBaseIconImage();
+        if (source == null) {
+            return createFallbackIconImage(size);
+        }
+        Canvas canvas = new Canvas(size, size);
+        GraphicsContext gc = canvas.getGraphicsContext2D();
+        
+        // 关键：在绘制之前必须清空背景为完全透明，避免出现白色底或黑色底（对于带透明度的 PNG 图标特别重要）
+        gc.clearRect(0, 0, size, size);
+        
+        gc.drawImage(source, 0, 0, size, size);
+        if (pendingCount > 0) {
+            double badgeRadius = Math.max(5, size * 0.18);
+            double badgeCx = size - badgeRadius - 1;
+            double badgeCy = badgeRadius + 1;
+            gc.setFill(Color.web("#e53935"));
+            gc.fillOval(badgeCx - badgeRadius, badgeCy - badgeRadius, badgeRadius * 2, badgeRadius * 2);
+            gc.setFill(Color.WHITE);
+            gc.setFont(javafx.scene.text.Font.font("System", javafx.scene.text.FontWeight.BOLD, Math.max(8, size * 0.32)));
+            gc.setTextAlign(javafx.scene.text.TextAlignment.CENTER);
+            gc.setTextBaseline(javafx.geometry.VPos.CENTER);
+            String text = pendingCount > 99 ? "99+" : String.valueOf(pendingCount);
+            gc.fillText(text, badgeCx, badgeCy);
+        }
+        
+        SnapshotParameters params = new SnapshotParameters();
+        params.setFill(Color.TRANSPARENT); // 关键：确保快照的底色也是透明的
+        WritableImage image = new WritableImage(size, size);
+        canvas.snapshot(params, image);
+        return image;
+    }
+
+    private Image loadBaseIconImage() {
+        if (baseIconImage != null) {
+            return baseIconImage;
+        }
+        try (InputStream iconStream = getClass().getResourceAsStream(APP_ICON_RESOURCE)) {
+            if (iconStream == null) {
+                return null;
             }
-            String[] params = value.substring(start + 1, end).trim().split("[,\\s]+");
-            if (params.length == 0) {
-                return;
-            }
-            double angle = parseDouble(params[0]);
-            double cx = params.length > 1 ? parseDouble(params[1]) : 0;
-            double cy = params.length > 2 ? parseDouble(params[2]) : 0;
-            gc.translate(cx, cy);
-            gc.rotate(angle);
-            gc.translate(-cx, -cy);
-        }
-    }
-
-    private String firstFontFamily(String value) {
-        if (value == null || value.isBlank()) {
-            return "System";
-        }
-        String family = value.split(",")[0].trim();
-        if ((family.startsWith("'") && family.endsWith("'")) || (family.startsWith("\"") && family.endsWith("\""))) {
-            family = family.substring(1, family.length() - 1);
-        }
-        return family.isBlank() ? "System" : family;
-    }
-
-    private Color parseColor(String value, Color fallback) {
-        if (value == null || value.isBlank() || "none".equalsIgnoreCase(value)) {
-            return fallback;
-        }
-        try {
-            return Color.web(value.trim());
-        } catch (Exception ex) {
-            return fallback;
-        }
-    }
-
-    private double[] parseViewBox(String viewBox) {
-        if (viewBox == null || viewBox.isBlank()) {
-            return new double[] {0, 0, 100, 100};
-        }
-        String[] values = viewBox.trim().split("\\s+");
-        if (values.length != 4) {
-            return new double[] {0, 0, 100, 100};
-        }
-        return new double[] {
-            parseDouble(values[0]),
-            parseDouble(values[1]),
-            parseDouble(values[2]),
-            parseDouble(values[3])
-        };
-    }
-
-    private double parseDouble(String value) {
-        return parseDoubleOrDefault(value, 0);
-    }
-
-    private double parseDoubleOrDefault(String value, double defaultValue) {
-        if (value == null || value.isBlank()) {
-            return defaultValue;
-        }
-        try {
-            return Double.parseDouble(value.trim());
-        } catch (NumberFormatException ex) {
-            return defaultValue;
+            baseIconImage = new Image(iconStream);
+            return baseIconImage;
+        } catch (Exception ignored) {
+            return null;
         }
     }
 

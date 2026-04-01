@@ -375,7 +375,7 @@ public class HeatmapView implements View {
     private StackPane createHeatmapCell(LocalDate date, int count, double cellSize, boolean activeInCurrentPeriod) {
         Rectangle rect = new Rectangle(cellSize, cellSize);
         rect.getStyleClass().add("heatmap-cell");
-        rect.setFill(getColorForCount(count));
+        updateHeatmapCellColor(rect, getLevelForCount(count));
 
         StackPane cell = new StackPane(rect);
         cell.setPadding(new Insets(2));
@@ -439,12 +439,11 @@ public class HeatmapView implements View {
         legend.getChildren().add(title);
 
         String[] labels = {"0", "1-2", "3-5", "6-8", "9+"};
-        Color[] colors = getHeatmapPalette();
 
         for (int i = 0; i < labels.length; i++) {
             Rectangle rect = new Rectangle(15, 15);
-            rect.setFill(colors[i]);
             rect.getStyleClass().add("heatmap-cell");
+            updateHeatmapCellColor(rect, i);
 
             Label label = new Label(labels[i]);
             label.getStyleClass().add("label-hint");
@@ -505,16 +504,30 @@ public class HeatmapView implements View {
             card.getStyleClass().add("heatmap-day-card-selected");
         }
 
-        Color accentColor = getScheduleAccentColor(schedule);
-        card.setStyle("-fx-border-color: transparent transparent transparent " + toRgb(accentColor) + "; -fx-border-width: 1 1 1 4;");
-
-        HBox header = new HBox(10);
-        header.setAlignment(Pos.CENTER_LEFT);
-
         Rectangle colorMark = new Rectangle(10, 10);
         colorMark.setArcWidth(10);
         colorMark.setArcHeight(10);
-        colorMark.setFill(accentColor);
+        colorMark.getStyleClass().add("schedule-color-mark");
+
+        if (schedule.isCompleted()) {
+            card.getStyleClass().add("status-completed");
+            colorMark.getStyleClass().add("mark-completed");
+        } else if (schedule.isOverdue()) {
+            card.getStyleClass().add("status-overdue");
+            colorMark.getStyleClass().add("mark-overdue");
+        } else {
+            String color = schedule.getColor();
+            if (color != null && !color.isBlank()) {
+                card.setStyle("-fx-border-color: transparent transparent transparent " + color + "; -fx-border-width: 1 1 1 4;");
+                colorMark.setStyle("-fx-fill: " + color + ";");
+            } else {
+                card.getStyleClass().add("status-default");
+                colorMark.getStyleClass().add("mark-default");
+            }
+        }
+
+        HBox header = new HBox(10);
+        header.setAlignment(Pos.CENTER_LEFT);
 
         VBox textGroup = new VBox(4);
         Label titleLabel = new Label(schedule.getName());
@@ -669,42 +682,20 @@ public class HeatmapView implements View {
         return !date.isBefore(startDate) && !date.isAfter(endDate);
     }
 
-    private Color getColorForCount(int count) {
-        Color[] palette = getHeatmapPalette();
-        if (count == 0) return palette[0];
-        if (count <= 2) return palette[1];
-        if (count <= 5) return palette[2];
-        if (count <= 8) return palette[3];
-        return palette[4];
+    private int getLevelForCount(int count) {
+        if (count == 0) return 0;
+        if (count <= 2) return 1;
+        if (count <= 5) return 2;
+        if (count <= 8) return 3;
+        return 4;
     }
 
-    private Color[] getHeatmapPalette() {
-        if ("dark".equals(controller.getCurrentTheme())) {
-            return new Color[] {
-                Color.web("#2d333b"),
-                Color.web("#0e4429"),
-                Color.web("#006d32"),
-                Color.web("#26a641"),
-                Color.web("#39d353")
-            };
-        }
-        return new Color[] {
-            Color.web("#ebedf0"),
-            Color.web("#c6e48b"),
-            Color.web("#7bc96f"),
-            Color.web("#239a3b"),
-            Color.web("#196127")
-        };
-    }
-
-    private Color getScheduleAccentColor(Schedule schedule) {
-        if (schedule.isCompleted()) {
-            return Color.web("#4caf50");
-        }
-        if (schedule.isOverdue()) {
-            return Color.web("#f44336");
-        }
-        return Color.web(schedule.getColor() == null || schedule.getColor().isBlank() ? "#2196F3" : schedule.getColor());
+    private void updateHeatmapCellColor(Rectangle rect, int level) {
+        rect.getStyleClass().removeAll(
+            "level-0", "level-1", "level-2",
+            "level-3", "level-4"
+        );
+        rect.getStyleClass().add("level-" + Math.min(level, 4));
     }
 
     private String getScheduleDateText(Schedule schedule) {
@@ -755,13 +746,6 @@ public class HeatmapView implements View {
             return "low";
         }
         return "medium";
-    }
-
-    private String toRgb(Color color) {
-        return String.format("#%02X%02X%02X",
-            (int) Math.round(color.getRed() * 255),
-            (int) Math.round(color.getGreen() * 255),
-            (int) Math.round(color.getBlue() * 255));
     }
 
     private static LocalDate resolveScheduleStart(Schedule schedule) {

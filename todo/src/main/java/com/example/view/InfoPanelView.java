@@ -67,7 +67,7 @@ public class InfoPanelView {
 
         // 状态
         statusLabel = new Label();
-        statusLabel.getStyleClass().add("category-tag");
+        statusLabel.getStyleClass().add("status-label");
 
         // 日期信息
         dateLabel = new Label();
@@ -226,22 +226,23 @@ public class InfoPanelView {
             // 标题
             titleLabel.setText(currentSchedule.getName());
 
+            statusLabel.getStyleClass().removeAll("status-success", "status-danger", "status-warning", "status-info");
             // 状态
             if (currentSchedule.isCompleted()) {
                 statusLabel.setText("✓ 已完成");
-                statusLabel.setStyle("-fx-background-color: #e8f5e9; -fx-text-fill: #2e7d32;");
+                statusLabel.getStyleClass().add("status-success");
                 completeButton.setText("标记未完成");
             } else if (currentSchedule.isOverdue()) {
                 statusLabel.setText("⚠ 已过期");
-                statusLabel.setStyle("-fx-background-color: #ffebee; -fx-text-fill: #c62828;");
+                statusLabel.getStyleClass().add("status-danger");
                 completeButton.setText("标记完成");
             } else if (currentSchedule.isUpcoming()) {
                 statusLabel.setText("⏰ 即将到期");
-                statusLabel.setStyle("-fx-background-color: #fff3e0; -fx-text-fill: #ef6c00;");
+                statusLabel.getStyleClass().add("status-warning");
                 completeButton.setText("标记完成");
             } else {
                 statusLabel.setText("⏳ 进行中");
-                statusLabel.setStyle("-fx-background-color: #e3f2fd; -fx-text-fill: #1976d2;");
+                statusLabel.getStyleClass().add("status-info");
                 completeButton.setText("标记完成");
             }
 

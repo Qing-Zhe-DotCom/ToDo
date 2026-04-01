@@ -94,8 +94,9 @@ public class ScheduleListView implements View {
         );
         
         // 新建按钮
-        Button newScheduleBtn = new Button("+ 新建日程");
-        newScheduleBtn.getStyleClass().add("button");
+        Button newScheduleBtn = new Button("新建日程");
+        newScheduleBtn.setGraphic(controller.createSvgIcon("/icons/macaron-logo-new-schedule.svg", null, 20));
+        newScheduleBtn.getStyleClass().add("fab-button");
         newScheduleBtn.setOnAction(e -> controller.openNewScheduleDialog());
         
         HBox buttonBox = new HBox(newScheduleBtn);
@@ -217,15 +218,15 @@ public class ScheduleListView implements View {
         
         if ("按日期排序".equals(sort)) {
             return Comparator
-                .comparing(Schedule::isCompleted)
+                .comparing((Schedule s) -> s.isCompleted())
                 .thenComparing(Schedule::getDueDate, Comparator.nullsLast(Comparator.naturalOrder()));
         } else if ("按优先级排序".equals(sort)) {
             return Comparator
-                .comparing(Schedule::isCompleted)
+                .comparing((Schedule s) -> s.isCompleted())
                 .thenComparing(Schedule::getPriorityValue, Comparator.reverseOrder());
         } else if ("按分类排序".equals(sort)) {
             return Comparator
-                .comparing(Schedule::isCompleted)
+                .comparing((Schedule s) -> s.isCompleted())
                 .thenComparing(Schedule::getCategory, Comparator.nullsFirst(Comparator.naturalOrder()));
         }
         return Comparator.comparing(Schedule::getDueDate, Comparator.nullsLast(Comparator.naturalOrder()));
@@ -288,9 +289,10 @@ public class ScheduleListView implements View {
             }
             
             // 创建单元格内容
-            HBox cell = new HBox(10);
+            HBox cell = new HBox(12);
             cell.setAlignment(Pos.CENTER_LEFT);
-            cell.setPadding(new Insets(8));
+            cell.setPadding(new Insets(12, 16, 12, 16));
+            cell.getStyleClass().add("schedule-card-inner");
             
             // 完成复选框
             ImageView statusIcon = createStatusIconView(schedule.isCompleted());
@@ -311,14 +313,15 @@ public class ScheduleListView implements View {
             Label titleLabel = new Label(schedule.getName());
             titleLabel.getStyleClass().add("schedule-title");
             if (schedule.isCompleted()) {
-                titleLabel.setStyle("-fx-strikethrough: true;");
+                titleLabel.getStyleClass().add("title-completed");
+                cell.setOpacity(0.7);
             }
             
             // 日期
             String dateText = "";
             if (schedule.getDueDate() != null) {
                 dateText = schedule.getDueDate().format(formatter);
-                if (schedule.isOverdue()) {
+                if (schedule.isOverdue() && !schedule.isCompleted()) {
                     dateText += " (已过期)";
                 }
             }
@@ -334,7 +337,31 @@ public class ScheduleListView implements View {
             
             cell.getChildren().addAll(statusIcon, priorityLabel, titleLabel, spacer, dateLabel, categoryLabel);
             
-            setGraphic(cell);
+            // 包装容器以支持分组标题
+            VBox container = new VBox(5);
+            
+            // 检查是否需要添加“已完成”分组标题
+            boolean isFirstCompleted = false;
+            if (schedule.isCompleted()) {
+                int index = getIndex();
+                if (index == 0) {
+                    isFirstCompleted = true;
+                } else if (index > 0 && index < getListView().getItems().size()) {
+                    Schedule prev = getListView().getItems().get(index - 1);
+                    if (prev != null && !prev.isCompleted()) {
+                        isFirstCompleted = true;
+                    }
+                }
+            }
+            
+            if (isFirstCompleted) {
+                Label header = new Label("已完成");
+                header.getStyleClass().add("completed-group-header");
+                container.getChildren().add(header);
+            }
+            
+            container.getChildren().add(cell);
+            setGraphic(container);
             
             // 添加点击事件，确保选择该日程
             cell.setOnMouseClicked(e -> {

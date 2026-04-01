@@ -1,0 +1,14 @@
+.root {
+    -color-primary: #ff6b6b;
+    -color-bg-active: #fff0f5;
+    -color-bg-panel: #fffafb;
+    -color-bg-base: #fdf5f6;
+    -color-success: #4ecdc4;
+    -color-danger: #ff6b6b;
+    -color-warning: #feca57;
+    -color-text-main: #596275;
+    -color-text-sub: #8395a7;
+    -color-timeline-track-even: #fffafb;
+    -color-timeline-track-odd: #fdf5f6;
+    -color-timeline-card-hover: #fff0f5;
+}

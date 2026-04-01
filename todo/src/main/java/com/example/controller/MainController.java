@@ -50,6 +50,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.Paint;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.SVGPath;
@@ -314,7 +315,7 @@ public class MainController {
         updateFeaturePanelState();
     }
 
-    private Pane createSvgIcon(String resourcePath, String title, double size) {
+    public Pane createSvgIcon(String resourcePath, String title, double size) {
         Group iconGroup = loadSvgGraphic(resourcePath);
         Pane container = new Pane(iconGroup);
         container.getStyleClass().add("sidebar-svg-icon");
@@ -322,8 +323,10 @@ public class MainController {
         container.setPrefSize(size, size);
         container.setMaxSize(size, size);
         container.setClip(new Rectangle(size, size));
-        container.setAccessibleText(title);
-        Tooltip.install(container, new Tooltip(title));
+        if (title != null && !title.isEmpty()) {
+            container.setAccessibleText(title);
+            Tooltip.install(container, new Tooltip(title));
+        }
         return container;
     }
 
@@ -571,10 +574,7 @@ public class MainController {
 
     private List<String> resolveBuiltinThemeStylesheets(String theme) {
         List<String> stylesheets = new ArrayList<>();
-        if ("dark".equals(theme)) {
-            stylesheets.add(resolveResourceStylesheet("/styles/dark-theme.css"));
-            return stylesheets;
-        }
+        stylesheets.add(resolveResourceStylesheet("/styles/base.css"));
 
         stylesheets.add(resolveResourceStylesheet("/styles/light-theme.css"));
         if ("mint".equals(theme)) {
@@ -589,6 +589,8 @@ public class MainController {
             stylesheets.add(resolveResourceStylesheet("/styles/forest-theme.css"));
         } else if ("slate".equals(theme)) {
             stylesheets.add(resolveResourceStylesheet("/styles/slate-theme.css"));
+        } else if ("macaron".equals(theme)) {
+            stylesheets.add(resolveResourceStylesheet("/styles/macaron-theme.css"));
         }
         return stylesheets;
     }
@@ -608,13 +610,13 @@ public class MainController {
     private Map<String, String> createBuiltinThemeMap() {
         Map<String, String> themes = new LinkedHashMap<>();
         themes.put("light", "浅色");
-        themes.put("dark", "深色");
         themes.put("mint", "薄荷");
         themes.put("ocean", "海洋");
         themes.put("sunset", "落日");
         themes.put("lavender", "薰衣草");
         themes.put("forest", "森林");
         themes.put("slate", "石板");
+        themes.put("macaron", "马卡龙");
         return themes;
     }
 
@@ -705,15 +707,9 @@ public class MainController {
             return;
         }
         themeIcon.getStyleClass().removeAll("theme-icon-light", "theme-icon-dark");
-        if ("dark".equals(currentTheme)) {
-            themeIcon.getStyleClass().add("theme-icon-dark");
-            themeIcon.setRotate(180);
-            themeIcon.setOpacity(0.95);
-        } else {
-            themeIcon.getStyleClass().add("theme-icon-light");
-            themeIcon.setRotate(0);
-            themeIcon.setOpacity(1.0);
-        }
+        themeIcon.getStyleClass().add("theme-icon-light");
+        themeIcon.setRotate(0);
+        themeIcon.setOpacity(1.0);
     }
     
     private void performSearch(String keyword) {

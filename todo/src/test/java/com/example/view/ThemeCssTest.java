@@ -14,45 +14,38 @@ class ThemeCssTest {
 
     @Test
     void darkThemeDefinesMenuContrastSelectors() throws IOException {
-        String css = readCss("/styles/dark-theme.css");
-
-        assertAll(
-            () -> assertTrue(css.contains(".menu-bar > .container > .menu-button > .label")),
-            () -> assertTrue(css.contains(".context-menu")),
-            () -> assertTrue(css.contains(".context-menu .menu-item:focused")),
-            () -> assertTrue(css.contains(".separator-menu-item .line"))
+        String content = readCss("/styles/base.css");
+        
+        assertAll("dark-theme.css menu contrast selectors",
+            () -> assertTrue(content.contains(".menu-bar > .container > .menu-button > .label {")),
+            () -> assertTrue(content.contains(".context-menu .menu-item > .label {")),
+            () -> assertTrue(content.contains(".context-menu .menu-item:focused > .label,")),
+            () -> assertTrue(content.contains(".context-menu .menu-item:hover > .label {"))
         );
     }
 
     @Test
     void themeFilesContainHeatmapSelectionAndDayCardStyles() throws IOException {
-        String darkCss = readCss("/styles/dark-theme.css");
-        String lightCss = readCss("/styles/light-theme.css");
-
-        assertAll(
-            () -> assertTrue(darkCss.contains(".heatmap-day-card")),
-            () -> assertTrue(darkCss.contains(".heatmap-cell-selected")),
-            () -> assertTrue(lightCss.contains(".heatmap-day-card")),
-            () -> assertTrue(lightCss.contains(".heatmap-cell-selected"))
+        String baseContent = readCss("/styles/base.css");
+        
+        assertAll("theme files heatmap specific styles",
+            () -> assertTrue(baseContent.contains(".heatmap-cell-selected {")),
+            () -> assertTrue(baseContent.contains(".heatmap-day-panel {")),
+            () -> assertTrue(baseContent.contains(".heatmap-day-title {")),
+            () -> assertTrue(baseContent.contains(".heatmap-day-scroll {"))
         );
     }
 
     @Test
     void themesContainSidebarTitleAndDialogStyles() throws IOException {
-        String darkCss = readCss("/styles/dark-theme.css");
-        String lightCss = readCss("/styles/light-theme.css");
-        String mintCss = readCss("/styles/mint-theme.css");
-        String oceanCss = readCss("/styles/ocean-theme.css");
-        String sunsetCss = readCss("/styles/sunset-theme.css");
-
-        assertAll(
-            () -> assertTrue(darkCss.contains(".sidebar-function-title")),
-            () -> assertTrue(lightCss.contains(".sidebar-function-title")),
-            () -> assertTrue(darkCss.contains(".schedule-dialog-pane")),
-            () -> assertTrue(lightCss.contains(".schedule-dialog-pane")),
-            () -> assertTrue(mintCss.contains(".schedule-dialog-pane")),
-            () -> assertTrue(oceanCss.contains(".schedule-dialog-pane")),
-            () -> assertTrue(sunsetCss.contains(".schedule-dialog-pane"))
+        String baseContent = readCss("/styles/base.css");
+        
+        assertAll("theme files sidebar title and dialog styles",
+            () -> assertTrue(baseContent.contains(".sidebar-function-title")),
+            () -> assertTrue(baseContent.contains(".schedule-dialog-pane")),
+            () -> assertTrue(baseContent.contains(".schedule-dialog-grid")),
+            () -> assertTrue(baseContent.contains(".schedule-dialog-label")),
+            () -> assertTrue(baseContent.contains(".schedule-dialog-check"))
         );
     }
 
@@ -63,9 +56,9 @@ class ThemeCssTest {
         String slate = readCss("/styles/slate-theme.css");
 
         assertAll(
-            () -> assertTrue(lavender.contains(".sidebar-function-title")),
-            () -> assertTrue(forest.contains(".sidebar-function-title")),
-            () -> assertTrue(slate.contains(".sidebar-function-title"))
+            () -> assertTrue(lavender.contains("-color-primary")),
+            () -> assertTrue(forest.contains("-color-primary")),
+            () -> assertTrue(slate.contains("-color-primary"))
         );
     }
 
