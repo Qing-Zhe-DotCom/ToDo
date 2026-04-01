@@ -1,6 +1,9 @@
 package com.example.controller;
 
 import java.sql.SQLException;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import com.example.model.Schedule;
@@ -12,20 +15,30 @@ import com.example.view.ScheduleListView;
 import com.example.view.TimelineView;
 import com.example.view.View;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.geometry.Bounds;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuBar;
+import javafx.scene.control.Button;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.Separator;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
+import javafx.util.Duration;
 
 public class MainController {
     
@@ -38,6 +51,8 @@ public class MainController {
     private HeatmapView heatmapView;
     private FlowchartView flowchartView;
     private InfoPanelView infoPanelView;
+    private StackPane infoPanelHost;
+    private Timeline infoPanelAnimation;
     
     // 当前选中的视图
     private View currentView;
@@ -45,6 +60,9 @@ public class MainController {
     
     // 主题管理
     private String currentTheme = "light";
+    private String importedThemePath;
+    private static final double INFO_PANEL_EXPANDED_WIDTH = 320;
+    private boolean infoPanelVisible = false;
     
     public MainController() {
         initializeUI();
@@ -53,9 +71,6 @@ public class MainController {
     private void initializeUI() {
         root = new BorderPane();
         root.getStyleClass().add("root");
-        
-        // 创建顶部菜单栏
-        createMenuBar();
         
         // 创建左侧导航栏
         createSidebar();
@@ -74,61 +89,10 @@ public class MainController {
         showView(scheduleListView);
     }
     
-    private void createMenuBar() {
-        MenuBar menuBar = new MenuBar();
-        menuBar.getStyleClass().add("menu-bar");
-        
-        // 文件菜单
-        Menu fileMenu = new Menu("文件");
-        MenuItem newScheduleItem = new MenuItem("新建日程 (Ctrl+N)");
-        newScheduleItem.setOnAction(e -> openNewScheduleDialog());
-        
-        MenuItem exitItem = new MenuItem("退出");
-        exitItem.setOnAction(e -> Platform.exit());
-        
-        fileMenu.getItems().addAll(newScheduleItem, new SeparatorMenuItem(), exitItem);
-        
-        // 视图菜单 - CSS风格选择
-        Menu viewMenu = new Menu("选择CSS风格");
-        
-        RadioMenuItem lightThemeItem = new RadioMenuItem("浅色主题");
-        lightThemeItem.setSelected(true);
-        lightThemeItem.setOnAction(e -> switchTheme("light"));
-        
-        RadioMenuItem darkThemeItem = new RadioMenuItem("深色主题");
-        darkThemeItem.setOnAction(e -> switchTheme("dark"));
-        
-        ToggleGroup themeGroup = new ToggleGroup();
-        lightThemeItem.setToggleGroup(themeGroup);
-        darkThemeItem.setToggleGroup(themeGroup);
-        
-        viewMenu.getItems().addAll(lightThemeItem, darkThemeItem);
-        
-        // 用户菜单
-        Menu userMenu = new Menu("用户");
-        MenuItem loginItem = new MenuItem("登录");
-        loginItem.setOnAction(e -> showLoginDialog());
-        
-        MenuItem settingsItem = new MenuItem("设置");
-        settingsItem.setOnAction(e -> showSettingsDialog());
-        
-        userMenu.getItems().addAll(loginItem, new SeparatorMenuItem(), settingsItem);
-        
-        // 帮助菜单
-        Menu helpMenu = new Menu("帮助");
-        MenuItem aboutItem = new MenuItem("关于");
-        aboutItem.setOnAction(e -> showAboutDialog());
-        
-        helpMenu.getItems().add(aboutItem);
-        
-        menuBar.getMenus().addAll(fileMenu, viewMenu, userMenu, helpMenu);
-        root.setTop(menuBar);
-    }
-    
     private void createSidebar() {
-        VBox sidebar = new VBox(5);
+        VBox sidebar = new VBox(8);
         sidebar.getStyleClass().add("sidebar");
-        sidebar.setPrefWidth(140);
+        sidebar.setPrefWidth(170);
         
         // 搜索框
         TextField searchField = new TextField();
@@ -151,6 +115,40 @@ public class MainController {
         
         ToggleButton flowchartBtn = createNavButton("日程流程图", navGroup);
         flowchartBtn.setOnAction(e -> showView(flowchartView));
+
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
+
+        Button collapseToggle = new Button("⚙ 功能菜单 ▼");
+        collapseToggle.getStyleClass().addAll("button-secondary", "sidebar-footer-toggle");
+        collapseToggle.setMaxWidth(Double.MAX_VALUE);
+
+        VBox actionPanel = new VBox(6);
+        actionPanel.getStyleClass().add("sidebar-action-panel");
+
+        Button newScheduleAction = createSidebarActionButton("📝 新建日程", this::openNewScheduleDialog);
+        Button themeAction = createSidebarActionButton("🎨 主题", () -> {});
+        Button loginAction = createSidebarActionButton("👤 登录", this::showLoginDialog);
+        Button settingsAction = createSidebarActionButton("⚙ 设置", this::showSettingsDialog);
+        Button aboutAction = createSidebarActionButton("ℹ 关于", this::showAboutDialog);
+        Button exitAction = createSidebarActionButton("⏻ 退出", Platform::exit);
+        themeAction.setOnMouseClicked(e -> showThemeMenu(themeAction));
+
+        actionPanel.getChildren().addAll(
+            newScheduleAction,
+            themeAction,
+            loginAction,
+            settingsAction,
+            aboutAction,
+            exitAction
+        );
+
+        collapseToggle.setOnAction(e -> {
+            boolean nextVisible = !actionPanel.isVisible();
+            actionPanel.setVisible(nextVisible);
+            actionPanel.setManaged(nextVisible);
+            collapseToggle.setText(nextVisible ? "⚙ 功能菜单 ▼" : "⚙ 功能菜单 ▲");
+        });
         
         sidebar.getChildren().addAll(
             searchField,
@@ -158,7 +156,11 @@ public class MainController {
             scheduleBtn,
             timelineBtn,
             heatmapBtn,
-            flowchartBtn
+            flowchartBtn,
+            spacer,
+            new Separator(),
+            collapseToggle,
+            actionPanel
         );
         
         root.setLeft(sidebar);
@@ -171,10 +173,28 @@ public class MainController {
         button.setMaxWidth(Double.MAX_VALUE);
         return button;
     }
+
+    private Button createSidebarActionButton(String text, Runnable action) {
+        Button button = new Button(text);
+        button.getStyleClass().add("sidebar-action-button");
+        button.setMaxWidth(Double.MAX_VALUE);
+        button.setWrapText(true);
+        button.setOnAction(e -> action.run());
+        return button;
+    }
     
     private void createInfoPanel() {
         infoPanelView = new InfoPanelView(this);
-        root.setRight(infoPanelView.getView());
+        infoPanelHost = new StackPane(infoPanelView.getView());
+        infoPanelHost.getStyleClass().add("info-panel-host");
+        infoPanelHost.setPrefWidth(0);
+        infoPanelHost.setMinWidth(0);
+        infoPanelHost.setMaxWidth(INFO_PANEL_EXPANDED_WIDTH);
+        infoPanelView.getView().setVisible(false);
+        infoPanelView.getView().setManaged(false);
+        infoPanelView.getView().setOpacity(0);
+        infoPanelView.getView().setTranslateX(30);
+        root.setRight(infoPanelHost);
     }
     
     private void showView(View view) {
@@ -186,6 +206,10 @@ public class MainController {
     public void showScheduleDetails(Schedule schedule) {
         this.selectedSchedule = schedule;
         infoPanelView.setSchedule(schedule);
+        showInfoPanelAnimated();
+        if (currentView != null) {
+            currentView.refresh();
+        }
     }
     
     public Schedule getSelectedSchedule() {
@@ -198,19 +222,13 @@ public class MainController {
         }
         infoPanelView.refresh();
     }
+
+    public void hideScheduleDetailsPanel() {
+        hideInfoPanelAnimated();
+    }
     
     private void switchTheme(String theme) {
-        if (scene == null) return;
-        
-        // 移除当前主题
-        scene.getStylesheets().clear();
-        
-        // 添加新主题
-        String themePath = "/styles/" + theme + "-theme.css";
-        scene.getStylesheets().add(getClass().getResource(themePath).toExternalForm());
-        
-        currentTheme = theme;
-        refreshAllViews();
+        applyBuiltInTheme(theme);
     }
     
     private void performSearch(String keyword) {
@@ -298,6 +316,20 @@ public class MainController {
     
     public void setScene(Scene scene) {
         this.scene = scene;
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                hideInfoPanelAnimated();
+            }
+        });
+        scene.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+            if (!infoPanelVisible || infoPanelHost == null) {
+                return;
+            }
+            Bounds bounds = infoPanelHost.localToScene(infoPanelHost.getBoundsInLocal());
+            if (bounds == null || !bounds.contains(event.getSceneX(), event.getSceneY())) {
+                hideInfoPanelAnimated();
+            }
+        });
     }
     
     public void initialize() {
@@ -307,5 +339,147 @@ public class MainController {
     
     public void shutdown() {
         // 清理资源
+    }
+
+    private void showInfoPanelAnimated() {
+        if (infoPanelHost == null) {
+            return;
+        }
+        if (infoPanelVisible && infoPanelHost.getPrefWidth() >= INFO_PANEL_EXPANDED_WIDTH - 1) {
+            return;
+        }
+        if (infoPanelAnimation != null) {
+            infoPanelAnimation.stop();
+        }
+        infoPanelVisible = true;
+        infoPanelView.getView().setVisible(true);
+        infoPanelView.getView().setManaged(true);
+        infoPanelAnimation = new Timeline(
+            new KeyFrame(Duration.ZERO,
+                new KeyValue(infoPanelHost.prefWidthProperty(), infoPanelHost.getPrefWidth()),
+                new KeyValue(infoPanelView.getView().opacityProperty(), infoPanelView.getView().getOpacity()),
+                new KeyValue(infoPanelView.getView().translateXProperty(), infoPanelView.getView().getTranslateX())
+            ),
+            new KeyFrame(Duration.millis(300),
+                new KeyValue(infoPanelHost.prefWidthProperty(), INFO_PANEL_EXPANDED_WIDTH),
+                new KeyValue(infoPanelView.getView().opacityProperty(), 1.0),
+                new KeyValue(infoPanelView.getView().translateXProperty(), 0)
+            )
+        );
+        infoPanelAnimation.play();
+    }
+
+    private void hideInfoPanelAnimated() {
+        if (infoPanelHost == null || !infoPanelVisible) {
+            return;
+        }
+        if (infoPanelAnimation != null) {
+            infoPanelAnimation.stop();
+        }
+        infoPanelVisible = false;
+        infoPanelAnimation = new Timeline(
+            new KeyFrame(Duration.ZERO,
+                new KeyValue(infoPanelHost.prefWidthProperty(), infoPanelHost.getPrefWidth()),
+                new KeyValue(infoPanelView.getView().opacityProperty(), infoPanelView.getView().getOpacity()),
+                new KeyValue(infoPanelView.getView().translateXProperty(), infoPanelView.getView().getTranslateX())
+            ),
+            new KeyFrame(Duration.millis(300),
+                new KeyValue(infoPanelHost.prefWidthProperty(), 0),
+                new KeyValue(infoPanelView.getView().opacityProperty(), 0),
+                new KeyValue(infoPanelView.getView().translateXProperty(), 30)
+            )
+        );
+        infoPanelAnimation.setOnFinished(e -> {
+            infoPanelView.getView().setVisible(false);
+            infoPanelView.getView().setManaged(false);
+        });
+        infoPanelAnimation.play();
+    }
+
+    private void showThemeMenu(Button owner) {
+        ContextMenu menu = new ContextMenu();
+
+        MenuItem lightItem = new MenuItem("浅色主题");
+        lightItem.setOnAction(e -> applyBuiltInTheme("light"));
+
+        MenuItem darkItem = new MenuItem("深色主题");
+        darkItem.setOnAction(e -> applyBuiltInTheme("dark"));
+
+        MenuItem mintItem = new MenuItem("薄荷主题");
+        mintItem.setOnAction(e -> applyBuiltInTheme("mint"));
+
+        MenuItem sunsetItem = new MenuItem("日落主题");
+        sunsetItem.setOnAction(e -> applyBuiltInTheme("sunset"));
+
+        MenuItem oceanItem = new MenuItem("海洋主题");
+        oceanItem.setOnAction(e -> applyBuiltInTheme("ocean"));
+
+        MenuItem importItem = new MenuItem("导入主题...");
+        importItem.setOnAction(e -> importThemeFromFile());
+
+        menu.getItems().addAll(lightItem, darkItem, mintItem, sunsetItem, oceanItem, new SeparatorMenuItem(), importItem);
+        menu.show(owner, javafx.geometry.Side.TOP, 0, 0);
+    }
+
+    private void applyBuiltInTheme(String theme) {
+        if (scene == null) {
+            currentTheme = theme;
+            return;
+        }
+        importedThemePath = null;
+        List<String> styles = new ArrayList<>();
+        if ("dark".equals(theme)) {
+            styles.add("/styles/dark-theme.css");
+        } else {
+            styles.add("/styles/light-theme.css");
+            if ("mint".equals(theme)) {
+                styles.add("/styles/mint-theme.css");
+            } else if ("sunset".equals(theme)) {
+                styles.add("/styles/sunset-theme.css");
+            } else if ("ocean".equals(theme)) {
+                styles.add("/styles/ocean-theme.css");
+            }
+        }
+        applyThemeStylesheets(styles);
+        currentTheme = theme;
+        refreshAllViews();
+    }
+
+    private void importThemeFromFile() {
+        if (scene == null) {
+            return;
+        }
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("导入主题CSS");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSS 文件", "*.css"));
+        File selected = chooser.showOpenDialog(scene.getWindow());
+        if (selected == null) {
+            return;
+        }
+        importedThemePath = selected.toURI().toString();
+        List<String> styles = new ArrayList<>();
+        styles.add("/styles/light-theme.css");
+        styles.add(importedThemePath);
+        applyThemeStylesheets(styles);
+        currentTheme = "custom";
+        refreshAllViews();
+        showInfo("主题导入成功", "已应用外部主题: " + selected.getName());
+    }
+
+    private void applyThemeStylesheets(List<String> stylePaths) {
+        if (scene == null) {
+            return;
+        }
+        scene.getStylesheets().clear();
+        for (String path : stylePaths) {
+            if (path == null || path.isEmpty()) {
+                continue;
+            }
+            if (path.startsWith("/")) {
+                scene.getStylesheets().add(getClass().getResource(path).toExternalForm());
+            } else {
+                scene.getStylesheets().add(path);
+            }
+        }
     }
 }

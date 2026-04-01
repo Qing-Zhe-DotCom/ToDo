@@ -53,6 +53,13 @@ public class InfoPanelView {
         // 标题
         Label panelTitle = new Label("日程详情");
         panelTitle.getStyleClass().add("info-panel-title");
+        Button closeButton = new Button("✕");
+        closeButton.getStyleClass().addAll("button-secondary", "info-panel-close");
+        closeButton.setOnAction(e -> controller.hideScheduleDetailsPanel());
+        Region titleSpacer = new Region();
+        HBox.setHgrow(titleSpacer, Priority.ALWAYS);
+        HBox titleBar = new HBox(8, panelTitle, titleSpacer, closeButton);
+        titleBar.setAlignment(Pos.CENTER_LEFT);
 
         // 日程标题
         titleLabel = new Label("请选择日程");
@@ -125,7 +132,7 @@ public class InfoPanelView {
         timeBox.setAlignment(Pos.TOP_LEFT);
 
         root.getChildren().addAll(
-            panelTitle,
+            titleBar,
             separator1,
             titleLabel,
             statusLabel,

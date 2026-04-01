@@ -1,0 +1,32 @@
+.root {
+    -fx-base: #f4f9ff;
+    -fx-background: #f4f9ff;
+}
+
+.sidebar {
+    -fx-background-color: #e8f4ff;
+    -fx-border-color: #cfe4ff;
+}
+
+.nav-button.active {
+    -fx-background-color: #d9ebff;
+    -fx-text-fill: #1f4fa3;
+    -fx-border-color: #1f4fa3;
+}
+
+.button {
+    -fx-background-color: #2563eb;
+}
+
+.button:hover {
+    -fx-background-color: #1d4ed8;
+}
+
+.info-panel {
+    -fx-background-color: #f8fbff;
+    -fx-border-color: #dce9ff;
+}
+
+.timeline-schedule-selected {
+    -fx-effect: dropshadow(gaussian, rgba(37,99,235,0.35), 16, 0.2, 0, 2);
+}

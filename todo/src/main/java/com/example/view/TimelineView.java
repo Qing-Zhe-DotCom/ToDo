@@ -437,6 +437,10 @@ public class TimelineView implements View {
         scheduleCard.setLayoutX(startX);
         scheduleCard.setLayoutY(cardY);
         scheduleCard.getStyleClass().add("timeline-schedule-card");
+        Schedule selectedSchedule = controller.getSelectedSchedule();
+        if (selectedSchedule != null && selectedSchedule.getId() == schedule.getId()) {
+            scheduleCard.getStyleClass().add("timeline-schedule-selected");
+        }
         double baseViewOrder = -(cardY * 10000 + startX);
         scheduleCard.setViewOrder(baseViewOrder);
 
@@ -602,6 +606,8 @@ public class TimelineView implements View {
         });
 
         scheduleCard.setOnMouseClicked(e -> {
+            timelinePane.getChildren().forEach(node -> node.getStyleClass().remove("timeline-schedule-selected"));
+            scheduleCard.getStyleClass().add("timeline-schedule-selected");
             controller.showScheduleDetails(schedule);
             if (e.getClickCount() == 2) {
                 controller.openEditScheduleDialog(schedule);
