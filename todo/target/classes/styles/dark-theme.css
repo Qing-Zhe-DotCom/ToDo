@@ -112,34 +112,6 @@
     -fx-border-width: 0 0 0 3;
 }
 
-.sidebar-footer-toggle {
-    -fx-font-size: 12px;
-    -fx-padding: 8 10;
-    -fx-alignment: center-left;
-}
-
-.sidebar-action-panel {
-    -fx-padding: 4 0 0 0;
-    -fx-spacing: 6;
-}
-
-.sidebar-action-button {
-    -fx-background-color: transparent;
-    -fx-text-fill: #cccccc;
-    -fx-border-color: #3d3d3d;
-    -fx-border-width: 1;
-    -fx-border-radius: 4;
-    -fx-padding: 7 10;
-    -fx-font-size: 12px;
-    -fx-alignment: center-left;
-    -fx-cursor: hand;
-}
-
-.sidebar-action-button:hover {
-    -fx-background-color: #323438;
-    -fx-border-color: #4b4f54;
-}
-
 /* 中央主显示区 */
 .main-content {
     -fx-background-color: #1e1e1e;
@@ -160,16 +132,6 @@
     -fx-font-weight: bold;
     -fx-text-fill: #e0e0e0;
     -fx-padding: 0 0 10 0;
-}
-
-.info-panel-close {
-    -fx-min-width: 30;
-    -fx-min-height: 30;
-    -fx-pref-width: 30;
-    -fx-pref-height: 30;
-    -fx-padding: 0;
-    -fx-font-size: 14px;
-    -fx-font-weight: bold;
 }
 
 /* 日程列表样式 */
@@ -499,10 +461,6 @@
     -fx-text-fill: #f3f5f7;
     -fx-font-size: 12px;
     -fx-font-weight: bold;
-}
-
-.timeline-schedule-selected {
-    -fx-effect: dropshadow(gaussian, rgba(79,195,247,0.42), 18, 0.2, 0, 2);
 }
 
 .timeline-schedule-card {
