@@ -1,3 +1,10 @@
 .root {
-    -color-primary: #ff7043; -color-bg-active: #fbe9e7; -color-bg-panel: #fffaf9;
+    -color-primary: #ff7043; 
+    -color-bg-active: #fbe9e7; 
+    -color-bg-panel: #fffbf9;
+    -color-heatmap-0: #fffbf9;
+    -color-heatmap-1: #ffccbc;
+    -color-heatmap-2: #ffab91;
+    -color-heatmap-3: #ff8a65;
+    -color-heatmap-4: #e64a19;
 }
