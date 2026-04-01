@@ -108,11 +108,48 @@
 
 .sidebar-action-button {
     -fx-font-size: 12px;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 0;
+}
+
+.sidebar-bottom-actions .sidebar-action-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-effect: null;
 }
 
 .sidebar-feature-toggle {
     -fx-font-size: 16px;
     -fx-font-weight: bold;
+}
+
+.sidebar-bottom-actions .sidebar-action-button:hover,
+.sidebar-bottom-actions .sidebar-action-button:focused,
+.sidebar-bottom-actions .sidebar-action-button:pressed {
+    -fx-background-color: transparent;
+    -fx-text-fill: #424242;
+    -fx-opacity: 0.82;
+    -fx-border-color: transparent;
+    -fx-effect: null;
+}
+
+.sidebar-svg-icon {
+    -fx-min-width: 24;
+    -fx-min-height: 24;
+    -fx-pref-width: 24;
+    -fx-pref-height: 24;
+}
+
+.theme-icon-light {
+    -fx-opacity: 1.0;
+}
+
+.theme-icon-dark {
+    -fx-opacity: 0.95;
 }
 
 .nav-button:hover {
@@ -125,6 +162,10 @@
     -fx-text-fill: #1976d2;
     -fx-border-color: #1976d2;
     -fx-border-width: 0 0 0 3;
+}
+
+.nav-button {
+    -fx-text-overrun: clip;
 }
 
 /* 中央主显示区 */

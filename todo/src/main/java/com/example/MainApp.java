@@ -4,6 +4,7 @@ import com.example.controller.MainController;
 
 import javafx.application.Application;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
 public class MainApp extends Application {
@@ -32,8 +33,7 @@ public class MainApp extends Application {
             primaryStage.setMinWidth(MIN_WIDTH);
             primaryStage.setMinHeight(MIN_HEIGHT);
             
-            // 设置应用图标（如果有的话）
-            // primaryStage.getIcons().add(new Image(getClass().getResourceAsStream("/images/app-icon.png")));
+            primaryStage.getIcons().add(new Image(getClass().getResourceAsStream("/icons/macaron-todo-icon.png")));
             
             primaryStage.show();
             

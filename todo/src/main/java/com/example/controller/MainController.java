@@ -2,11 +2,13 @@ package com.example.controller;
 
 import java.sql.SQLException;
 import java.io.File;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.prefs.Preferences;
 
 import com.example.model.Schedule;
 import com.example.view.FlowchartView;
@@ -25,9 +27,11 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.Labeled;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.Separator;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextField;
@@ -41,8 +45,23 @@ import javafx.geometry.Side;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.SVGPath;
+import javafx.scene.shape.Shape;
+import javafx.scene.shape.StrokeLineCap;
+import javafx.scene.shape.StrokeLineJoin;
+import javafx.scene.Group;
+import javafx.scene.transform.Scale;
+import javafx.scene.transform.Translate;
 import javafx.stage.FileChooser;
+import javax.xml.parsers.DocumentBuilderFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 
 public class MainController {
     
@@ -66,16 +85,24 @@ public class MainController {
     private TextField searchField;
     private ToggleButton collapseToggle;
     private ToggleButton featurePanelToggle;
+    private Button themeButton;
+    private StackPane collapseToggleIcon;
+    private StackPane featureToggleIcon;
+    private StackPane themeIcon;
     private boolean sidebarCollapsed = false;
     private boolean featurePanelExpanded = false;
     private final Map<Labeled, String[]> collapsibleLabels = new LinkedHashMap<>();
     private String importedThemeStylesheet;
     private final Map<String, String> builtinThemes = createBuiltinThemeMap();
+    private final Preferences preferences = Preferences.userNodeForPackage(MainController.class);
+    private static final String PREF_THEME_KEY = "todo.theme";
+    private static final String PREF_IMPORTED_THEME_KEY = "todo.theme.imported.path";
     
     // 主题管理
     private String currentTheme = "light";
     
     public MainController() {
+        loadThemePreference();
         initializeUI();
     }
     
@@ -105,9 +132,14 @@ public class MainController {
         sidebar.getStyleClass().add("sidebar");
         sidebar.setPrefWidth(220);
 
-        collapseToggle = new ToggleButton("« 收起");
+        collapseToggle = new ToggleButton();
         collapseToggle.getStyleClass().addAll("nav-button", "sidebar-collapse-button");
         collapseToggle.setMaxWidth(Double.MAX_VALUE);
+        collapseToggleIcon = createSvgIcon("/icons/macaron-logo-triangle-arrow.svg", "展开或收起侧边栏", 24);
+        collapseToggle.setGraphic(collapseToggleIcon);
+        collapseToggle.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        collapseToggle.setAccessibleText("展开或收起侧边栏");
+        collapseToggle.setTooltip(new Tooltip("展开或收起侧边栏"));
         collapseToggle.setOnAction(e -> {
             sidebarCollapsed = collapseToggle.isSelected();
             updateSidebarCollapseState();
@@ -121,17 +153,17 @@ public class MainController {
         // 导航按钮
         ToggleGroup navGroup = new ToggleGroup();
 
-        ToggleButton scheduleBtn = createNavButton("📋", "日程管理", navGroup);
+        ToggleButton scheduleBtn = createNavButton("/icons/macaron-logo-calendar.svg", "日程管理", navGroup);
         scheduleBtn.setSelected(true);
         scheduleBtn.setOnAction(e -> showView(scheduleListView));
 
-        ToggleButton timelineBtn = createNavButton("🕒", "日程时间轴", navGroup);
+        ToggleButton timelineBtn = createNavButton("/icons/macaron-logo-timeline.svg", "日程时间轴", navGroup);
         timelineBtn.setOnAction(e -> showView(timelineView));
 
-        ToggleButton heatmapBtn = createNavButton("🔥", "日程热力图", navGroup);
+        ToggleButton heatmapBtn = createNavButton("/icons/macaron-logo-grid-heatmap.svg", "日程热力图", navGroup);
         heatmapBtn.setOnAction(e -> showView(heatmapView));
 
-        ToggleButton flowchartBtn = createNavButton("🧭", "日程流程图", navGroup);
+        ToggleButton flowchartBtn = createNavButton("/icons/macaron-logo-flowchart.svg", "日程流程图", navGroup);
         flowchartBtn.setOnAction(e -> showView(flowchartView));
 
         Region spacer = new Region();
@@ -140,12 +172,16 @@ public class MainController {
         Label functionTitle = new Label("侧边功能栏");
         functionTitle.getStyleClass().add("label-hint");
 
-        Button newScheduleButton = createActionButton("➕", "新建日程", this::openNewScheduleDialog);
-        Button themeButton = createActionButton("🎨", "主题", () -> {});
-        themeButton.setOnAction(e -> showThemeMenu(themeButton));
-        Button loginButton = createActionButton("👤", "登录", this::showLoginDialog);
-        Button settingsButton = createActionButton("⚙️", "设置", this::showSettingsDialog);
-        Button exitButton = createActionButton("⏻", "退出", Platform::exit);
+        Button newScheduleButton = createActionButton("/icons/macaron-logo-new-schedule.svg", "新建日程", this::openNewScheduleDialog);
+        themeButton = createActionButton("/icons/macaron-logo-theme.svg", "主题", this::togglePrimaryTheme);
+        themeButton.setOnContextMenuRequested(e -> {
+            showThemeMenu(themeButton);
+            e.consume();
+        });
+        themeIcon = (StackPane) themeButton.getGraphic();
+        Button loginButton = createActionButton("/icons/macaron-logo-user.svg", "登录", this::showLoginDialog);
+        Button settingsButton = createActionButton("/icons/macaron-logo-settings.svg", "设置", this::showSettingsDialog);
+        Button exitButton = createActionButton("/icons/macaron-logo-logout.svg", "退出", Platform::exit);
 
         bottomActions = new VBox(6);
         bottomActions.getStyleClass().add("sidebar-bottom-actions");
@@ -158,9 +194,14 @@ public class MainController {
             exitButton
         );
 
-        featurePanelToggle = new ToggleButton("▸");
+        featurePanelToggle = new ToggleButton();
         featurePanelToggle.getStyleClass().addAll("nav-button", "sidebar-feature-toggle");
         featurePanelToggle.setMaxWidth(Double.MAX_VALUE);
+        featureToggleIcon = createSvgIcon("/icons/macaron-logo-triangle-arrow.svg", "展开或收起侧边功能栏", 24);
+        featurePanelToggle.setGraphic(featureToggleIcon);
+        featurePanelToggle.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        featurePanelToggle.setAccessibleText("展开或收起侧边功能栏");
+        featurePanelToggle.setTooltip(new Tooltip("展开或收起侧边功能栏"));
         featurePanelToggle.setOnAction(e -> {
             featurePanelExpanded = featurePanelToggle.isSelected();
             updateFeaturePanelState();
@@ -186,23 +227,35 @@ public class MainController {
         root.setLeft(sidebar);
     }
 
-    private ToggleButton createNavButton(String icon, String text, ToggleGroup group) {
-        String expandedText = icon + "  " + text;
-        ToggleButton button = new ToggleButton(expandedText);
+    private ToggleButton createNavButton(String iconPath, String text, ToggleGroup group) {
+        ToggleButton button = new ToggleButton(text);
         button.getStyleClass().add("nav-button");
         button.setToggleGroup(group);
         button.setMaxWidth(Double.MAX_VALUE);
-        registerCollapsibleControl(button, expandedText, icon, text);
+        button.setGraphic(createSvgIcon(iconPath, text, 24));
+        button.setGraphicTextGap(8);
+        button.setContentDisplay(ContentDisplay.LEFT);
+        button.setTextOverrun(OverrunStyle.CLIP);
+        button.setWrapText(false);
+        button.setAccessibleText(text);
+        button.setTooltip(new Tooltip(text));
+        registerCollapsibleControl(button, text, "", text);
         return button;
     }
 
-    private Button createActionButton(String icon, String text, Runnable action) {
-        String expandedText = icon + "  " + text;
-        Button button = new Button(expandedText);
+    private Button createActionButton(String iconPath, String text, Runnable action) {
+        Button button = new Button(text);
         button.getStyleClass().addAll("nav-button", "sidebar-action-button");
         button.setMaxWidth(Double.MAX_VALUE);
+        button.setGraphic(createSvgIcon(iconPath, text, 24));
+        button.setGraphicTextGap(8);
+        button.setContentDisplay(ContentDisplay.LEFT);
+        button.setTextOverrun(OverrunStyle.CLIP);
+        button.setWrapText(false);
+        button.setAccessibleText(text);
+        button.setTooltip(new Tooltip(text));
         button.setOnAction(e -> action.run());
-        registerCollapsibleControl(button, expandedText, icon, text);
+        registerCollapsibleControl(button, text, "", text);
         return button;
     }
 
@@ -215,7 +268,7 @@ public class MainController {
         if (sidebar == null) return;
 
         double collapsedWidth = 52;
-        double expandedWidth = 220;
+        double expandedWidth = 256;
         sidebar.setPrefWidth(sidebarCollapsed ? collapsedWidth : expandedWidth);
         sidebar.setMinWidth(sidebarCollapsed ? collapsedWidth : expandedWidth);
         sidebar.setMaxWidth(sidebarCollapsed ? collapsedWidth : expandedWidth);
@@ -224,7 +277,12 @@ public class MainController {
         sidebar.setAlignment(sidebarCollapsed ? Pos.TOP_CENTER : Pos.TOP_LEFT);
 
         if (collapseToggle != null) {
-            collapseToggle.setText(sidebarCollapsed ? "»" : "« 收起");
+            collapseToggle.setText("");
+            collapseToggle.setAlignment(sidebarCollapsed ? Pos.CENTER : Pos.CENTER_LEFT);
+            collapseToggle.setPadding(sidebarCollapsed ? new Insets(4, 0, 4, 0) : new Insets(8, 12, 8, 12));
+            if (collapseToggleIcon != null) {
+                collapseToggleIcon.setRotate(sidebarCollapsed ? 0 : 90);
+            }
         }
 
         if (searchField != null) {
@@ -237,24 +295,201 @@ public class MainController {
             String[] labels = entry.getValue();
             control.setText(sidebarCollapsed ? labels[1] : labels[0]);
             control.setAlignment(sidebarCollapsed ? Pos.CENTER : Pos.CENTER_LEFT);
-            control.setPadding(sidebarCollapsed ? new Insets(4, 0, 4, 0) : new Insets(12, 15, 12, 15));
+            control.setContentDisplay(sidebarCollapsed ? ContentDisplay.GRAPHIC_ONLY : ContentDisplay.LEFT);
+            control.setPadding(sidebarCollapsed ? new Insets(4, 0, 4, 0) : new Insets(10, 12, 10, 12));
             if (sidebarCollapsed) {
                 control.setMinSize(30, 30);
                 control.setPrefSize(30, 30);
             } else {
                 control.setMinWidth(0);
-                control.setPrefHeight(36);
+                control.setPrefHeight(40);
+                control.setMaxWidth(Double.MAX_VALUE);
             }
         }
 
         updateFeaturePanelState();
     }
 
+    private StackPane createSvgIcon(String resourcePath, String title, double size) {
+        Group iconGroup = loadSvgGraphic(resourcePath);
+        StackPane container = new StackPane(iconGroup);
+        container.getStyleClass().add("sidebar-svg-icon");
+        container.setMinSize(size, size);
+        container.setPrefSize(size, size);
+        container.setMaxSize(size, size);
+        container.setAccessibleText(title);
+        Tooltip.install(container, new Tooltip(title));
+        return container;
+    }
+
+    private Group loadSvgGraphic(String resourcePath) {
+        try (InputStream stream = getClass().getResourceAsStream(resourcePath)) {
+            if (stream == null) {
+                return new Group();
+            }
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(false);
+            Document document = factory.newDocumentBuilder().parse(stream);
+            Element svg = document.getDocumentElement();
+            Group group = new Group();
+            double[] viewBox = parseViewBox(svg.getAttribute("viewBox"));
+            parseSvgChildren(svg, group, 0, 0);
+            double scale = 24.0 / Math.max(viewBox[2], viewBox[3]);
+            group.getTransforms().add(new Scale(scale, scale));
+            group.getTransforms().add(new Translate(-viewBox[0], -viewBox[1]));
+            return group;
+        } catch (Exception e) {
+            return new Group();
+        }
+    }
+
+    private void parseSvgChildren(Element parent, Group target, double offsetX, double offsetY) {
+        NodeList children = parent.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            org.w3c.dom.Node child = children.item(i);
+            if (!(child instanceof Element)) {
+                continue;
+            }
+            Element element = (Element) child;
+            String tag = element.getTagName();
+            if ("g".equals(tag)) {
+                double[] translate = parseTranslate(element.getAttribute("transform"));
+                parseSvgChildren(element, target, offsetX + translate[0], offsetY + translate[1]);
+                continue;
+            }
+            Shape shape = createShapeFromElement(element);
+            if (shape == null) {
+                continue;
+            }
+            shape.setTranslateX(offsetX);
+            shape.setTranslateY(offsetY);
+            target.getChildren().add(shape);
+        }
+    }
+
+    private Shape createShapeFromElement(Element element) {
+        String tag = element.getTagName();
+        if ("circle".equals(tag)) {
+            Circle circle = new Circle(
+                parseDouble(element.getAttribute("cx")),
+                parseDouble(element.getAttribute("cy")),
+                parseDouble(element.getAttribute("r"))
+            );
+            applyShapeStyle(circle, element);
+            return circle;
+        }
+        if ("rect".equals(tag)) {
+            Rectangle rectangle = new Rectangle(
+                parseDouble(element.getAttribute("x")),
+                parseDouble(element.getAttribute("y")),
+                parseDouble(element.getAttribute("width")),
+                parseDouble(element.getAttribute("height"))
+            );
+            double rx = parseDouble(element.getAttribute("rx"));
+            if (rx > 0) {
+                rectangle.setArcWidth(rx * 2);
+                rectangle.setArcHeight(rx * 2);
+            }
+            applyShapeStyle(rectangle, element);
+            return rectangle;
+        }
+        if ("path".equals(tag)) {
+            SVGPath path = new SVGPath();
+            path.setContent(element.getAttribute("d"));
+            applyShapeStyle(path, element);
+            return path;
+        }
+        return null;
+    }
+
+    private void applyShapeStyle(Shape shape, Element element) {
+        Color fill = parsePaint(element.getAttribute("fill"));
+        Color stroke = parsePaint(element.getAttribute("stroke"));
+        if (fill != null) {
+            shape.setFill(fill);
+        } else {
+            shape.setFill(Color.TRANSPARENT);
+        }
+        if (stroke != null) {
+            shape.setStroke(stroke);
+            shape.setStrokeWidth(parseDoubleOrDefault(element.getAttribute("stroke-width"), 1));
+        }
+        String lineCap = element.getAttribute("stroke-linecap");
+        if ("round".equalsIgnoreCase(lineCap)) {
+            shape.setStrokeLineCap(StrokeLineCap.ROUND);
+        }
+        String lineJoin = element.getAttribute("stroke-linejoin");
+        if ("round".equalsIgnoreCase(lineJoin)) {
+            shape.setStrokeLineJoin(StrokeLineJoin.ROUND);
+        }
+    }
+
+    private Color parsePaint(String value) {
+        if (value == null || value.isEmpty() || "none".equalsIgnoreCase(value)) {
+            return null;
+        }
+        try {
+            return Color.web(value);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private double[] parseViewBox(String viewBox) {
+        if (viewBox == null || viewBox.isEmpty()) {
+            return new double[] {0, 0, 100, 100};
+        }
+        String[] values = viewBox.trim().split("\\s+");
+        if (values.length != 4) {
+            return new double[] {0, 0, 100, 100};
+        }
+        return new double[] {
+            parseDouble(values[0]),
+            parseDouble(values[1]),
+            parseDouble(values[2]),
+            parseDouble(values[3])
+        };
+    }
+
+    private double[] parseTranslate(String transform) {
+        if (transform == null || !transform.startsWith("translate")) {
+            return new double[] {0, 0};
+        }
+        int start = transform.indexOf('(');
+        int end = transform.indexOf(')');
+        if (start < 0 || end <= start) {
+            return new double[] {0, 0};
+        }
+        String[] values = transform.substring(start + 1, end).split(",");
+        if (values.length == 1) {
+            return new double[] {parseDouble(values[0]), 0};
+        }
+        return new double[] {parseDouble(values[0]), parseDouble(values[1])};
+    }
+
+    private double parseDouble(String value) {
+        return parseDoubleOrDefault(value, 0);
+    }
+
+    private double parseDoubleOrDefault(String value, double defaultValue) {
+        if (value == null || value.isEmpty()) {
+            return defaultValue;
+        }
+        try {
+            return Double.parseDouble(value.trim());
+        } catch (NumberFormatException ex) {
+            return defaultValue;
+        }
+    }
+
     private void updateFeaturePanelState() {
         if (featurePanelToggle != null) {
-            featurePanelToggle.setText(featurePanelExpanded ? "▾" : "▸");
+            featurePanelToggle.setText("");
             featurePanelToggle.setAlignment(sidebarCollapsed ? Pos.CENTER : Pos.CENTER_LEFT);
             featurePanelToggle.setPadding(sidebarCollapsed ? new Insets(4, 0, 4, 0) : new Insets(8, 12, 8, 12));
+            if (featureToggleIcon != null) {
+                featureToggleIcon.setRotate(featurePanelExpanded ? 90 : 0);
+            }
         }
         if (bottomActions != null) {
             bottomActions.setVisible(featurePanelExpanded);
@@ -264,6 +499,7 @@ public class MainController {
             bottomActionsSeparator.setVisible(featurePanelExpanded);
             bottomActionsSeparator.setManaged(featurePanelExpanded);
         }
+        updateThemeIconState();
     }
 
     private void createInfoPanel() {
@@ -313,6 +549,8 @@ public class MainController {
         importedThemeStylesheet = null;
         currentTheme = theme;
         applyThemeStylesheets(resolveBuiltinThemeStylesheets(theme));
+        saveThemePreference();
+        updateThemeIconState();
     }
 
     private void applyThemeStylesheets(List<String> stylesheets) {
@@ -322,6 +560,7 @@ public class MainController {
         scene.getStylesheets().clear();
         scene.getStylesheets().addAll(stylesheets);
         refreshAllViews();
+        updateThemeIconState();
     }
 
     private List<String> resolveBuiltinThemeStylesheets(String theme) {
@@ -385,7 +624,70 @@ public class MainController {
         importedThemeStylesheet = selected.toURI().toString();
         currentTheme = "imported";
         applyThemeStylesheets(List.of(importedThemeStylesheet));
+        saveThemePreference();
+        updateThemeIconState();
         showInfo("主题已导入", "已应用外部主题文件:\n" + selected.getAbsolutePath());
+    }
+
+    private void togglePrimaryTheme() {
+        if ("dark".equals(currentTheme)) {
+            switchTheme("light");
+        } else {
+            switchTheme("dark");
+        }
+    }
+
+    private void loadThemePreference() {
+        String savedTheme = preferences.get(PREF_THEME_KEY, "light");
+        String savedImported = preferences.get(PREF_IMPORTED_THEME_KEY, "");
+        importedThemeStylesheet = savedImported == null || savedImported.isBlank() ? null : savedImported;
+        if (builtinThemes.containsKey(savedTheme) || "imported".equals(savedTheme)) {
+            currentTheme = savedTheme;
+        } else {
+            currentTheme = "light";
+        }
+    }
+
+    private void saveThemePreference() {
+        preferences.put(PREF_THEME_KEY, currentTheme);
+        if (importedThemeStylesheet == null || importedThemeStylesheet.isBlank()) {
+            preferences.remove(PREF_IMPORTED_THEME_KEY);
+        } else {
+            preferences.put(PREF_IMPORTED_THEME_KEY, importedThemeStylesheet);
+        }
+    }
+
+    private void applySavedThemeIfNeeded() {
+        if (scene == null) {
+            return;
+        }
+        if ("imported".equals(currentTheme) && importedThemeStylesheet != null && !importedThemeStylesheet.isBlank()) {
+            try {
+                applyThemeStylesheets(List.of(importedThemeStylesheet));
+                return;
+            } catch (Exception ignored) {
+                currentTheme = "light";
+                importedThemeStylesheet = null;
+                saveThemePreference();
+            }
+        }
+        applyThemeStylesheets(resolveBuiltinThemeStylesheets(currentTheme));
+    }
+
+    private void updateThemeIconState() {
+        if (themeIcon == null) {
+            return;
+        }
+        themeIcon.getStyleClass().removeAll("theme-icon-light", "theme-icon-dark");
+        if ("dark".equals(currentTheme)) {
+            themeIcon.getStyleClass().add("theme-icon-dark");
+            themeIcon.setRotate(180);
+            themeIcon.setOpacity(0.95);
+        } else {
+            themeIcon.getStyleClass().add("theme-icon-light");
+            themeIcon.setRotate(0);
+            themeIcon.setOpacity(1.0);
+        }
     }
     
     private void performSearch(String keyword) {
@@ -466,6 +768,7 @@ public class MainController {
     
     public void setScene(Scene scene) {
         this.scene = scene;
+        applySavedThemeIfNeeded();
         setupGlobalInfoPanelInteractions();
     }
 

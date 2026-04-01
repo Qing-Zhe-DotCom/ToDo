@@ -23,10 +23,26 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.StackPane;
+import javafx.scene.Group;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.SVGPath;
+import javafx.scene.shape.Shape;
+import javafx.scene.shape.StrokeLineCap;
+import javafx.scene.shape.StrokeLineJoin;
+import javafx.scene.transform.Scale;
+import javafx.scene.transform.Translate;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javax.xml.parsers.DocumentBuilderFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 
 public class ScheduleListView implements View {
     
@@ -40,6 +56,8 @@ public class ScheduleListView implements View {
     private CheckBox showPastCheckbox;
     private ComboBox<String> sortComboBox;
     private ComboBox<String> filterComboBox;
+    private static final String DONE_ICON_PATH = "/icons/macaron-logo-schedule-done.svg";
+    private static final String PENDING_ICON_PATH = "/icons/macaron-logo-schedule-pending.svg";
     
     private boolean showingSearchResults = false;
     private String currentSearchKeyword = "";
@@ -275,14 +293,14 @@ public class ScheduleListView implements View {
             cell.setPadding(new Insets(8));
             
             // 完成复选框
-            CheckBox completeBox = new CheckBox();
-            completeBox.setSelected(schedule.isCompleted());
-            completeBox.setOnAction(e -> {
+            ImageView statusIcon = createStatusIconView(schedule.isCompleted());
+            statusIcon.setOnMouseClicked(e -> {
                 try {
                     toggleScheduleComplete(schedule);
                 } catch (SQLException ex) {
                     controller.showError("更新状态失败", ex.getMessage());
                 }
+                e.consume();
             });
             
             // 优先级标签
@@ -314,7 +332,7 @@ public class ScheduleListView implements View {
             Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
             
-            cell.getChildren().addAll(completeBox, priorityLabel, titleLabel, spacer, dateLabel, categoryLabel);
+            cell.getChildren().addAll(statusIcon, priorityLabel, titleLabel, spacer, dateLabel, categoryLabel);
             
             setGraphic(cell);
             
@@ -340,6 +358,190 @@ public class ScheduleListView implements View {
             if ("高".equals(priority)) return "high";
             if ("低".equals(priority)) return "low";
             return "medium";
+        }
+    }
+
+    private ImageView createStatusIconView(boolean completed) {
+        String path = completed ? DONE_ICON_PATH : PENDING_ICON_PATH;
+        String title = completed ? "已完成日程" : "未完成日程";
+        Group iconGroup = loadSvgGraphic(path);
+        StackPane container = new StackPane(iconGroup);
+        container.setMinSize(24, 24);
+        container.setPrefSize(24, 24);
+        container.setMaxSize(24, 24);
+        container.setAccessibleText(title);
+        container.setPickOnBounds(true);
+        return snapshotAsImageView(container);
+    }
+
+    private ImageView snapshotAsImageView(StackPane container) {
+        javafx.scene.SnapshotParameters parameters = new javafx.scene.SnapshotParameters();
+        parameters.setFill(Color.TRANSPARENT);
+        ImageView imageView = new ImageView(container.snapshot(parameters, null));
+        imageView.setFitWidth(24);
+        imageView.setFitHeight(24);
+        imageView.setPreserveRatio(true);
+        imageView.setSmooth(true);
+        return imageView;
+    }
+
+    private Group loadSvgGraphic(String resourcePath) {
+        try (java.io.InputStream stream = getClass().getResourceAsStream(resourcePath)) {
+            if (stream == null) {
+                return new Group();
+            }
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(false);
+            Document document = factory.newDocumentBuilder().parse(stream);
+            Element svg = document.getDocumentElement();
+            Group group = new Group();
+            double[] viewBox = parseViewBox(svg.getAttribute("viewBox"));
+            parseSvgChildren(svg, group, 0, 0);
+            double scale = 24.0 / Math.max(viewBox[2], viewBox[3]);
+            group.getTransforms().add(new Scale(scale, scale));
+            group.getTransforms().add(new Translate(-viewBox[0], -viewBox[1]));
+            return group;
+        } catch (Exception e) {
+            return new Group();
+        }
+    }
+
+    private void parseSvgChildren(Element parent, Group target, double offsetX, double offsetY) {
+        NodeList children = parent.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            org.w3c.dom.Node child = children.item(i);
+            if (!(child instanceof Element)) {
+                continue;
+            }
+            Element element = (Element) child;
+            String tag = element.getTagName();
+            if ("g".equals(tag)) {
+                double[] translate = parseTranslate(element.getAttribute("transform"));
+                parseSvgChildren(element, target, offsetX + translate[0], offsetY + translate[1]);
+                continue;
+            }
+            Shape shape = createShapeFromElement(element);
+            if (shape == null) {
+                continue;
+            }
+            shape.setTranslateX(offsetX);
+            shape.setTranslateY(offsetY);
+            target.getChildren().add(shape);
+        }
+    }
+
+    private Shape createShapeFromElement(Element element) {
+        String tag = element.getTagName();
+        if ("circle".equals(tag)) {
+            Circle circle = new Circle(
+                parseDouble(element.getAttribute("cx")),
+                parseDouble(element.getAttribute("cy")),
+                parseDouble(element.getAttribute("r"))
+            );
+            applyShapeStyle(circle, element);
+            return circle;
+        }
+        if ("rect".equals(tag)) {
+            Rectangle rectangle = new Rectangle(
+                parseDouble(element.getAttribute("x")),
+                parseDouble(element.getAttribute("y")),
+                parseDouble(element.getAttribute("width")),
+                parseDouble(element.getAttribute("height"))
+            );
+            double rx = parseDouble(element.getAttribute("rx"));
+            if (rx > 0) {
+                rectangle.setArcWidth(rx * 2);
+                rectangle.setArcHeight(rx * 2);
+            }
+            applyShapeStyle(rectangle, element);
+            return rectangle;
+        }
+        if ("path".equals(tag)) {
+            SVGPath path = new SVGPath();
+            path.setContent(element.getAttribute("d"));
+            applyShapeStyle(path, element);
+            return path;
+        }
+        return null;
+    }
+
+    private void applyShapeStyle(Shape shape, Element element) {
+        Color fill = parsePaint(element.getAttribute("fill"));
+        Color stroke = parsePaint(element.getAttribute("stroke"));
+        if (fill != null) {
+            shape.setFill(fill);
+        } else {
+            shape.setFill(Color.TRANSPARENT);
+        }
+        if (stroke != null) {
+            shape.setStroke(stroke);
+            shape.setStrokeWidth(parseDoubleOrDefault(element.getAttribute("stroke-width"), 1));
+        }
+        String lineCap = element.getAttribute("stroke-linecap");
+        if ("round".equalsIgnoreCase(lineCap)) {
+            shape.setStrokeLineCap(StrokeLineCap.ROUND);
+        }
+        String lineJoin = element.getAttribute("stroke-linejoin");
+        if ("round".equalsIgnoreCase(lineJoin)) {
+            shape.setStrokeLineJoin(StrokeLineJoin.ROUND);
+        }
+    }
+
+    private Color parsePaint(String value) {
+        if (value == null || value.isEmpty() || "none".equalsIgnoreCase(value)) {
+            return null;
+        }
+        try {
+            return Color.web(value);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private double[] parseViewBox(String viewBox) {
+        if (viewBox == null || viewBox.isEmpty()) {
+            return new double[] {0, 0, 100, 100};
+        }
+        String[] values = viewBox.trim().split("\\s+");
+        if (values.length != 4) {
+            return new double[] {0, 0, 100, 100};
+        }
+        return new double[] {
+            parseDouble(values[0]),
+            parseDouble(values[1]),
+            parseDouble(values[2]),
+            parseDouble(values[3])
+        };
+    }
+
+    private double[] parseTranslate(String transform) {
+        if (transform == null || !transform.startsWith("translate")) {
+            return new double[] {0, 0};
+        }
+        int start = transform.indexOf('(');
+        int end = transform.indexOf(')');
+        if (start < 0 || end <= start) {
+            return new double[] {0, 0};
+        }
+        String[] values = transform.substring(start + 1, end).split(",");
+        if (values.length == 1) {
+            return new double[] {parseDouble(values[0]), 0};
+        }
+        return new double[] {parseDouble(values[0]), parseDouble(values[1])};
+    }
+
+    private double parseDouble(String value) {
+        return parseDoubleOrDefault(value, 0);
+    }
+
+    private double parseDoubleOrDefault(String value, double defaultValue) {
+        if (value == null || value.isEmpty()) {
+            return defaultValue;
+        }
+        try {
+            return Double.parseDouble(value.trim());
+        } catch (NumberFormatException ex) {
+            return defaultValue;
         }
     }
 }
