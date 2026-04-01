@@ -1,14 +1,31 @@
 package com.example.controller;
 
-import com.example.model.Schedule;
-import com.example.view.*;
-import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
-
 import java.sql.SQLException;
 import java.util.Optional;
+
+import com.example.model.Schedule;
+import com.example.view.FlowchartView;
+import com.example.view.HeatmapView;
+import com.example.view.InfoPanelView;
+import com.example.view.ScheduleDialog;
+import com.example.view.ScheduleListView;
+import com.example.view.TimelineView;
+import com.example.view.View;
+
+import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.RadioMenuItem;
+import javafx.scene.control.Separator;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
 
 public class MainController {
     
@@ -51,7 +68,7 @@ public class MainController {
         timelineView = new TimelineView(this);
         heatmapView = new HeatmapView(this);
         flowchartView = new FlowchartView(this);
-        infoPanelView = new InfoPanelView(this);
+        //infoPanelView = new InfoPanelView(this);
         
         // 默认显示日程列表视图
         showView(scheduleListView);
@@ -193,6 +210,7 @@ public class MainController {
         scene.getStylesheets().add(getClass().getResource(themePath).toExternalForm());
         
         currentTheme = theme;
+        refreshAllViews();
     }
     
     private void performSearch(String keyword) {
@@ -272,6 +290,10 @@ public class MainController {
     
     public BorderPane getRoot() {
         return root;
+    }
+
+    public String getCurrentTheme() {
+        return currentTheme;
     }
     
     public void setScene(Scene scene) {

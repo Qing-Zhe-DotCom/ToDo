@@ -121,13 +121,16 @@ public class InfoPanelView {
         Separator separator3 = new Separator();
 
         // 组装
+        HBox timeBox = new HBox(10, new Label("时间:"), dateLabel);
+        timeBox.setAlignment(Pos.TOP_LEFT);
+
         root.getChildren().addAll(
             panelTitle,
             separator1,
             titleLabel,
             statusLabel,
             separator2,
-            new Label("时间:"), dateLabel,
+            timeBox,
             new HBox(10, new Label("优先级:"), priorityLabel),
             new HBox(10, new Label("分类:"), categoryLabel),
             tagsLabel,
@@ -193,7 +196,10 @@ public class InfoPanelView {
             if (currentSchedule.getDueDate() != null) {
                 dateText.append("截止: ").append(currentSchedule.getDueDate().format(DATE_FORMATTER));
             }
-            dateLabel.setText(dateText.toString());
+            if (dateText.length() == 0) {
+                dateText.append("未设置");
+            }
+            dateLabel.setText(dateText.toString().trim());
 
             // 优先级
             priorityLabel.setText(currentSchedule.getPriority());

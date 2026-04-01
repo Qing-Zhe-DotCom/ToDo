@@ -1,9 +1,9 @@
 package com.example;
 
 import com.example.controller.MainController;
+
 import javafx.application.Application;
 import javafx.scene.Scene;
-import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
 public class MainApp extends Application {
@@ -23,6 +23,9 @@ public class MainApp extends Application {
             
             // 加载默认主题
             scene.getStylesheets().add(getClass().getResource("/styles/light-theme.css").toExternalForm());
+            
+            // 将场景对象传递给控制器
+            mainController.setScene(scene);
             
             primaryStage.setTitle(APP_TITLE);
             primaryStage.setScene(scene);

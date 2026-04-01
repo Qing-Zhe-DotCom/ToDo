@@ -11,5 +11,6 @@ module-info.class
 com\example\view\ScheduleListView$ScheduleListCell.class
 com\example\databaseutil\Connectdatabase.class
 com\example\view\ScheduleListView.class
+com\example\view\TimelineView$TimelineEntry.class
 com\example\view\HeatmapView.class
 com\example\view\ScheduleDialog.class
