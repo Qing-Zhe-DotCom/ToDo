@@ -8,6 +8,10 @@
     -fx-border-color: #ffd7c2;
 }
 
+.sidebar-function-title {
+    -fx-text-fill: #c44a1a;
+}
+
 .nav-button.active {
     -fx-background-color: #ffe3d4;
     -fx-text-fill: #c44a1a;
@@ -25,6 +29,18 @@
 .info-panel {
     -fx-background-color: #fffaf7;
     -fx-border-color: #ffe0cf;
+}
+
+.schedule-dialog-pane .header-panel {
+    -fx-background-color: #fff2ea;
+}
+
+.schedule-dialog-pane .button-bar .button {
+    -fx-background-color: #f97316;
+}
+
+.schedule-dialog-pane .button-bar .button:hover {
+    -fx-background-color: #ea580c;
 }
 
 .timeline-schedule-selected {

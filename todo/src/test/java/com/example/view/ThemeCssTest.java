@@ -37,6 +37,38 @@ class ThemeCssTest {
         );
     }
 
+    @Test
+    void themesContainSidebarTitleAndDialogStyles() throws IOException {
+        String darkCss = readCss("/styles/dark-theme.css");
+        String lightCss = readCss("/styles/light-theme.css");
+        String mintCss = readCss("/styles/mint-theme.css");
+        String oceanCss = readCss("/styles/ocean-theme.css");
+        String sunsetCss = readCss("/styles/sunset-theme.css");
+
+        assertAll(
+            () -> assertTrue(darkCss.contains(".sidebar-function-title")),
+            () -> assertTrue(lightCss.contains(".sidebar-function-title")),
+            () -> assertTrue(darkCss.contains(".schedule-dialog-pane")),
+            () -> assertTrue(lightCss.contains(".schedule-dialog-pane")),
+            () -> assertTrue(mintCss.contains(".schedule-dialog-pane")),
+            () -> assertTrue(oceanCss.contains(".schedule-dialog-pane")),
+            () -> assertTrue(sunsetCss.contains(".schedule-dialog-pane"))
+        );
+    }
+
+    @Test
+    void newBuiltinThemeFilesArePresent() throws IOException {
+        String lavender = readCss("/styles/lavender-theme.css");
+        String forest = readCss("/styles/forest-theme.css");
+        String slate = readCss("/styles/slate-theme.css");
+
+        assertAll(
+            () -> assertTrue(lavender.contains(".sidebar-function-title")),
+            () -> assertTrue(forest.contains(".sidebar-function-title")),
+            () -> assertTrue(slate.contains(".sidebar-function-title"))
+        );
+    }
+
     private String readCss(String resourcePath) throws IOException {
         try (InputStream inputStream = getClass().getResourceAsStream(resourcePath)) {
             assertNotNull(inputStream);

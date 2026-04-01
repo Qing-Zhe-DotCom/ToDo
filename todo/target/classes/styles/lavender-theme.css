@@ -1,0 +1,48 @@
+.root {
+    -fx-base: #faf7ff;
+    -fx-background: #faf7ff;
+}
+
+.sidebar {
+    -fx-background-color: #f2ebff;
+    -fx-border-color: #ddcffb;
+}
+
+.sidebar-function-title {
+    -fx-text-fill: #6f42c1;
+}
+
+.nav-button.active {
+    -fx-background-color: #eadfff;
+    -fx-text-fill: #6f42c1;
+    -fx-border-color: #6f42c1;
+}
+
+.button {
+    -fx-background-color: #7c4dff;
+}
+
+.button:hover {
+    -fx-background-color: #6a3df0;
+}
+
+.info-panel {
+    -fx-background-color: #fcfaff;
+    -fx-border-color: #e9dcff;
+}
+
+.schedule-dialog-pane .header-panel {
+    -fx-background-color: #f4eeff;
+}
+
+.schedule-dialog-pane .button-bar .button {
+    -fx-background-color: #7c4dff;
+}
+
+.schedule-dialog-pane .button-bar .button:hover {
+    -fx-background-color: #6a3df0;
+}
+
+.timeline-schedule-selected {
+    -fx-effect: dropshadow(gaussian, rgba(124,77,255,0.35), 16, 0.2, 0, 2);
+}

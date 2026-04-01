@@ -168,6 +168,10 @@
 
 .nav-button {
     -fx-text-overrun: clip;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 0 3;
+    -fx-padding: 10 12 10 12;
+    -fx-graphic-text-gap: 8;
 }
 
 /* 中央主显示区 */
@@ -425,6 +429,12 @@
     -fx-text-fill: #757575;
 }
 
+.sidebar-function-title {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #c8ccd1;
+}
+
 /* 分隔线 */
 .separator {
     -fx-padding: 10 0;
@@ -631,6 +641,42 @@
 .dialog-pane .header-panel {
     -fx-background-color: #252526;
     -fx-padding: 15;
+}
+
+.schedule-dialog-pane .header-panel .label {
+    -fx-text-fill: #e0e0e0;
+}
+
+.schedule-dialog-grid {
+    -fx-background-color: #2d2d2d;
+}
+
+.schedule-dialog-label {
+    -fx-text-fill: #e0e0e0;
+    -fx-font-weight: 600;
+}
+
+.schedule-dialog-check {
+    -fx-text-fill: #e0e0e0;
+}
+
+.schedule-dialog-pane .combo-box,
+.schedule-dialog-pane .date-picker,
+.schedule-dialog-pane .text-field,
+.schedule-dialog-pane .text-area,
+.schedule-dialog-pane .color-picker {
+    -fx-background-color: #3a3a3a;
+    -fx-text-fill: #e0e0e0;
+    -fx-border-color: #555555;
+}
+
+.schedule-dialog-pane .button-bar .button {
+    -fx-background-color: #0d47a1;
+    -fx-text-fill: #f6f8fa;
+}
+
+.schedule-dialog-pane .button-bar .button:hover {
+    -fx-background-color: #1565c0;
 }
 
 /* 工具提示 */

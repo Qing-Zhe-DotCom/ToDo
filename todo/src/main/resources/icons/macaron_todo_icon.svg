@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg id="macaron-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="w-48 h-48 drop-shadow-sm">
+                <!-- 1. 主体：圆形底座 (直径占90%，即半径45)，浅蓝 #E0F7FA -->
+                <circle cx="50" cy="50" r="45" fill="#E0F7FA"/>
+
+                <!-- 2. 图案：3个马卡龙色块堆叠成迷你热力图 -->
+                <!-- 左下 - 浅粉 -->
+                <rect x="22" y="52" width="26" height="26" rx="7" fill="#FFE0E9"/>
+                <!-- 右下 - 浅黄 -->
+                <rect x="52" y="52" width="26" height="26" rx="7" fill="#FFF9C4"/>
+                <!-- 左上 - 浅绿 -->
+                <rect x="22" y="22" width="26" height="26" rx="7" fill="#E8F5E9"/>
+
+                <!-- 3. 细节：斜放圆角卡通任务标签 -->
+                <!-- 旋转中心点设置在标签中心附近 -->
+                <g transform="rotate(14 66 32)">
+                    <!-- 标签白底 -->
+                    <rect x="46" y="20" width="40" height="24" rx="8" fill="#FFFFFF"/>
+                    <!-- 标签黑色英文 -->
+                    <text x="66" y="36" font-family="'Comic Sans MS', 'Nunito', sans-serif" font-weight="bold" font-size="12" fill="#000000" text-anchor="middle">ToDo</text>
+                </g>
+            </svg>

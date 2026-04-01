@@ -9,7 +9,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.prefs.Preferences;
+import java.util.function.IntConsumer;
 
+import com.example.databaseutil.ScheduleDAO;
 import com.example.model.Schedule;
 import com.example.view.FlowchartView;
 import com.example.view.HeatmapView;
@@ -43,9 +45,9 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.geometry.Side;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
@@ -86,9 +88,9 @@ public class MainController {
     private ToggleButton collapseToggle;
     private ToggleButton featurePanelToggle;
     private Button themeButton;
-    private StackPane collapseToggleIcon;
-    private StackPane featureToggleIcon;
-    private StackPane themeIcon;
+    private Pane collapseToggleIcon;
+    private Pane featureToggleIcon;
+    private Pane themeIcon;
     private boolean sidebarCollapsed = false;
     private boolean featurePanelExpanded = false;
     private final Map<Labeled, String[]> collapsibleLabels = new LinkedHashMap<>();
@@ -97,6 +99,8 @@ public class MainController {
     private final Preferences preferences = Preferences.userNodeForPackage(MainController.class);
     private static final String PREF_THEME_KEY = "todo.theme";
     private static final String PREF_IMPORTED_THEME_KEY = "todo.theme.imported.path";
+    private final ScheduleDAO scheduleDAO = new ScheduleDAO();
+    private IntConsumer pendingCountListener;
     
     // 主题管理
     private String currentTheme = "light";
@@ -170,7 +174,7 @@ public class MainController {
         VBox.setVgrow(spacer, Priority.ALWAYS);
 
         Label functionTitle = new Label("侧边功能栏");
-        functionTitle.getStyleClass().add("label-hint");
+        functionTitle.getStyleClass().addAll("label-hint", "sidebar-function-title");
 
         Button newScheduleButton = createActionButton("/icons/macaron-logo-new-schedule.svg", "新建日程", this::openNewScheduleDialog);
         themeButton = createActionButton("/icons/macaron-logo-theme.svg", "主题", this::togglePrimaryTheme);
@@ -178,7 +182,7 @@ public class MainController {
             showThemeMenu(themeButton);
             e.consume();
         });
-        themeIcon = (StackPane) themeButton.getGraphic();
+        themeIcon = (Pane) themeButton.getGraphic();
         Button loginButton = createActionButton("/icons/macaron-logo-user.svg", "登录", this::showLoginDialog);
         Button settingsButton = createActionButton("/icons/macaron-logo-settings.svg", "设置", this::showSettingsDialog);
         Button exitButton = createActionButton("/icons/macaron-logo-logout.svg", "退出", Platform::exit);
@@ -310,13 +314,14 @@ public class MainController {
         updateFeaturePanelState();
     }
 
-    private StackPane createSvgIcon(String resourcePath, String title, double size) {
+    private Pane createSvgIcon(String resourcePath, String title, double size) {
         Group iconGroup = loadSvgGraphic(resourcePath);
-        StackPane container = new StackPane(iconGroup);
+        Pane container = new Pane(iconGroup);
         container.getStyleClass().add("sidebar-svg-icon");
         container.setMinSize(size, size);
         container.setPrefSize(size, size);
         container.setMaxSize(size, size);
+        container.setClip(new Rectangle(size, size));
         container.setAccessibleText(title);
         Tooltip.install(container, new Tooltip(title));
         return container;
@@ -460,7 +465,7 @@ public class MainController {
         if (start < 0 || end <= start) {
             return new double[] {0, 0};
         }
-        String[] values = transform.substring(start + 1, end).split(",");
+        String[] values = transform.substring(start + 1, end).trim().split("[,\\s]+");
         if (values.length == 1) {
             return new double[] {parseDouble(values[0]), 0};
         }
@@ -543,6 +548,7 @@ public class MainController {
             currentView.refresh();
         }
         infoPanelView.refresh();
+        updatePendingCountBadge();
     }
     
     private void switchTheme(String theme) {
@@ -577,6 +583,20 @@ public class MainController {
             stylesheets.add(resolveResourceStylesheet("/styles/ocean-theme.css"));
         } else if ("sunset".equals(theme)) {
             stylesheets.add(resolveResourceStylesheet("/styles/sunset-theme.css"));
+        } else if ("lavender".equals(theme)) {
+            stylesheets.add(resolveResourceStylesheet("/styles/lavender-theme.css"));
+        } else if ("forest".equals(theme)) {
+            stylesheets.add(resolveResourceStylesheet("/styles/forest-theme.css"));
+        } else if ("slate".equals(theme)) {
+            stylesheets.add(resolveResourceStylesheet("/styles/slate-theme.css"));
+        }
+        return stylesheets;
+    }
+
+    private List<String> resolveImportedThemeStylesheets() {
+        List<String> stylesheets = resolveBuiltinThemeStylesheets("light");
+        if (importedThemeStylesheet != null && !importedThemeStylesheet.isBlank()) {
+            stylesheets.add(importedThemeStylesheet);
         }
         return stylesheets;
     }
@@ -592,6 +612,9 @@ public class MainController {
         themes.put("mint", "薄荷");
         themes.put("ocean", "海洋");
         themes.put("sunset", "落日");
+        themes.put("lavender", "薰衣草");
+        themes.put("forest", "森林");
+        themes.put("slate", "石板");
         return themes;
     }
 
@@ -599,7 +622,8 @@ public class MainController {
         ContextMenu menu = new ContextMenu();
 
         for (Map.Entry<String, String> entry : builtinThemes.entrySet()) {
-            MenuItem item = new MenuItem("使用" + entry.getValue() + "主题");
+            String prefix = entry.getKey().equals(currentTheme) ? "✓ " : "";
+            MenuItem item = new MenuItem(prefix + "使用" + entry.getValue() + "主题");
             item.setOnAction(e -> switchTheme(entry.getKey()));
             menu.getItems().add(item);
         }
@@ -623,18 +647,20 @@ public class MainController {
 
         importedThemeStylesheet = selected.toURI().toString();
         currentTheme = "imported";
-        applyThemeStylesheets(List.of(importedThemeStylesheet));
+        applyThemeStylesheets(resolveImportedThemeStylesheets());
         saveThemePreference();
         updateThemeIconState();
         showInfo("主题已导入", "已应用外部主题文件:\n" + selected.getAbsolutePath());
     }
 
     private void togglePrimaryTheme() {
-        if ("dark".equals(currentTheme)) {
-            switchTheme("light");
-        } else {
-            switchTheme("dark");
+        List<String> keys = new ArrayList<>(builtinThemes.keySet());
+        int currentIndex = keys.indexOf(currentTheme);
+        int nextIndex = (currentIndex + 1) % keys.size();
+        if (currentIndex < 0) {
+            nextIndex = 0;
         }
+        switchTheme(keys.get(nextIndex));
     }
 
     private void loadThemePreference() {
@@ -663,7 +689,7 @@ public class MainController {
         }
         if ("imported".equals(currentTheme) && importedThemeStylesheet != null && !importedThemeStylesheet.isBlank()) {
             try {
-                applyThemeStylesheets(List.of(importedThemeStylesheet));
+                applyThemeStylesheets(resolveImportedThemeStylesheets());
                 return;
             } catch (Exception ignored) {
                 currentTheme = "light";
@@ -765,6 +791,21 @@ public class MainController {
     public String getCurrentTheme() {
         return currentTheme;
     }
+
+    public List<String> getCurrentThemeStylesheets() {
+        if (scene != null && !scene.getStylesheets().isEmpty()) {
+            return new ArrayList<>(scene.getStylesheets());
+        }
+        if ("imported".equals(currentTheme)) {
+            return resolveImportedThemeStylesheets();
+        }
+        return resolveBuiltinThemeStylesheets(currentTheme);
+    }
+
+    public void setPendingCountListener(IntConsumer listener) {
+        pendingCountListener = listener;
+        updatePendingCountBadge();
+    }
     
     public void setScene(Scene scene) {
         this.scene = scene;
@@ -810,11 +851,21 @@ public class MainController {
     }
     
     public void initialize() {
-        // 初始化数据
         refreshAllViews();
     }
     
     public void shutdown() {
-        // 清理资源
+    }
+
+    private void updatePendingCountBadge() {
+        if (pendingCountListener == null) {
+            return;
+        }
+        try {
+            long pending = scheduleDAO.getAllSchedules().stream().filter(schedule -> !schedule.isCompleted()).count();
+            pendingCountListener.accept((int) Math.min(Integer.MAX_VALUE, pending));
+        } catch (SQLException ignored) {
+            pendingCountListener.accept(0);
+        }
     }
 }

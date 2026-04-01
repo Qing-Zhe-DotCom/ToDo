@@ -16,9 +16,11 @@ import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
+import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.Node;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -63,9 +65,11 @@ public class ScheduleDialog extends Dialog<Schedule> {
         // 设置对话框按钮
         ButtonType saveButtonType = new ButtonType("保存", ButtonBar.ButtonData.OK_DONE);
         ButtonType cancelButtonType = new ButtonType("取消", ButtonBar.ButtonData.CANCEL_CLOSE);
-        getDialogPane().getButtonTypes().addAll(saveButtonType, cancelButtonType);
+        DialogPane dialogPane = getDialogPane();
+        dialogPane.getStyleClass().add("schedule-dialog-pane");
+        dialogPane.getButtonTypes().addAll(saveButtonType, cancelButtonType);
+        dialogPane.getStylesheets().setAll(controller.getCurrentThemeStylesheets());
 
-        // 设置结果转换器
         setResultConverter(dialogButton -> {
             if (dialogButton == saveButtonType) {
                 return createScheduleFromForm();
@@ -76,6 +80,7 @@ public class ScheduleDialog extends Dialog<Schedule> {
 
     private void initializeForm() {
         GridPane grid = new GridPane();
+        grid.getStyleClass().add("schedule-dialog-grid");
         grid.setHgap(10);
         grid.setVgap(10);
         grid.setPadding(new Insets(20));
@@ -156,10 +161,15 @@ public class ScheduleDialog extends Dialog<Schedule> {
         ColumnConstraints col2 = new ColumnConstraints();
         col2.setMinWidth(250);
         grid.getColumnConstraints().addAll(col1, col2);
+        for (Node child : grid.getChildren()) {
+            if (child instanceof Label) {
+                child.getStyleClass().add("schedule-dialog-label");
+            }
+        }
+        reminderCheck.getStyleClass().add("schedule-dialog-check");
 
         getDialogPane().setContent(grid);
 
-        // 验证
         Button saveButton = (Button) getDialogPane().lookupButton(getDialogPane().getButtonTypes().get(0));
         saveButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
             if (!validateForm()) {
