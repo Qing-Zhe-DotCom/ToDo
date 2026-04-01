@@ -501,6 +501,9 @@ public class HeatmapView implements View {
     private VBox createDayScheduleCard(Schedule schedule) {
         VBox card = new VBox(8);
         card.getStyleClass().add("heatmap-day-card");
+        if (controller.isScheduleSelected(schedule)) {
+            card.getStyleClass().add("heatmap-day-card-selected");
+        }
 
         Color accentColor = getScheduleAccentColor(schedule);
         card.setStyle("-fx-border-color: transparent transparent transparent " + toRgb(accentColor) + "; -fx-border-width: 1 1 1 4;");
@@ -542,6 +545,7 @@ public class HeatmapView implements View {
 
         card.setOnMouseClicked(e -> {
             controller.showScheduleDetails(schedule);
+            updateDaySchedulePanel();
             if (e.getClickCount() == 2) {
                 controller.openEditScheduleDialog(schedule);
             }

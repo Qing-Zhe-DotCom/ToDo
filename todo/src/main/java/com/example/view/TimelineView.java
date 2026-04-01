@@ -437,6 +437,10 @@ public class TimelineView implements View {
         scheduleCard.setLayoutX(startX);
         scheduleCard.setLayoutY(cardY);
         scheduleCard.getStyleClass().add("timeline-schedule-card");
+        scheduleCard.setUserData(schedule);
+        if (controller.isScheduleSelected(schedule)) {
+            scheduleCard.getStyleClass().add("timeline-schedule-selected");
+        }
         double baseViewOrder = -(cardY * 10000 + startX);
         scheduleCard.setViewOrder(baseViewOrder);
 
@@ -603,6 +607,7 @@ public class TimelineView implements View {
 
         scheduleCard.setOnMouseClicked(e -> {
             controller.showScheduleDetails(schedule);
+            highlightSelectedScheduleCard(scheduleCard);
             if (e.getClickCount() == 2) {
                 controller.openEditScheduleDialog(schedule);
             }
@@ -610,6 +615,13 @@ public class TimelineView implements View {
 
         Tooltip.install(scheduleCard, new Tooltip(buildTooltipText(schedule, entryStart, entryEnd)));
         timelinePane.getChildren().add(scheduleCard);
+    }
+
+    private void highlightSelectedScheduleCard(StackPane selectedCard) {
+        for (Node node : timelinePane.getChildren()) {
+            node.getStyleClass().remove("timeline-schedule-selected");
+        }
+        selectedCard.getStyleClass().add("timeline-schedule-selected");
     }
 
     private void scrollToToday(LocalDate minDate, long visibleDays, double totalWidth) {

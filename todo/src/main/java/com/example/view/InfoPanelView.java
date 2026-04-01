@@ -3,12 +3,16 @@ package com.example.view;
 import com.example.controller.MainController;
 import com.example.databaseutil.ScheduleDAO;
 import com.example.model.Schedule;
+import javafx.animation.FadeTransition;
+import javafx.animation.ParallelTransition;
+import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.util.Duration;
 
 import java.sql.SQLException;
 import java.time.format.DateTimeFormatter;
@@ -20,6 +24,8 @@ public class InfoPanelView {
 
     private VBox root;
     private Schedule currentSchedule;
+    private ParallelTransition panelTransition;
+    private boolean panelVisible;
 
     // UI组件
     private Label titleLabel;
@@ -150,6 +156,57 @@ public class InfoPanelView {
 
     public Node getView() {
         return root;
+    }
+
+    public void showWithAnimation() {
+        root.setManaged(true);
+        root.setVisible(true);
+        stopPanelTransition();
+
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), root);
+        fadeIn.setFromValue(root.getOpacity());
+        fadeIn.setToValue(1);
+
+        TranslateTransition slideIn = new TranslateTransition(Duration.millis(300), root);
+        slideIn.setFromX(root.getTranslateX());
+        slideIn.setToX(0);
+
+        panelTransition = new ParallelTransition(fadeIn, slideIn);
+        panelTransition.setOnFinished(e -> panelVisible = true);
+        panelTransition.play();
+    }
+
+    public void hideWithAnimation() {
+        if (!panelVisible && !root.isVisible()) {
+            return;
+        }
+
+        stopPanelTransition();
+
+        FadeTransition fadeOut = new FadeTransition(Duration.millis(300), root);
+        fadeOut.setFromValue(root.getOpacity());
+        fadeOut.setToValue(0);
+
+        TranslateTransition slideOut = new TranslateTransition(Duration.millis(300), root);
+        slideOut.setFromX(root.getTranslateX());
+        slideOut.setToX(24);
+
+        panelTransition = new ParallelTransition(fadeOut, slideOut);
+        panelTransition.setOnFinished(e -> hideImmediately());
+        panelTransition.play();
+    }
+
+    public void hideImmediately() {
+        stopPanelTransition();
+        panelVisible = false;
+        root.setOpacity(0);
+        root.setTranslateX(24);
+        root.setVisible(false);
+        root.setManaged(false);
+    }
+
+    public boolean isPanelVisible() {
+        return panelVisible;
     }
 
     public void setSchedule(Schedule schedule) {
@@ -310,5 +367,12 @@ public class InfoPanelView {
         if ("高".equals(priority)) return "high";
         if ("低".equals(priority)) return "low";
         return "medium";
+    }
+
+    private void stopPanelTransition() {
+        if (panelTransition != null) {
+            panelTransition.stop();
+            panelTransition = null;
+        }
     }
 }

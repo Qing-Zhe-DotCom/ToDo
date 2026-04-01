@@ -88,6 +88,10 @@
     -fx-padding: 10;
 }
 
+.sidebar-bottom-actions {
+    -fx-padding: 4 0 0 0;
+}
+
 .nav-button {
     -fx-background-color: transparent;
     -fx-text-fill: #424242;
@@ -95,7 +99,20 @@
     -fx-padding: 12 15;
     -fx-cursor: hand;
     -fx-alignment: center-left;
-    -fx-min-width: 120px;
+    -fx-min-width: 0;
+}
+
+.sidebar-collapse-button {
+    -fx-font-weight: bold;
+}
+
+.sidebar-action-button {
+    -fx-font-size: 12px;
+}
+
+.sidebar-feature-toggle {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
 }
 
 .nav-button:hover {
@@ -474,6 +491,10 @@
     -fx-padding: 0;
 }
 
+.timeline-schedule-selected {
+    -fx-effect: dropshadow(gaussian, rgba(33, 150, 243, 0.55), 14, 0.35, 0, 0);
+}
+
 /* 热力图样式 */
 .heatmap-scroll {
     -fx-background-color: transparent;
@@ -548,6 +569,12 @@
 .heatmap-day-card:hover {
     -fx-background-color: #f7faff;
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 6, 0, 0, 2);
+}
+
+.heatmap-day-card-selected {
+    -fx-border-color: #2196f3;
+    -fx-border-width: 2;
+    -fx-background-color: #edf6ff;
 }
 
 .heatmap-day-empty {
