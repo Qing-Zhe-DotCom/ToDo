@@ -837,17 +837,137 @@
     -fx-text-fill: -color-primary-hover;
 }
 
-/* 日期选择器 */
-.date-picker {
+/* 日期选择器下拉面板样式深度定制 (Clean & Borderless Calendar) */
+.date-picker-popup {
     -fx-background-color: -color-bg-panel;
     -fx-border-color: -color-border;
-    -fx-border-radius: 8;
-    -fx-background-radius: 8;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.02), 2, 0, 0, 1);
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 15, 0, 0, 5);
 }
-.date-picker:focused {
-    -fx-border-color: -color-primary;
-    -fx-effect: dropshadow(gaussian, -color-primary, 4, 0.2, 0, 0);
+
+/* 隐藏头部多余的背景色和渐变 */
+.date-picker-popup > .month-year-pane {
+    -fx-background-color: transparent;
+    -fx-padding: 10 10 5 10;
+}
+
+/* 强化标题，纯色无背景 */
+.date-picker-popup > .month-year-pane > .label {
+    -fx-text-fill: -color-text-main;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+}
+
+/* 弱化切换箭头按钮的背景 */
+.date-picker-popup > .month-year-pane > .button {
+    -fx-background-color: transparent;
+    -fx-cursor: hand;
+    -fx-padding: 0;
+}
+.date-picker-popup > .month-year-pane > .button:hover {
+    -fx-background-color: transparent; /* 取消色块 Hover，改用 opacity 等方式让 SVG 自己发光更好，或保留透明 */
+    -fx-opacity: 0.8;
+}
+.date-picker-popup > .month-year-pane > .button > .left-arrow {
+    -fx-background-color: transparent;
+    -fx-shape: null; /* 移除内置形状 */
+    -fx-background-image: url("../icons/macaron_arrow-left_icon.svg");
+    -fx-background-size: contain;
+    -fx-background-repeat: no-repeat;
+    -fx-background-position: center;
+    -fx-min-width: 24px;
+    -fx-min-height: 24px;
+    -fx-pref-width: 24px;
+    -fx-pref-height: 24px;
+    -fx-scale-x: 1.0;
+    -fx-scale-y: 1.0;
+}
+.date-picker-popup > .month-year-pane > .button > .right-arrow {
+    -fx-background-color: transparent;
+    -fx-shape: null; /* 移除内置形状 */
+    -fx-background-image: url("../icons/macaron_arrow-right_icon.svg");
+    -fx-background-size: contain;
+    -fx-background-repeat: no-repeat;
+    -fx-background-position: center;
+    -fx-min-width: 24px;
+    -fx-min-height: 24px;
+    -fx-pref-width: 24px;
+    -fx-pref-height: 24px;
+    -fx-scale-x: 1.0;
+    -fx-scale-y: 1.0;
+}
+
+/* 去掉日历网格内部的线条和日历背景 */
+.date-picker-popup > .calendar-grid {
+    -fx-background-color: transparent;
+    -fx-padding: 0 10 10 10;
+}
+
+/* 星期表头：降噪，小号浅灰色 */
+.date-picker-popup > .calendar-grid > .day-name-cell {
+    -fx-font-size: 11px;
+    -fx-text-fill: #9ca3af;
+    -fx-background-color: transparent;
+    -fx-padding: 5 0 10 0;
+}
+
+/* 常规日期格子：无边框 */
+.date-picker-popup > .calendar-grid > .day-cell {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 4; /* 给圆形高亮留出空间 */
+    -fx-text-fill: -color-text-main;
+    -fx-font-size: 12px;
+    -fx-alignment: center;
+    -fx-cursor: hand;
+    -fx-background-radius: 8px; /* 修改为圆角矩形，解决由于格子本身不是正方形导致的椭圆问题 */
+    -fx-border-radius: 8px;
+}
+
+/* 悬停时的弱高亮 (圆形) */
+.date-picker-popup > .calendar-grid > .day-cell:hover {
+    -fx-background-color: derive(-color-primary, 90%);
+    -fx-text-fill: -color-primary;
+    -fx-font-weight: bold;
+}
+
+/* 选中的日期 (大圆角实心高亮) */
+.date-picker-popup > .calendar-grid > .selected {
+    -fx-background-color: -color-primary;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 8px; /* 保持一致的圆角矩形 */
+    -fx-border-radius: 8px;
+}
+.date-picker-popup > .calendar-grid > .selected:hover {
+    -fx-background-color: -color-primary-hover;
+}
+
+/* 今天 (弱高亮，保留主题色文字) */
+.date-picker-popup > .calendar-grid > .today {
+    -fx-background-color: #eff6ff;
+    -fx-text-fill: -color-primary;
+    -fx-font-weight: bold;
+    -fx-background-radius: 8px;
+}
+.date-picker-popup > .calendar-grid > .today.selected {
+    -fx-background-color: -color-primary;
+    -fx-text-fill: white;
+}
+
+/* 上个月/下个月的非当前月日期：极淡灰色 */
+.date-picker-popup > .calendar-grid > .previous-month,
+.date-picker-popup > .calendar-grid > .next-month {
+    -fx-text-fill: #d1d5db;
+}
+
+/* 周数栏（如果在某些系统中开启了）：直接隐藏掉，增加干净度 */
+.date-picker-popup > .calendar-grid > .week-number-cell {
+    -fx-padding: 0;
+    -fx-font-size: 0;
+    -fx-background-color: transparent;
+    -fx-text-fill: transparent;
 }
 
 
@@ -1805,5 +1925,160 @@
 .timeline-schedule-card.style-neumorphism:hover .card-bg {
     /* 悬停时外发光，增强浮出感 */
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 10, 0, 4, 4);
+}
+
+/* 8. 新建日程弹窗现代 UI 样式 (Modern Dialog UI) */
+.schedule-dialog-pane {
+    -fx-background-color: transparent;
+}
+.schedule-dialog-pane .dialog-pane {
+    -fx-background-color: transparent;
+}
+.schedule-dialog-root {
+    -fx-background-color: -color-bg-panel;
+}
+.schedule-dialog-pane .scroll-pane {
+    -fx-background-color: transparent;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-background: -color-bg-panel;
+}
+.schedule-dialog-pane .scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+.hero-title-input {
+    -fx-font-size: 26px;
+    -fx-font-weight: bold;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent transparent transparent;
+    -fx-padding: 5 0 10 0;
+    -fx-text-fill: -color-text-main;
+}
+.hero-title-input:focused {
+    -fx-border-color: transparent transparent #e5e7eb transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.hero-desc-input {
+    -fx-font-size: 14px;
+    -fx-background-color: #f9fafb;
+    -fx-border-color: transparent;
+    -fx-background-radius: 8;
+    -fx-padding: 12;
+    -fx-text-fill: -color-text-main;
+}
+.hero-desc-input .content {
+    -fx-background-color: transparent;
+}
+.hero-desc-input:focused {
+    -fx-border-color: transparent;
+    -fx-background-color: #f3f4f6;
+}
+
+.field-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: #9ca3af;
+}
+
+.modern-input {
+    -fx-background-color: transparent;
+    -fx-border-color: #e5e7eb;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 8 12;
+    -fx-text-fill: -color-text-main;
+}
+.modern-input:focused {
+    -fx-border-color: -color-primary;
+    -fx-border-radius: 8;
+    -fx-effect: dropshadow(gaussian, rgba(33, 150, 243, 0.2), 4, 0, 0, 0);
+}
+
+.error-border {
+    -fx-border-color: #F44336 !important;
+}
+
+.error-label {
+    -fx-text-fill: #F44336;
+    -fx-font-size: 11px;
+}
+
+.segmented-control {
+    -fx-background-color: -color-bg-base;
+    -fx-background-radius: 8;
+    -fx-padding: 4;
+}
+
+.segment-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: -color-text-sub;
+    -fx-border-color: transparent;
+    -fx-padding: 4 12;
+    -fx-background-radius: 6;
+    -fx-cursor: hand;
+}
+
+.segment-high:selected {
+    -fx-background-color: #fce8e8;
+    -fx-text-fill: #c62828;
+    -fx-font-weight: bold;
+}
+.segment-mid:selected {
+    -fx-background-color: #fef3c7;
+    -fx-text-fill: #b45309;
+    -fx-font-weight: bold;
+}
+.segment-low:selected {
+    -fx-background-color: #d1fae5;
+    -fx-text-fill: #1b5e20;
+    -fx-font-weight: bold;
+}
+
+.color-dot {
+    -fx-stroke: transparent;
+    -fx-stroke-width: 3;
+}
+.color-dot-selected {
+    -fx-stroke: #d1d5db;
+    -fx-stroke-type: outside;
+}
+
+.modern-toggle-switch {
+    -fx-background-color: #e5e7eb, white;
+    -fx-background-insets: 0, 2 18 2 2;
+    -fx-background-radius: 12, 10;
+    -fx-text-fill: transparent;
+    -fx-pref-width: 38;
+    -fx-pref-height: 22;
+    -fx-min-width: 38;
+    -fx-min-height: 22;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+}
+.modern-toggle-switch.on {
+    -fx-background-color: -color-primary, white;
+    -fx-background-insets: 0, 2 2 2 18;
+}
+
+.primary-save-button {
+    -fx-background-color: -color-primary !important;
+    -fx-text-fill: white !important;
+    -fx-font-weight: bold;
+    -fx-background-radius: 20;
+    -fx-padding: 8 24;
+}
+.primary-save-button:disabled {
+    -fx-opacity: 0.5;
+}
+
+.ghost-cancel-button {
+    -fx-background-color: transparent !important;
+    -fx-text-fill: #9ca3af !important;
+    -fx-border-color: transparent !important;
+}
+.ghost-cancel-button:hover {
+    -fx-background-color: #f3f4f6 !important;
+    -fx-text-fill: #4b5563 !important;
 }
 
