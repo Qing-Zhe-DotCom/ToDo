@@ -861,41 +861,38 @@
 
 /* 弱化切换箭头按钮的背景 */
 .date-picker-popup > .month-year-pane > .button {
-    -fx-background-color: transparent;
+    -fx-background-color: transparent !important;
     -fx-cursor: hand;
     -fx-padding: 0;
+    -fx-background-insets: 0;
+    -fx-effect: null;
+    -fx-border-color: transparent;
 }
 .date-picker-popup > .month-year-pane > .button:hover {
-    -fx-background-color: transparent; /* 取消色块 Hover，改用 opacity 等方式让 SVG 自己发光更好，或保留透明 */
+    -fx-background-color: transparent !important;
     -fx-opacity: 0.8;
+    -fx-effect: null;
+}
+.date-picker-popup > .month-year-pane > .button:pressed,
+.date-picker-popup > .month-year-pane > .button:armed,
+.date-picker-popup > .month-year-pane > .button:focused {
+    -fx-background-color: transparent !important;
+    -fx-effect: null;
 }
 .date-picker-popup > .month-year-pane > .button > .left-arrow {
+    -fx-opacity: 0;
     -fx-background-color: transparent;
-    -fx-shape: null; /* 移除内置形状 */
-    -fx-background-image: url("../icons/macaron_arrow-left_icon.svg");
-    -fx-background-size: contain;
-    -fx-background-repeat: no-repeat;
-    -fx-background-position: center;
-    -fx-min-width: 24px;
-    -fx-min-height: 24px;
-    -fx-pref-width: 24px;
-    -fx-pref-height: 24px;
-    -fx-scale-x: 1.0;
-    -fx-scale-y: 1.0;
+    -fx-padding: 0;
 }
 .date-picker-popup > .month-year-pane > .button > .right-arrow {
+    -fx-opacity: 0;
     -fx-background-color: transparent;
-    -fx-shape: null; /* 移除内置形状 */
-    -fx-background-image: url("../icons/macaron_arrow-right_icon.svg");
-    -fx-background-size: contain;
-    -fx-background-repeat: no-repeat;
-    -fx-background-position: center;
-    -fx-min-width: 24px;
-    -fx-min-height: 24px;
-    -fx-pref-width: 24px;
-    -fx-pref-height: 24px;
-    -fx-scale-x: 1.0;
-    -fx-scale-y: 1.0;
+    -fx-padding: 0;
+}
+.date-picker-popup > .month-year-pane > .button.calendar-arrow-button {
+    -fx-background-color: transparent !important;
+    -fx-padding: 0;
+    -fx-effect: null;
 }
 
 /* 去掉日历网格内部的线条和日历背景 */
