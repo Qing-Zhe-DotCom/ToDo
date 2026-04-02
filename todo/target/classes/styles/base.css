@@ -279,15 +279,6 @@
 
 
 .sidebar-svg-icon {
-
-    -fx-min-width: 24;
-
-    -fx-min-height: 24;
-
-    -fx-pref-width: 24;
-
-    -fx-pref-height: 24;
-
 }
 
 
@@ -766,6 +757,25 @@
 }
 .fab-button .sidebar-svg-icon {
     -fx-background-color: -color-bg-panel;
+    -fx-background-radius: 50%;
+}
+
+.icon-button {
+    -fx-background-color: transparent !important;
+    -fx-border-color: transparent !important;
+    -fx-effect: none !important;
+    -fx-padding: 4;
+    -fx-cursor: hand;
+}
+.icon-button:hover {
+    -fx-background-color: -color-bg-hover !important;
+    -fx-background-radius: 4;
+}
+.icon-button:pressed, .icon-button:selected {
+    -fx-background-color: -color-bg-active !important;
+    -fx-border-color: transparent !important;
+    -fx-background-radius: 4;
+    -fx-effect: none !important;
 }
 
 /* 复选框样式 */

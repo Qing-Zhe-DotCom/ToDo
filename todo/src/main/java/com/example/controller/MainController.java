@@ -60,6 +60,15 @@ import javafx.scene.shape.StrokeLineJoin;
 import javafx.scene.Group;
 import javafx.scene.transform.Scale;
 import javafx.scene.transform.Translate;
+import javafx.scene.transform.Rotate;
+import javafx.scene.text.Text;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.TextAlignment;
+import javafx.scene.text.TextBoundsType;
+import javafx.geometry.VPos;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 import javafx.stage.FileChooser;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
@@ -316,13 +325,19 @@ public class MainController {
     }
 
     public Pane createSvgIcon(String resourcePath, String title, double size) {
-        Group iconGroup = loadSvgGraphic(resourcePath);
+        Group iconGroup = loadSvgGraphic(resourcePath, size);
         Pane container = new Pane(iconGroup);
         container.getStyleClass().add("sidebar-svg-icon");
         container.setMinSize(size, size);
         container.setPrefSize(size, size);
         container.setMaxSize(size, size);
-        container.setClip(new Rectangle(size, size));
+        
+        // 使用圆角矩形作为裁剪区域，如果不设置圆角则默认为直角
+        Rectangle clip = new Rectangle(size, size);
+        clip.setArcWidth(size);
+        clip.setArcHeight(size);
+        container.setClip(clip);
+        
         if (title != null && !title.isEmpty()) {
             container.setAccessibleText(title);
             Tooltip.install(container, new Tooltip(title));
@@ -330,7 +345,7 @@ public class MainController {
         return container;
     }
 
-    private Group loadSvgGraphic(String resourcePath) {
+    private Group loadSvgGraphic(String resourcePath, double targetSize) {
         try (InputStream stream = getClass().getResourceAsStream(resourcePath)) {
             if (stream == null) {
                 return new Group();
@@ -341,8 +356,8 @@ public class MainController {
             Element svg = document.getDocumentElement();
             Group group = new Group();
             double[] viewBox = parseViewBox(svg.getAttribute("viewBox"));
-            parseSvgChildren(svg, group, 0, 0);
-            double scale = 24.0 / Math.max(viewBox[2], viewBox[3]);
+            parseSvgChildren(svg, group);
+            double scale = targetSize / Math.max(viewBox[2], viewBox[3]);
             group.getTransforms().add(new Scale(scale, scale));
             group.getTransforms().add(new Translate(-viewBox[0], -viewBox[1]));
             return group;
@@ -351,7 +366,7 @@ public class MainController {
         }
     }
 
-    private void parseSvgChildren(Element parent, Group target, double offsetX, double offsetY) {
+    private void parseSvgChildren(Element parent, Group target) {
         NodeList children = parent.getChildNodes();
         for (int i = 0; i < children.getLength(); i++) {
             org.w3c.dom.Node child = children.item(i);
@@ -361,17 +376,50 @@ public class MainController {
             Element element = (Element) child;
             String tag = element.getTagName();
             if ("g".equals(tag)) {
-                double[] translate = parseTranslate(element.getAttribute("transform"));
-                parseSvgChildren(element, target, offsetX + translate[0], offsetY + translate[1]);
+                Group group = new Group();
+                applyTransform(group, element.getAttribute("transform"));
+                target.getChildren().add(group);
+                parseSvgChildren(element, group);
                 continue;
             }
             Shape shape = createShapeFromElement(element);
             if (shape == null) {
                 continue;
             }
-            shape.setTranslateX(offsetX);
-            shape.setTranslateY(offsetY);
+            applyTransform(shape, element.getAttribute("transform"));
             target.getChildren().add(shape);
+        }
+    }
+
+    private void applyTransform(Node node, String transformStr) {
+        if (transformStr == null || transformStr.isEmpty()) return;
+        
+        Matcher matcher = Pattern.compile("(\\w+)\\s*\\(([^)]+)\\)").matcher(transformStr);
+        while (matcher.find()) {
+            String type = matcher.group(1);
+            String[] args = matcher.group(2).split("[,\\s]+");
+            try {
+                if ("translate".equals(type)) {
+                    double tx = parseDouble(args[0]);
+                    double ty = args.length > 1 ? parseDouble(args[1]) : 0;
+                    node.getTransforms().add(new Translate(tx, ty));
+                } else if ("rotate".equals(type)) {
+                    double angle = parseDouble(args[0]);
+                    if (args.length >= 3) {
+                        double cx = parseDouble(args[1]);
+                        double cy = parseDouble(args[2]);
+                        node.getTransforms().add(new Rotate(angle, cx, cy));
+                    } else {
+                        node.getTransforms().add(new Rotate(angle));
+                    }
+                } else if ("scale".equals(type)) {
+                    double sx = parseDouble(args[0]);
+                    double sy = args.length > 1 ? parseDouble(args[1]) : sx;
+                    node.getTransforms().add(new Scale(sx, sy));
+                }
+            } catch (Exception e) {
+                // ignore parsing errors for a single transform
+            }
         }
     }
 
@@ -406,6 +454,35 @@ public class MainController {
             path.setContent(element.getAttribute("d"));
             applyShapeStyle(path, element);
             return path;
+        }
+        if ("text".equals(tag)) {
+            Text text = new Text(element.getTextContent());
+            text.setX(parseDouble(element.getAttribute("x")));
+            text.setY(parseDouble(element.getAttribute("y")));
+            
+            String fontFamily = element.getAttribute("font-family");
+            if (fontFamily.isEmpty()) fontFamily = "System";
+            else fontFamily = fontFamily.replaceAll("['\"]", "");
+            
+            double fontSize = parseDoubleOrDefault(element.getAttribute("font-size"), 12);
+            String fontWeight = element.getAttribute("font-weight");
+            FontWeight fw = "bold".equalsIgnoreCase(fontWeight) ? FontWeight.BOLD : FontWeight.NORMAL;
+            text.setFont(Font.font(fontFamily, fw, fontSize));
+            
+            String textAnchor = element.getAttribute("text-anchor");
+            if ("middle".equals(textAnchor)) {
+                text.setTextAlignment(TextAlignment.CENTER);
+                text.setBoundsType(TextBoundsType.VISUAL);
+                double initWidth = text.getLayoutBounds().getWidth();
+                if (initWidth > 0) {
+                    text.setTranslateX(-initWidth / 2);
+                }
+                text.layoutBoundsProperty().addListener((obs, oldB, newB) -> {
+                    text.setTranslateX(-newB.getWidth() / 2);
+                });
+            }
+            applyShapeStyle(text, element);
+            return text;
         }
         return null;
     }

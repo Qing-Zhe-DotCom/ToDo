@@ -112,43 +112,68 @@ public class HeatmapView implements View {
 
         // 视图模式选择
         ToggleGroup viewGroup = new ToggleGroup();
+        HBox viewModes = new HBox(24); // Increase spacing to 24px (1.5x of 16px)
+        viewModes.setAlignment(Pos.CENTER_LEFT);
 
-        ToggleButton weekBtn = new ToggleButton("周");
+        ToggleButton weekBtn = new ToggleButton();
+        weekBtn.setGraphic(controller.createSvgIcon("/icons/macaron_week_icon.svg", null, 48));
         weekBtn.setToggleGroup(viewGroup);
+        weekBtn.getStyleClass().setAll("icon-button");
+        weekBtn.setTooltip(new Tooltip("周视图"));
         weekBtn.setOnAction(e -> {
             currentViewMode = "week";
             queueRefresh();
         });
 
-        ToggleButton monthBtn = new ToggleButton("月");
+        ToggleButton monthBtn = new ToggleButton();
+        monthBtn.setGraphic(controller.createSvgIcon("/icons/macaron_month_icon.svg", null, 48));
         monthBtn.setToggleGroup(viewGroup);
         monthBtn.setSelected(true);
+        monthBtn.getStyleClass().setAll("icon-button");
+        monthBtn.setTooltip(new Tooltip("月视图"));
         monthBtn.setOnAction(e -> {
             currentViewMode = "month";
             queueRefresh();
         });
 
-        ToggleButton yearBtn = new ToggleButton("年");
+        ToggleButton yearBtn = new ToggleButton();
+        yearBtn.setGraphic(controller.createSvgIcon("/icons/macaron_year_icon.svg", null, 48));
         yearBtn.setToggleGroup(viewGroup);
+        yearBtn.getStyleClass().setAll("icon-button");
+        yearBtn.setTooltip(new Tooltip("年视图"));
         yearBtn.setOnAction(e -> {
             currentViewMode = "year";
             queueRefresh();
         });
+        
+        viewModes.getChildren().addAll(weekBtn, monthBtn, yearBtn);
 
         // 导航按钮
+        HBox navButtons = new HBox(24); // Increase spacing to 24px (1.5x of 16px)
+        navButtons.setAlignment(Pos.CENTER_RIGHT);
+        navButtons.setPadding(new Insets(0, 15, 0, 0)); // Keep the 15px right padding from edge
+
         prevBtn = new Button();
-        updateNavigationButtons();
+        prevBtn.setGraphic(controller.createSvgIcon("/icons/macaron_prev_icon.svg", null, 48));
+        prevBtn.getStyleClass().setAll("icon-button");
         prevBtn.setOnAction(e -> navigate(-1));
 
-        nextBtn = new Button();
-        updateNavigationButtons();
-        nextBtn.setOnAction(e -> navigate(1));
-
-        Button todayBtn = new Button("今天");
+        Button todayBtn = new Button();
+        todayBtn.setGraphic(controller.createSvgIcon("/icons/macaron_today_icon.svg", null, 48));
+        todayBtn.getStyleClass().setAll("icon-button");
+        todayBtn.setTooltip(new Tooltip("回到今天"));
         todayBtn.setOnAction(e -> {
             currentDate = LocalDate.now();
             queueRefresh();
         });
+
+        nextBtn = new Button();
+        nextBtn.setGraphic(controller.createSvgIcon("/icons/macaron_next_icon.svg", null, 48));
+        nextBtn.getStyleClass().setAll("icon-button");
+        nextBtn.setOnAction(e -> navigate(1));
+
+        navButtons.getChildren().addAll(prevBtn, todayBtn, nextBtn);
+        updateNavigationButtons();
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -159,9 +184,9 @@ public class HeatmapView implements View {
         header.getChildren().addAll(
             titleLabel,
             viewLabel,
-            weekBtn, monthBtn, yearBtn,
+            viewModes,
             spacer,
-            prevBtn, todayBtn, nextBtn
+            navButtons
         );
 
         return header;
@@ -420,10 +445,12 @@ public class HeatmapView implements View {
     private void updateNavigationButtons() {
         String periodName = getPeriodName();
         if (prevBtn != null) {
-            prevBtn.setText("< 上一" + periodName);
+            prevBtn.setText("");
+            prevBtn.setTooltip(new Tooltip("上一" + periodName));
         }
         if (nextBtn != null) {
-            nextBtn.setText("下一" + periodName + " >");
+            nextBtn.setText("");
+            nextBtn.setTooltip(new Tooltip("下一" + periodName));
         }
     }
 
