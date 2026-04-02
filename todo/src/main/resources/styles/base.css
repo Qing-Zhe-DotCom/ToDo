@@ -433,8 +433,42 @@
 .completed-group-header {
     -fx-font-weight: bold;
     -fx-text-fill: -color-text-sub;
-    -fx-padding: 10 0 5 5;
     -fx-font-size: 14px;
+}
+
+.schedule-group-toggle {
+    -fx-cursor: hand;
+    -fx-alignment: center-left;
+    -fx-background-color: -color-bg-base; /* 浅色背景框 */
+    -fx-background-radius: 8px; /* 圆角 */
+    -fx-padding: 8 12; /* 内边距 */
+    -fx-border-color: -color-border;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+}
+.schedule-group-toggle:hover {
+    -fx-background-color: derive(-color-bg-base, -5%);
+}
+.schedule-group-toggle:hover .schedule-group-title,
+.schedule-group-toggle:hover .schedule-group-arrow {
+    -fx-text-fill: -color-primary-hover;
+}
+
+.schedule-group-arrow {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-text-sub;
+    -fx-min-width: 12px;
+    -fx-pref-width: 12px;
+    -fx-max-width: 12px;
+    -fx-alignment: center;
+}
+
+.schedule-group-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-text-sub;
+    -fx-padding: 0;
 }
 
 /* 已完成日程标题样式 */

@@ -33,6 +33,7 @@ import javafx.scene.shape.SVGPath;
 import javafx.scene.shape.Shape;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.scene.shape.StrokeLineJoin;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.transform.Scale;
 import javafx.scene.transform.Translate;
 import javafx.scene.layout.HBox;
@@ -58,9 +59,13 @@ public class ScheduleListView implements View {
     private ComboBox<String> filterComboBox;
     private static final String DONE_ICON_PATH = "/icons/macaron-logo-schedule-done.svg";
     private static final String PENDING_ICON_PATH = "/icons/macaron-logo-schedule-pending.svg";
+    private static final String GROUP_ARROW_DOWN_ICON_PATH = "/icons/macaron_arrow-down_icon.svg";
+    private static final String GROUP_ARROW_UP_ICON_PATH = "/icons/macaron_arrow-up_icon.svg";
     
     private boolean showingSearchResults = false;
     private String currentSearchKeyword = "";
+    private boolean pendingCollapsed = false;
+    private boolean completedCollapsed = false;
     
     public ScheduleListView(MainController controller) {
         this.controller = controller;
@@ -287,6 +292,11 @@ public class ScheduleListView implements View {
                 getStyleClass().removeAll("completed", "overdue", "upcoming");
                 return;
             }
+            setManaged(true);
+            setVisible(true);
+            setPrefHeight(Region.USE_COMPUTED_SIZE);
+            setMinHeight(Region.USE_COMPUTED_SIZE);
+            setMaxHeight(Region.USE_COMPUTED_SIZE);
             
             // 创建单元格内容
             HBox cell = new HBox(12);
@@ -340,35 +350,51 @@ public class ScheduleListView implements View {
             // 包装容器以支持分组标题
             VBox container = new VBox(5);
             
-            // 检查是否需要添加“已完成”分组标题
-            boolean isFirstCompleted = false;
-            if (schedule.isCompleted()) {
-                int index = getIndex();
-                if (index == 0) {
-                    isFirstCompleted = true;
-                } else if (index > 0 && index < getListView().getItems().size()) {
-                    Schedule prev = getListView().getItems().get(index - 1);
-                    if (prev != null && !prev.isCompleted()) {
-                        isFirstCompleted = true;
-                    }
-                }
-            }
-            
-            if (isFirstCompleted) {
-                Label header = new Label("已完成");
-                header.getStyleClass().add("completed-group-header");
+            int index = getIndex();
+            boolean isFirstPending = !schedule.isCompleted() && isFirstPending(index);
+            boolean isFirstCompleted = schedule.isCompleted() && isFirstCompleted(index);
+            boolean groupCollapsed = schedule.isCompleted() ? completedCollapsed : pendingCollapsed;
+
+            if (isFirstPending) {
+                HBox header = createGroupHeaderLabel("待办", pendingCollapsed, () -> {
+                    pendingCollapsed = !pendingCollapsed;
+                    scheduleListView.refresh();
+                });
                 container.getChildren().add(header);
             }
+
+            if (isFirstCompleted) {
+                HBox header = createGroupHeaderLabel("已完成", completedCollapsed, () -> {
+                    completedCollapsed = !completedCollapsed;
+                    scheduleListView.refresh();
+                });
+                container.getChildren().add(header);
+            }
+
+            if (!groupCollapsed) {
+                container.getChildren().add(cell);
+            } else if (!isFirstPending && !isFirstCompleted) {
+                setGraphic(null);
+                setText(null);
+                setManaged(false);
+                setVisible(false);
+                setPrefHeight(0);
+                setMinHeight(0);
+                setMaxHeight(0);
+                getStyleClass().removeAll("completed", "overdue", "upcoming");
+                return;
+            }
             
-            container.getChildren().add(cell);
             setGraphic(container);
             
             // 添加点击事件，确保选择该日程
-            cell.setOnMouseClicked(e -> {
-                getListView().getSelectionModel().select(schedule);
-                // 阻止事件冒泡，避免触发其他选择逻辑
-                e.consume();
-            });
+            if (!groupCollapsed) {
+                cell.setOnMouseClicked(e -> {
+                    getListView().getSelectionModel().select(schedule);
+                    controller.showScheduleDetails(schedule);
+                    e.consume();
+                });
+            }
             
             // 更新样式
             getStyleClass().removeAll("completed", "overdue", "upcoming");
@@ -379,6 +405,56 @@ public class ScheduleListView implements View {
             } else if (schedule.isUpcoming()) {
                 getStyleClass().add("upcoming");
             }
+        }
+
+        private boolean isFirstPending(int index) {
+            if (index < 0 || index >= getListView().getItems().size()) {
+                return false;
+            }
+            Schedule current = getListView().getItems().get(index);
+            if (current == null || current.isCompleted()) {
+                return false;
+            }
+            if (index == 0) {
+                return true;
+            }
+            Schedule prev = getListView().getItems().get(index - 1);
+            return prev != null && prev.isCompleted();
+        }
+
+        private boolean isFirstCompleted(int index) {
+            if (index < 0 || index >= getListView().getItems().size()) {
+                return false;
+            }
+            Schedule current = getListView().getItems().get(index);
+            if (current == null || !current.isCompleted()) {
+                return false;
+            }
+            if (index == 0) {
+                return true;
+            }
+            Schedule prev = getListView().getItems().get(index - 1);
+            return prev != null && !prev.isCompleted();
+        }
+
+        private HBox createGroupHeaderLabel(String title, boolean collapsed, Runnable toggleAction) {
+            Label arrowLabel = new Label("▶");
+            arrowLabel.setRotate(collapsed ? 0 : 90);
+            arrowLabel.getStyleClass().add("schedule-group-arrow");
+
+            Label textLabel = new Label(title);
+            textLabel.getStyleClass().add("completed-group-header");
+            textLabel.getStyleClass().add("schedule-group-title");
+
+            HBox header = new HBox(6, arrowLabel, textLabel);
+            header.setAlignment(Pos.CENTER_LEFT);
+            header.getStyleClass().add("schedule-group-toggle");
+            header.addEventFilter(MouseEvent.MOUSE_PRESSED, e -> e.consume());
+            header.setOnMouseClicked(e -> {
+                toggleAction.run();
+                e.consume();
+            });
+            return header;
         }
         
         private String getPriorityClass(String priority) {
@@ -391,28 +467,32 @@ public class ScheduleListView implements View {
     private ImageView createStatusIconView(boolean completed) {
         String path = completed ? DONE_ICON_PATH : PENDING_ICON_PATH;
         String title = completed ? "已完成日程" : "未完成日程";
-        Group iconGroup = loadSvgGraphic(path);
+        Group iconGroup = loadSvgGraphic(path, 24);
         StackPane container = new StackPane(iconGroup);
         container.setMinSize(24, 24);
         container.setPrefSize(24, 24);
         container.setMaxSize(24, 24);
         container.setAccessibleText(title);
         container.setPickOnBounds(true);
-        return snapshotAsImageView(container);
+        return snapshotAsImageView(container, 24);
     }
 
-    private ImageView snapshotAsImageView(StackPane container) {
+    private ImageView snapshotAsImageView(StackPane container, double size) {
         javafx.scene.SnapshotParameters parameters = new javafx.scene.SnapshotParameters();
         parameters.setFill(Color.TRANSPARENT);
+        
+        // Ensure container is laid out before snapshotting
+        container.layout();
+        
         ImageView imageView = new ImageView(container.snapshot(parameters, null));
-        imageView.setFitWidth(24);
-        imageView.setFitHeight(24);
+        imageView.setFitWidth(size);
+        imageView.setFitHeight(size);
         imageView.setPreserveRatio(true);
         imageView.setSmooth(true);
         return imageView;
     }
 
-    private Group loadSvgGraphic(String resourcePath) {
+    private Group loadSvgGraphic(String resourcePath, double targetSize) {
         try (java.io.InputStream stream = getClass().getResourceAsStream(resourcePath)) {
             if (stream == null) {
                 return new Group();
@@ -424,7 +504,7 @@ public class ScheduleListView implements View {
             Group group = new Group();
             double[] viewBox = parseViewBox(svg.getAttribute("viewBox"));
             parseSvgChildren(svg, group, 0, 0);
-            double scale = 24.0 / Math.max(viewBox[2], viewBox[3]);
+            double scale = targetSize / Math.max(viewBox[2], viewBox[3]);
             group.getTransforms().add(new Scale(scale, scale));
             group.getTransforms().add(new Translate(-viewBox[0], -viewBox[1]));
             return group;
