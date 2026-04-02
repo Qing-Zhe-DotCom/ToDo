@@ -94,6 +94,7 @@ public class MainController {
     private VBox sidebar;
     private VBox bottomActions;
     private Separator bottomActionsSeparator;
+    private Label functionTitle;
     private TextField searchField;
     private ToggleButton collapseToggle;
     private ToggleButton featurePanelToggle;
@@ -183,7 +184,7 @@ public class MainController {
         Region spacer = new Region();
         VBox.setVgrow(spacer, Priority.ALWAYS);
 
-        Label functionTitle = new Label("侧边功能栏");
+        functionTitle = new Label("侧边功能栏");
         functionTitle.getStyleClass().addAll("label-hint", "sidebar-function-title");
 
         Button newScheduleButton = createActionButton("/icons/macaron-logo-new-schedule.svg", "新建日程", this::openNewScheduleDialog);
@@ -289,36 +290,62 @@ public class MainController {
         sidebar.setPadding(sidebarCollapsed ? new Insets(6) : new Insets(10));
         sidebar.setSpacing(sidebarCollapsed ? 6 : 8);
         sidebar.setAlignment(sidebarCollapsed ? Pos.TOP_CENTER : Pos.TOP_LEFT);
+        sidebar.setFillWidth(!sidebarCollapsed);
 
         if (collapseToggle != null) {
-            collapseToggle.setText("");
-            collapseToggle.setAlignment(sidebarCollapsed ? Pos.CENTER : Pos.CENTER_LEFT);
-            collapseToggle.setPadding(sidebarCollapsed ? new Insets(4, 0, 4, 0) : new Insets(8, 12, 8, 12));
+            if (sidebarCollapsed) {
+                collapseToggle.setText("");
+                collapseToggle.setStyle("-fx-padding: 8 0 8 0; -fx-alignment: center; -fx-min-width: 40; -fx-min-height: 40; -fx-pref-width: 40; -fx-pref-height: 40; -fx-max-width: 40; -fx-max-height: 40;");
+                collapseToggle.setAlignment(Pos.CENTER);
+                collapseToggle.setPadding(new Insets(8, 0, 8, 0));
+            } else {
+                collapseToggle.setText("侧边栏");
+                collapseToggle.setStyle("-fx-padding: 10 12 10 12; -fx-alignment: center-left; -fx-min-height: 40; -fx-pref-height: 40; -fx-max-height: 40;");
+                collapseToggle.setAlignment(Pos.CENTER_LEFT);
+                collapseToggle.setPadding(new Insets(10, 12, 10, 12));
+            }
             if (collapseToggleIcon != null) {
                 collapseToggleIcon.setRotate(sidebarCollapsed ? 0 : 90);
             }
         }
+        
+        for (Map.Entry<Labeled, String[]> entry : collapsibleLabels.entrySet()) {
+            Labeled control = entry.getKey();
+            String[] texts = entry.getValue();
+            if (sidebarCollapsed) {
+                control.setText("");
+                control.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+                control.setStyle("-fx-padding: 8 0 8 0; -fx-alignment: center; -fx-min-width: 40; -fx-min-height: 40; -fx-pref-width: 40; -fx-pref-height: 40; -fx-max-width: 40; -fx-max-height: 40;");
+                control.setAlignment(Pos.CENTER);
+                control.setPadding(new Insets(8, 0, 8, 0)); // Center padding
+                control.setMinSize(40, 40); // Make it a square for centering
+                control.setPrefSize(40, 40);
+                control.setMaxSize(40, 40);
+            } else {
+                control.setText(texts[0]);
+                control.setContentDisplay(ContentDisplay.LEFT);
+                control.setStyle("-fx-padding: 10 12 10 12; -fx-alignment: center-left; -fx-min-height: 40; -fx-pref-height: 40; -fx-max-height: 40;");
+                control.setAlignment(Pos.CENTER_LEFT);
+                control.setPadding(new Insets(10, 12, 10, 12)); // Original nav-button padding
+                control.setMinSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+                control.setPrefSize(Region.USE_COMPUTED_SIZE, 40);
+                control.setMaxSize(Double.MAX_VALUE, 40);
+            }
+        }
 
+        if (bottomActions != null) {
+            bottomActions.setAlignment(sidebarCollapsed ? Pos.TOP_CENTER : Pos.TOP_LEFT);
+            bottomActions.setFillWidth(!sidebarCollapsed);
+        }
+
+        if (functionTitle != null) {
+            functionTitle.setVisible(!sidebarCollapsed);
+            functionTitle.setManaged(!sidebarCollapsed);
+        }
+        
         if (searchField != null) {
             searchField.setVisible(!sidebarCollapsed);
             searchField.setManaged(!sidebarCollapsed);
-        }
-
-        for (Map.Entry<Labeled, String[]> entry : collapsibleLabels.entrySet()) {
-            Labeled control = entry.getKey();
-            String[] labels = entry.getValue();
-            control.setText(sidebarCollapsed ? labels[1] : labels[0]);
-            control.setAlignment(sidebarCollapsed ? Pos.CENTER : Pos.CENTER_LEFT);
-            control.setContentDisplay(sidebarCollapsed ? ContentDisplay.GRAPHIC_ONLY : ContentDisplay.LEFT);
-            control.setPadding(sidebarCollapsed ? new Insets(4, 0, 4, 0) : new Insets(10, 12, 10, 12));
-            if (sidebarCollapsed) {
-                control.setMinSize(30, 30);
-                control.setPrefSize(30, 30);
-            } else {
-                control.setMinWidth(0);
-                control.setPrefHeight(40);
-                control.setMaxWidth(Double.MAX_VALUE);
-            }
         }
 
         updateFeaturePanelState();
@@ -569,9 +596,25 @@ public class MainController {
 
     private void updateFeaturePanelState() {
         if (featurePanelToggle != null) {
-            featurePanelToggle.setText("");
-            featurePanelToggle.setAlignment(sidebarCollapsed ? Pos.CENTER : Pos.CENTER_LEFT);
-            featurePanelToggle.setPadding(sidebarCollapsed ? new Insets(4, 0, 4, 0) : new Insets(8, 12, 8, 12));
+            if (sidebarCollapsed) {
+                featurePanelToggle.setText("");
+                featurePanelToggle.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+                featurePanelToggle.setStyle("-fx-padding: 8 0 8 0; -fx-alignment: center; -fx-min-width: 40; -fx-min-height: 40; -fx-pref-width: 40; -fx-pref-height: 40; -fx-max-width: 40; -fx-max-height: 40;");
+                featurePanelToggle.setAlignment(Pos.CENTER);
+                featurePanelToggle.setPadding(new Insets(8, 0, 8, 0));
+                featurePanelToggle.setMinSize(40, 40);
+                featurePanelToggle.setPrefSize(40, 40);
+                featurePanelToggle.setMaxSize(40, 40);
+            } else {
+                featurePanelToggle.setText("更多功能");
+                featurePanelToggle.setContentDisplay(ContentDisplay.LEFT);
+                featurePanelToggle.setStyle("-fx-padding: 10 12 10 12; -fx-alignment: center-left; -fx-min-height: 40; -fx-pref-height: 40; -fx-max-height: 40;");
+                featurePanelToggle.setAlignment(Pos.CENTER_LEFT);
+                featurePanelToggle.setPadding(new Insets(10, 12, 10, 12));
+                featurePanelToggle.setMinSize(Region.USE_COMPUTED_SIZE, Region.USE_COMPUTED_SIZE);
+                featurePanelToggle.setPrefSize(Region.USE_COMPUTED_SIZE, 40);
+                featurePanelToggle.setMaxSize(Double.MAX_VALUE, 40);
+            }
             if (featureToggleIcon != null) {
                 featureToggleIcon.setRotate(featurePanelExpanded ? 90 : 0);
             }
