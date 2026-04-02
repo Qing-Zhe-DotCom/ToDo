@@ -34,7 +34,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 
-import javafx.scene.control.ComboBox;
 import javafx.animation.ScaleTransition;
 import javafx.animation.TranslateTransition;
 import javafx.animation.ParallelTransition;
@@ -66,7 +65,6 @@ public class TimelineView implements View {
     private Label timelineStateLabel;
     private DatePicker startDatePicker;
     private DatePicker endDatePicker;
-    private ComboBox<String> styleComboBox;
 
     private AnimationTimer autoScrollTimer;
     private long lastUpdate = 0;
@@ -149,19 +147,6 @@ public class TimelineView implements View {
         Label titleLabel = new Label("日程时间轴");
         titleLabel.getStyleClass().add("label-title");
 
-        styleComboBox = new ComboBox<>();
-        styleComboBox.getItems().addAll(
-            "经典实体卡片", 
-            "清新扁平",
-            "温馨治愈风",
-            "现代高级极简风",
-            "新粗野主义",
-            "Material You",
-            "拟物浮雕风"
-        );
-        styleComboBox.setValue("温馨治愈风");
-        styleComboBox.setOnAction(e -> refresh());
-
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
@@ -195,7 +180,6 @@ public class TimelineView implements View {
 
         header.getChildren().addAll(
             titleLabel,
-            styleComboBox,
             spacer,
             new Label("日期范围:"),
             startDatePicker,
@@ -460,7 +444,7 @@ public class TimelineView implements View {
         scheduleCard.setLayoutY(cardY);
         scheduleCard.getStyleClass().add("timeline-schedule-card");
         
-        String currentStyle = styleComboBox != null ? styleComboBox.getValue() : "温馨治愈风";
+        String currentStyle = controller.getCurrentTimelineCardStyle();
         if ("经典实体卡片".equals(currentStyle)) scheduleCard.getStyleClass().add("style-classic");
         else if ("清新扁平".equals(currentStyle)) scheduleCard.getStyleClass().add("style-fresh");
         else if ("温馨治愈风".equals(currentStyle)) scheduleCard.getStyleClass().add("style-cozy");

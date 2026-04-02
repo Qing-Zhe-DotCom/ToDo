@@ -22,6 +22,9 @@ import com.example.view.TimelineView;
 import com.example.view.View;
 
 import javafx.application.Platform;
+import javafx.animation.FadeTransition;
+import javafx.animation.ParallelTransition;
+import javafx.animation.TranslateTransition;
 import javafx.scene.Scene;
 import javafx.scene.Node;
 import javafx.geometry.Insets;
@@ -30,12 +33,15 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Labeled;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.Separator;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
@@ -45,9 +51,11 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.geometry.Side;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
@@ -70,6 +78,7 @@ import javafx.geometry.VPos;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import javafx.stage.FileChooser;
+import javafx.util.Duration;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -107,17 +116,22 @@ public class MainController {
     private final Map<Labeled, String[]> collapsibleLabels = new LinkedHashMap<>();
     private String importedThemeStylesheet;
     private final Map<String, String> builtinThemes = createBuiltinThemeMap();
+    private final List<String> timelineCardStyles = createTimelineCardStyles();
     private final Preferences preferences = Preferences.userNodeForPackage(MainController.class);
     private static final String PREF_THEME_KEY = "todo.theme";
     private static final String PREF_IMPORTED_THEME_KEY = "todo.theme.imported.path";
+    private static final String PREF_TIMELINE_CARD_STYLE_KEY = "todo.timeline.card.style";
+    private static final String DEFAULT_TIMELINE_CARD_STYLE = "温馨治愈风";
     private final ScheduleDAO scheduleDAO = new ScheduleDAO();
     private IntConsumer pendingCountListener;
     
     // 主题管理
     private String currentTheme = "light";
+    private String currentTimelineCardStyle = DEFAULT_TIMELINE_CARD_STYLE;
     
     public MainController() {
         loadThemePreference();
+        loadTimelineCardStylePreference();
         initializeUI();
     }
     
@@ -188,12 +202,6 @@ public class MainController {
         functionTitle.getStyleClass().addAll("label-hint", "sidebar-function-title");
 
         Button newScheduleButton = createActionButton("/icons/macaron-logo-new-schedule.svg", "新建日程", this::openNewScheduleDialog);
-        themeButton = createActionButton("/icons/macaron-logo-theme.svg", "主题", this::togglePrimaryTheme);
-        themeButton.setOnContextMenuRequested(e -> {
-            showThemeMenu(themeButton);
-            e.consume();
-        });
-        themeIcon = (Pane) themeButton.getGraphic();
         Button loginButton = createActionButton("/icons/macaron-logo-user.svg", "登录", this::showLoginDialog);
         Button settingsButton = createActionButton("/icons/macaron-logo-settings.svg", "设置", this::showSettingsDialog);
         Button exitButton = createActionButton("/icons/macaron-logo-logout.svg", "退出", Platform::exit);
@@ -203,7 +211,6 @@ public class MainController {
         bottomActions.getChildren().addAll(
             functionTitle,
             newScheduleButton,
-            themeButton,
             loginButton,
             settingsButton,
             exitButton
@@ -740,6 +747,18 @@ public class MainController {
         return themes;
     }
 
+    private List<String> createTimelineCardStyles() {
+        List<String> styles = new ArrayList<>();
+        styles.add("经典实体卡片");
+        styles.add("清新扁平");
+        styles.add("温馨治愈风");
+        styles.add("现代高级极简风");
+        styles.add("新粗野主义");
+        styles.add("Material You");
+        styles.add("拟物浮雕风");
+        return styles;
+    }
+
     private void showThemeMenu(Button anchor) {
         ContextMenu menu = new ContextMenu();
 
@@ -758,13 +777,13 @@ public class MainController {
         menu.show(anchor, Side.RIGHT, 0, 0);
     }
 
-    private void importThemeFromFile() {
+    private boolean importThemeFromFile() {
         FileChooser chooser = new FileChooser();
         chooser.setTitle("导入主题文件");
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSS 文件", "*.css"));
         File selected = chooser.showOpenDialog(root.getScene() != null ? root.getScene().getWindow() : null);
         if (selected == null) {
-            return;
+            return false;
         }
 
         importedThemeStylesheet = selected.toURI().toString();
@@ -773,6 +792,7 @@ public class MainController {
         saveThemePreference();
         updateThemeIconState();
         showInfo("主题已导入", "已应用外部主题文件:\n" + selected.getAbsolutePath());
+        return true;
     }
 
     private void togglePrimaryTheme() {
@@ -796,6 +816,15 @@ public class MainController {
         }
     }
 
+    private void loadTimelineCardStylePreference() {
+        String savedStyle = preferences.get(PREF_TIMELINE_CARD_STYLE_KEY, DEFAULT_TIMELINE_CARD_STYLE);
+        if (timelineCardStyles.contains(savedStyle)) {
+            currentTimelineCardStyle = savedStyle;
+        } else {
+            currentTimelineCardStyle = DEFAULT_TIMELINE_CARD_STYLE;
+        }
+    }
+
     private void saveThemePreference() {
         preferences.put(PREF_THEME_KEY, currentTheme);
         if (importedThemeStylesheet == null || importedThemeStylesheet.isBlank()) {
@@ -803,6 +832,10 @@ public class MainController {
         } else {
             preferences.put(PREF_IMPORTED_THEME_KEY, importedThemeStylesheet);
         }
+    }
+
+    private void saveTimelineCardStylePreference() {
+        preferences.put(PREF_TIMELINE_CARD_STYLE_KEY, currentTimelineCardStyle);
     }
 
     private void applySavedThemeIfNeeded() {
@@ -876,14 +909,243 @@ public class MainController {
     }
     
     private void showSettingsDialog() {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("设置");
-        alert.setHeaderText("应用设置与关于");
-        String themeDisplay = "imported".equals(currentTheme) ? "外部导入主题" : builtinThemes.getOrDefault(currentTheme, "浅色");
-        alert.setContentText("主题: " + themeDisplay + "\n版本: 1.0\nToDo 日程管理应用");
-        alert.showAndWait();
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("设置");
+        dialog.setHeaderText(null);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        dialog.getDialogPane().getStylesheets().setAll(getCurrentThemeStylesheets());
+        dialog.getDialogPane().getStyleClass().add("settings-dialog-pane");
+        dialog.getDialogPane().setPrefWidth(940);
+        dialog.getDialogPane().setPrefHeight(600);
+
+        BorderPane shell = new BorderPane();
+        shell.getStyleClass().add("settings-shell");
+        shell.setPrefSize(940, 600);
+
+        VBox navBar = new VBox(8);
+        navBar.getStyleClass().addAll("sidebar");
+        navBar.setPrefWidth(196);
+        Label navTitle = new Label("设置");
+        navTitle.getStyleClass().add("label-title");
+        Label navSubTitle = new Label("选择要设置的功能");
+        navSubTitle.getStyleClass().add("label-hint");
+
+        ToggleGroup categoryGroup = new ToggleGroup();
+        ToggleButton detailTab = new ToggleButton("详情");
+        detailTab.setGraphic(createSvgIcon("/icons/macaron_detail-v2_icon.svg", "详情", 20));
+        detailTab.setGraphicTextGap(8);
+        
+        ToggleButton themeTab = new ToggleButton("主题");
+        themeTab.setGraphic(createSvgIcon("/icons/macaron_theme-v1_icon.svg", "主题", 20));
+        themeTab.setGraphicTextGap(8);
+        
+        ToggleButton styleTab = new ToggleButton("样式");
+        styleTab.setGraphic(createSvgIcon("/icons/macaron_style-v1_icon.svg", "样式", 20));
+        styleTab.setGraphicTextGap(8);
+        for (ToggleButton tab : List.of(detailTab, themeTab, styleTab)) {
+            tab.getStyleClass().add("nav-button");
+            tab.setMaxWidth(Double.MAX_VALUE);
+            tab.setContentDisplay(ContentDisplay.LEFT);
+            tab.setTextOverrun(OverrunStyle.CLIP);
+            tab.setWrapText(false);
+            tab.setToggleGroup(categoryGroup);
+        }
+        themeTab.setSelected(true);
+        navBar.getChildren().addAll(navTitle, navSubTitle, detailTab, themeTab, styleTab);
+
+        StackPane contentHost = new StackPane();
+        contentHost.getStyleClass().add("settings-content-host");
+
+        VBox detailPage = new VBox(18);
+        detailPage.getStyleClass().add("settings-page");
+        VBox aboutCard = createSettingsCard("应用详情", "关于当前应用与设置入口说明");
+        Label aboutText = new Label("ToDo 日程管理应用\n版本: 1.0\n当前设置中心只包含：详情、主题、样式。");
+        aboutText.getStyleClass().add("settings-info-text");
+        aboutText.setWrapText(true);
+        aboutCard.getChildren().add(aboutText);
+        VBox currentCard = createSettingsCard("当前配置", "用于快速确认正在生效的视觉配置");
+        Label themeValue = new Label("imported".equals(currentTheme) ? "外部导入主题" : builtinThemes.getOrDefault(currentTheme, "浅色"));
+        themeValue.getStyleClass().add("settings-inline-value");
+        Label styleValue = new Label(currentTimelineCardStyle);
+        styleValue.getStyleClass().add("settings-inline-value");
+        currentCard.getChildren().addAll(
+            createSettingRow("当前主题", "当前应用使用的主题", themeValue),
+            createSettingRow("时间轴样式", "当前时间轴卡片视觉样式", styleValue)
+        );
+        detailPage.getChildren().addAll(aboutCard, currentCard);
+
+        VBox themePage = new VBox(18);
+        themePage.getStyleClass().add("settings-page");
+        VBox themeCard = createSettingsCard("主题配色", "点击色卡立即预览，保存后作为默认主题");
+        HBox swatchRow = new HBox(10);
+        swatchRow.setAlignment(Pos.CENTER_LEFT);
+        ToggleGroup themeGroup = new ToggleGroup();
+        String selectedThemeKey = builtinThemes.containsKey(currentTheme) ? currentTheme : "light";
+        Map<String, String> themeColorMap = new LinkedHashMap<>();
+        themeColorMap.put("light", "#cfd8dc");
+        themeColorMap.put("mint", "#98d8c8");
+        themeColorMap.put("ocean", "#64b5f6");
+        themeColorMap.put("sunset", "#ffab91");
+        themeColorMap.put("lavender", "#ce93d8");
+        themeColorMap.put("forest", "#81c784");
+        themeColorMap.put("slate", "#90a4ae");
+        themeColorMap.put("macaron", "#f8bbd0");
+        for (Map.Entry<String, String> entry : themeColorMap.entrySet()) {
+            ToggleButton swatch = new ToggleButton();
+            swatch.setToggleGroup(themeGroup);
+            swatch.getStyleClass().add("settings-theme-swatch");
+            swatch.setStyle("-fx-background-color: " + entry.getValue() + ";");
+            swatch.setTooltip(new Tooltip("使用" + builtinThemes.get(entry.getKey()) + "主题"));
+            if (entry.getKey().equals(selectedThemeKey)) {
+                swatch.setSelected(true);
+            }
+            swatch.setOnAction(e -> switchTheme(entry.getKey()));
+            swatchRow.getChildren().add(swatch);
+        }
+        Button importThemeButton = new Button("导入外部主题");
+        importThemeButton.getStyleClass().add("button-secondary");
+        importThemeButton.setOnAction(e -> importThemeFromFile());
+        themeCard.getChildren().addAll(
+            createSettingRow("主题色板", "可视化快速选择主题，不再使用传统下拉菜单", swatchRow),
+            createSettingRow("外部主题", "支持导入 CSS 文件扩展主题风格", importThemeButton)
+        );
+        themePage.getChildren().add(themeCard);
+
+        VBox styleCard = createSettingsCard("时间轴卡片样式", "为时间轴卡片选择更偏好的视觉语义");
+        ToggleGroup styleGroup = new ToggleGroup();
+        HBox styleChipRow = new HBox(8);
+        styleChipRow.setAlignment(Pos.CENTER_LEFT);
+        String[] selectedCardStyle = new String[] { currentTimelineCardStyle };
+        for (String styleName : timelineCardStyles) {
+            ToggleButton styleChip = new ToggleButton(styleName);
+            styleChip.getStyleClass().add("settings-style-chip");
+            styleChip.setToggleGroup(styleGroup);
+            if (styleName.equals(currentTimelineCardStyle)) {
+                styleChip.setSelected(true);
+            }
+            styleChip.setOnAction(e -> selectedCardStyle[0] = styleName);
+            styleChipRow.getChildren().add(styleChip);
+        }
+        styleCard.getChildren().add(createSettingRow("卡片风格", "样式变化仅作用于时间轴卡片外观", styleChipRow));
+        VBox stylePage = new VBox(18);
+        stylePage.getStyleClass().add("settings-page");
+        stylePage.getChildren().add(styleCard);
+
+        Map<ToggleButton, VBox> pages = new LinkedHashMap<>();
+        pages.put(detailTab, detailPage);
+        pages.put(themeTab, themePage);
+        pages.put(styleTab, stylePage);
+
+        Runnable updateNavActive = () -> {
+            for (ToggleButton tab : pages.keySet()) {
+                tab.getStyleClass().remove("active");
+                if (tab.isSelected()) {
+                    tab.getStyleClass().add("active");
+                }
+            }
+        };
+
+        Runnable switchPage = () -> {
+            for (Map.Entry<ToggleButton, VBox> entry : pages.entrySet()) {
+                if (entry.getKey().isSelected()) {
+                    updateNavActive.run();
+                    switchSettingsPage(contentHost, entry.getValue());
+                    return;
+                }
+            }
+            updateNavActive.run();
+            switchSettingsPage(contentHost, themePage);
+        };
+
+        detailTab.setOnAction(e -> switchPage.run());
+        themeTab.setOnAction(e -> switchPage.run());
+        styleTab.setOnAction(e -> switchPage.run());
+        switchPage.run();
+
+        shell.setLeft(navBar);
+        shell.setCenter(contentHost);
+        dialog.getDialogPane().setContent(shell);
+
+        Optional<ButtonType> result = dialog.showAndWait();
+        if (result.isEmpty() || result.get() != ButtonType.OK) {
+            return;
+        }
+
+        if (selectedCardStyle[0] != null && timelineCardStyles.contains(selectedCardStyle[0]) && !selectedCardStyle[0].equals(currentTimelineCardStyle)) {
+            currentTimelineCardStyle = selectedCardStyle[0];
+            saveTimelineCardStylePreference();
+        }
+        refreshAllViews();
     }
-    
+
+    private VBox createSettingsCard(String title, String subtitle) {
+        VBox card = new VBox(12);
+        card.getStyleClass().add("settings-card");
+        Label titleLabel = new Label(title);
+        titleLabel.getStyleClass().add("settings-card-title");
+        Label subtitleLabel = new Label(subtitle);
+        subtitleLabel.getStyleClass().add("settings-card-subtitle");
+        subtitleLabel.setWrapText(true);
+        card.getChildren().addAll(titleLabel, subtitleLabel);
+        return card;
+    }
+
+    private HBox createSettingRow(String title, String description, Node control) {
+        HBox row = new HBox(12);
+        row.getStyleClass().add("settings-row");
+        VBox textBox = new VBox(4);
+        Label rowTitle = new Label(title);
+        rowTitle.getStyleClass().add("settings-row-title");
+        Label rowDesc = new Label(description);
+        rowDesc.getStyleClass().add("settings-row-desc");
+        rowDesc.setWrapText(true);
+        textBox.getChildren().addAll(rowTitle, rowDesc);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        row.getChildren().addAll(textBox, spacer, control);
+        return row;
+    }
+
+    private void switchSettingsPage(StackPane host, Node page) {
+        if (host.getChildren().isEmpty()) {
+            page.setOpacity(0);
+            page.setTranslateX(8);
+            host.getChildren().setAll(page);
+            FadeTransition fadeIn = new FadeTransition(Duration.millis(180), page);
+            fadeIn.setFromValue(0);
+            fadeIn.setToValue(1);
+            TranslateTransition moveIn = new TranslateTransition(Duration.millis(180), page);
+            moveIn.setFromX(8);
+            moveIn.setToX(0);
+            new ParallelTransition(fadeIn, moveIn).play();
+            return;
+        }
+        Node current = host.getChildren().get(0);
+        if (current == page) {
+            return;
+        }
+        FadeTransition fadeOut = new FadeTransition(Duration.millis(130), current);
+        fadeOut.setFromValue(1);
+        fadeOut.setToValue(0);
+        TranslateTransition moveOut = new TranslateTransition(Duration.millis(130), current);
+        moveOut.setFromX(0);
+        moveOut.setToX(-8);
+        ParallelTransition out = new ParallelTransition(fadeOut, moveOut);
+        out.setOnFinished(evt -> {
+            page.setOpacity(0);
+            page.setTranslateX(8);
+            host.getChildren().setAll(page);
+            FadeTransition fadeIn = new FadeTransition(Duration.millis(180), page);
+            fadeIn.setFromValue(0);
+            fadeIn.setToValue(1);
+            TranslateTransition moveIn = new TranslateTransition(Duration.millis(180), page);
+            moveIn.setFromX(8);
+            moveIn.setToX(0);
+            new ParallelTransition(fadeIn, moveIn).play();
+        });
+        out.play();
+    }
+
     public void showError(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle("错误");
@@ -906,6 +1168,10 @@ public class MainController {
 
     public String getCurrentTheme() {
         return currentTheme;
+    }
+
+    public String getCurrentTimelineCardStyle() {
+        return currentTimelineCardStyle;
     }
 
     public List<String> getCurrentThemeStylesheets() {
