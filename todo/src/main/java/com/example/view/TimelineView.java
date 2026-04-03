@@ -443,75 +443,78 @@ public class TimelineView implements View {
         scheduleCard.setLayoutX(startX);
         scheduleCard.setLayoutY(cardY);
         scheduleCard.getStyleClass().add("timeline-schedule-card");
-        
-        String currentStyle = controller.getCurrentTimelineCardStyle();
-        if ("经典实体卡片".equals(currentStyle)) scheduleCard.getStyleClass().add("style-classic");
-        else if ("清新扁平".equals(currentStyle)) scheduleCard.getStyleClass().add("style-fresh");
-        else if ("温馨治愈风".equals(currentStyle)) scheduleCard.getStyleClass().add("style-cozy");
-        else if ("现代高级极简风".equals(currentStyle)) scheduleCard.getStyleClass().add("style-modern-minimal");
-        else if ("新粗野主义".equals(currentStyle)) scheduleCard.getStyleClass().add("style-neo-brutalism");
-        else if ("Material You".equals(currentStyle)) scheduleCard.getStyleClass().add("style-material-you");
-        else if ("拟物浮雕风".equals(currentStyle)) scheduleCard.getStyleClass().add("style-neumorphism");
+        ScheduleCardStyleSupport.applyCardPresentation(
+            scheduleCard,
+            schedule,
+            controller.getCurrentScheduleCardStyle(),
+            "schedule-card-role-timeline"
+        );
         
         scheduleCard.setUserData(schedule);
         if (controller.isScheduleSelected(schedule)) {
-            scheduleCard.getStyleClass().add("timeline-schedule-selected");
+            scheduleCard.getStyleClass().addAll("timeline-schedule-selected", "schedule-card-state-selected");
         }
-        
-        // Pseudo classes for states
-        if (schedule.isCompleted()) scheduleCard.pseudoClassStateChanged(javafx.css.PseudoClass.getPseudoClass("completed"), true);
-        if (schedule.isOverdue()) scheduleCard.pseudoClassStateChanged(javafx.css.PseudoClass.getPseudoClass("overdue"), true);
-        if ("高".equals(schedule.getPriority())) scheduleCard.pseudoClassStateChanged(javafx.css.PseudoClass.getPseudoClass("priority-high"), true);
-        else if ("中".equals(schedule.getPriority())) scheduleCard.pseudoClassStateChanged(javafx.css.PseudoClass.getPseudoClass("priority-medium"), true);
-        else if ("低".equals(schedule.getPriority())) scheduleCard.pseudoClassStateChanged(javafx.css.PseudoClass.getPseudoClass("priority-low"), true);
 
         double baseViewOrder = -(cardY * 10000 + startX);
         scheduleCard.setViewOrder(baseViewOrder);
 
         Rectangle cardBackground = new Rectangle(width, CARD_HEIGHT);
-        cardBackground.getStyleClass().add("card-bg");
+        cardBackground.getStyleClass().addAll("card-bg", "schedule-card-layer");
 
         Rectangle accentBar = new Rectangle(6, CARD_HEIGHT);
-        accentBar.getStyleClass().add("card-accent-bar");
+        accentBar.getStyleClass().addAll("card-accent-bar", "schedule-card-accent");
 
         // 改进布局：将标题和日期放入水平容器以防止重叠，并处理截断
         HBox contentBox = new HBox(10);
         contentBox.setAlignment(Pos.CENTER_LEFT);
         contentBox.setPadding(new Insets(0, 10, 0, 12));
         contentBox.setPrefSize(width, CARD_HEIGHT);
-        contentBox.setMouseTransparent(true);
+        ScheduleStatusControl statusControl = new ScheduleStatusControl(
+            schedule.isCompleted(),
+            ScheduleStatusControl.SizePreset.TIMELINE,
+            "schedule-status-role-timeline",
+            targetCompleted -> controller.updateScheduleCompletion(schedule, targetCompleted)
+        );
 
         Label titleLabel = new Label(schedule.getName());
-        titleLabel.getStyleClass().add("card-title");
+        titleLabel.getStyleClass().addAll("card-title", "schedule-card-title-text");
+        titleLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
+        titleLabel.setMouseTransparent(true);
         // 确保标题长时显示省略号
         titleLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
         
         Label dateLabel = new Label(entryStart.format(DATE_FORMATTER) + " - " + entryEnd.format(DATE_FORMATTER));
-        dateLabel.getStyleClass().add("card-date");
+        dateLabel.getStyleClass().addAll("card-date", "schedule-card-subtitle-text");
+        dateLabel.setMouseTransparent(true);
         dateLabel.setMinWidth(Region.USE_PREF_SIZE); // 防止日期被过度压缩
 
         // 处理过短的卡片
-        if (width < 80) {
+        if (width < 104) {
             dateLabel.setVisible(false);
             dateLabel.setManaged(false);
         }
 
+        if (width < 72) {
+            titleLabel.setVisible(false);
+            titleLabel.setManaged(false);
+        }
+
         HBox.setHgrow(titleLabel, Priority.ALWAYS);
-        contentBox.getChildren().addAll(titleLabel, dateLabel);
+        contentBox.getChildren().addAll(statusControl, titleLabel, dateLabel);
 
         scheduleCard.getChildren().addAll(cardBackground, accentBar, contentBox);
         StackPane.setAlignment(accentBar, Pos.CENTER_LEFT);
 
         if (entryStart.isBefore(minDate)) {
             Rectangle leftClip = new Rectangle(8, CARD_HEIGHT);
-            leftClip.getStyleClass().add("card-clip");
+            leftClip.getStyleClass().addAll("card-clip", "schedule-card-clip");
             StackPane.setAlignment(leftClip, Pos.CENTER_LEFT);
             scheduleCard.getChildren().add(leftClip);
         }
 
         if (entryEnd.isAfter(maxDate)) {
             Rectangle rightClip = new Rectangle(8, CARD_HEIGHT);
-            rightClip.getStyleClass().add("card-clip");
+            rightClip.getStyleClass().addAll("card-clip", "schedule-card-clip");
             StackPane.setAlignment(rightClip, Pos.CENTER_RIGHT);
             scheduleCard.getChildren().add(rightClip);
         }
@@ -561,8 +564,9 @@ public class TimelineView implements View {
     private void highlightSelectedScheduleCard(StackPane selectedCard) {
         for (Node node : timelinePane.getChildren()) {
             node.getStyleClass().remove("timeline-schedule-selected");
+            node.getStyleClass().remove("schedule-card-state-selected");
         }
-        selectedCard.getStyleClass().add("timeline-schedule-selected");
+        selectedCard.getStyleClass().addAll("timeline-schedule-selected", "schedule-card-state-selected");
     }
 
     private void scrollToToday(LocalDate minDate, long visibleDays, double totalWidth) {

@@ -16,6 +16,7 @@ import com.example.model.Schedule;
 import com.example.view.FlowchartView;
 import com.example.view.HeatmapView;
 import com.example.view.InfoPanelView;
+import com.example.view.ScheduleCardStyleSupport;
 import com.example.view.ScheduleDialog;
 import com.example.view.ScheduleListView;
 import com.example.view.TimelineView;
@@ -116,22 +117,23 @@ public class MainController {
     private final Map<Labeled, String[]> collapsibleLabels = new LinkedHashMap<>();
     private String importedThemeStylesheet;
     private final Map<String, String> builtinThemes = createBuiltinThemeMap();
-    private final List<String> timelineCardStyles = createTimelineCardStyles();
+    private final List<String> scheduleCardStyles = ScheduleCardStyleSupport.getStyleNames();
     private final Preferences preferences = Preferences.userNodeForPackage(MainController.class);
     private static final String PREF_THEME_KEY = "todo.theme";
     private static final String PREF_IMPORTED_THEME_KEY = "todo.theme.imported.path";
+    private static final String PREF_SCHEDULE_CARD_STYLE_KEY = "todo.schedule.card.style";
     private static final String PREF_TIMELINE_CARD_STYLE_KEY = "todo.timeline.card.style";
-    private static final String DEFAULT_TIMELINE_CARD_STYLE = "温馨治愈风";
+    private static final String DEFAULT_SCHEDULE_CARD_STYLE = ScheduleCardStyleSupport.getDefaultStyleName();
     private final ScheduleDAO scheduleDAO = new ScheduleDAO();
     private IntConsumer pendingCountListener;
     
     // 主题管理
     private String currentTheme = "light";
-    private String currentTimelineCardStyle = DEFAULT_TIMELINE_CARD_STYLE;
+    private String currentScheduleCardStyle = DEFAULT_SCHEDULE_CARD_STYLE;
     
     public MainController() {
         loadThemePreference();
-        loadTimelineCardStylePreference();
+        loadScheduleCardStylePreference();
         initializeUI();
     }
     
@@ -672,6 +674,30 @@ public class MainController {
     public Schedule getSelectedSchedule() {
         return selectedSchedule;
     }
+
+    public boolean updateScheduleCompletion(Schedule schedule, boolean targetCompleted) {
+        if (schedule == null) {
+            return false;
+        }
+        try {
+            boolean updated = scheduleDAO.updateScheduleStatus(schedule.getId(), targetCompleted);
+            if (!updated) {
+                showError("更新状态失败", "未能保存日程状态变更。");
+                return false;
+            }
+
+            schedule.setCompleted(targetCompleted);
+            if (selectedSchedule != null && isScheduleSelected(schedule)) {
+                selectedSchedule.setCompleted(targetCompleted);
+            }
+
+            refreshAllViews();
+            return true;
+        } catch (SQLException e) {
+            showError("更新状态失败", e.getMessage());
+            return false;
+        }
+    }
     
     public void refreshAllViews() {
         if (currentView != null) {
@@ -747,18 +773,6 @@ public class MainController {
         return themes;
     }
 
-    private List<String> createTimelineCardStyles() {
-        List<String> styles = new ArrayList<>();
-        styles.add("经典实体卡片");
-        styles.add("清新扁平");
-        styles.add("温馨治愈风");
-        styles.add("现代高级极简风");
-        styles.add("新粗野主义");
-        styles.add("Material You");
-        styles.add("拟物浮雕风");
-        return styles;
-    }
-
     private void showThemeMenu(Button anchor) {
         ContextMenu menu = new ContextMenu();
 
@@ -816,12 +830,15 @@ public class MainController {
         }
     }
 
-    private void loadTimelineCardStylePreference() {
-        String savedStyle = preferences.get(PREF_TIMELINE_CARD_STYLE_KEY, DEFAULT_TIMELINE_CARD_STYLE);
-        if (timelineCardStyles.contains(savedStyle)) {
-            currentTimelineCardStyle = savedStyle;
+    private void loadScheduleCardStylePreference() {
+        String savedStyle = preferences.get(
+            PREF_SCHEDULE_CARD_STYLE_KEY,
+            preferences.get(PREF_TIMELINE_CARD_STYLE_KEY, DEFAULT_SCHEDULE_CARD_STYLE)
+        );
+        if (scheduleCardStyles.contains(savedStyle)) {
+            currentScheduleCardStyle = savedStyle;
         } else {
-            currentTimelineCardStyle = DEFAULT_TIMELINE_CARD_STYLE;
+            currentScheduleCardStyle = DEFAULT_SCHEDULE_CARD_STYLE;
         }
     }
 
@@ -834,8 +851,9 @@ public class MainController {
         }
     }
 
-    private void saveTimelineCardStylePreference() {
-        preferences.put(PREF_TIMELINE_CARD_STYLE_KEY, currentTimelineCardStyle);
+    private void saveScheduleCardStylePreference() {
+        preferences.put(PREF_SCHEDULE_CARD_STYLE_KEY, currentScheduleCardStyle);
+        preferences.put(PREF_TIMELINE_CARD_STYLE_KEY, currentScheduleCardStyle);
     }
 
     private void applySavedThemeIfNeeded() {
@@ -966,11 +984,11 @@ public class MainController {
         VBox currentCard = createSettingsCard("当前配置", "用于快速确认正在生效的视觉配置");
         Label themeValue = new Label("imported".equals(currentTheme) ? "外部导入主题" : builtinThemes.getOrDefault(currentTheme, "浅色"));
         themeValue.getStyleClass().add("settings-inline-value");
-        Label styleValue = new Label(currentTimelineCardStyle);
+        Label styleValue = new Label(currentScheduleCardStyle);
         styleValue.getStyleClass().add("settings-inline-value");
         currentCard.getChildren().addAll(
             createSettingRow("当前主题", "当前应用使用的主题", themeValue),
-            createSettingRow("时间轴样式", "当前时间轴卡片视觉样式", styleValue)
+            createSettingRow("日程卡片样式", "当前全局日程卡片视觉样式", styleValue)
         );
         detailPage.getChildren().addAll(aboutCard, currentCard);
 
@@ -1011,22 +1029,22 @@ public class MainController {
         );
         themePage.getChildren().add(themeCard);
 
-        VBox styleCard = createSettingsCard("时间轴卡片样式", "为时间轴卡片选择更偏好的视觉语义");
+        VBox styleCard = createSettingsCard("日程卡片样式", "统一调整列表、时间轴、热力图等模块中的日程卡片风格");
         ToggleGroup styleGroup = new ToggleGroup();
         HBox styleChipRow = new HBox(8);
         styleChipRow.setAlignment(Pos.CENTER_LEFT);
-        String[] selectedCardStyle = new String[] { currentTimelineCardStyle };
-        for (String styleName : timelineCardStyles) {
+        String[] selectedCardStyle = new String[] { currentScheduleCardStyle };
+        for (String styleName : scheduleCardStyles) {
             ToggleButton styleChip = new ToggleButton(styleName);
             styleChip.getStyleClass().add("settings-style-chip");
             styleChip.setToggleGroup(styleGroup);
-            if (styleName.equals(currentTimelineCardStyle)) {
+            if (styleName.equals(currentScheduleCardStyle)) {
                 styleChip.setSelected(true);
             }
             styleChip.setOnAction(e -> selectedCardStyle[0] = styleName);
             styleChipRow.getChildren().add(styleChip);
         }
-        styleCard.getChildren().add(createSettingRow("卡片风格", "样式变化仅作用于时间轴卡片外观", styleChipRow));
+        styleCard.getChildren().add(createSettingRow("卡片风格", "样式变化会同时作用于日程管理、时间轴与热力图中的日程卡片", styleChipRow));
         VBox stylePage = new VBox(18);
         stylePage.getStyleClass().add("settings-page");
         stylePage.getChildren().add(styleCard);
@@ -1071,9 +1089,9 @@ public class MainController {
             return;
         }
 
-        if (selectedCardStyle[0] != null && timelineCardStyles.contains(selectedCardStyle[0]) && !selectedCardStyle[0].equals(currentTimelineCardStyle)) {
-            currentTimelineCardStyle = selectedCardStyle[0];
-            saveTimelineCardStylePreference();
+        if (selectedCardStyle[0] != null && scheduleCardStyles.contains(selectedCardStyle[0]) && !selectedCardStyle[0].equals(currentScheduleCardStyle)) {
+            currentScheduleCardStyle = selectedCardStyle[0];
+            saveScheduleCardStylePreference();
         }
         refreshAllViews();
     }
@@ -1170,8 +1188,12 @@ public class MainController {
         return currentTheme;
     }
 
+    public String getCurrentScheduleCardStyle() {
+        return currentScheduleCardStyle;
+    }
+
     public String getCurrentTimelineCardStyle() {
-        return currentTimelineCardStyle;
+        return currentScheduleCardStyle;
     }
 
     public List<String> getCurrentThemeStylesheets() {

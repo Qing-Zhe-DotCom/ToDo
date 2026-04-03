@@ -24,6 +24,8 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
+import javafx.scene.image.ImageView;
+import javafx.scene.image.WritableImage;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -35,6 +37,7 @@ import javafx.scene.shape.Rectangle;
 
 public class HeatmapView implements View {
     private static final double GRID_GAP = 3;
+    private static final String COMPLETED_PROXY_STYLE = "heatmap-completed-proxy";
 
     private MainController controller;
     private ScheduleDAO scheduleDAO;
@@ -49,6 +52,7 @@ public class HeatmapView implements View {
     private VBox daySchedulePanel;
     private Label dayScheduleTitle;
     private VBox dayScheduleCardsBox;
+    private HBox completedDropZone;
     private Map<LocalDate, List<Schedule>> schedulesByDate = new LinkedHashMap<>();
     private boolean redrawQueued;
 
@@ -233,8 +237,15 @@ public class HeatmapView implements View {
         dayScheduleCardsBox = new VBox(10);
         dayScheduleCardsBox.getStyleClass().add("heatmap-day-cards");
 
+        completedDropZone = new HBox();
+        completedDropZone.setAlignment(Pos.CENTER_LEFT);
+        completedDropZone.getStyleClass().add("heatmap-completed-zone");
+        Label completedDropLabel = new Label("已完成归档区");
+        completedDropLabel.getStyleClass().add("heatmap-completed-zone-label");
+        completedDropZone.getChildren().add(completedDropLabel);
+
         dayScheduleScrollPane.setContent(dayScheduleCardsBox);
-        panel.getChildren().addAll(dayScheduleTitle, dayScheduleScrollPane);
+        panel.getChildren().addAll(dayScheduleTitle, dayScheduleScrollPane, completedDropZone);
         return panel;
     }
 
@@ -509,6 +520,7 @@ public class HeatmapView implements View {
         }
 
         dayScheduleTitle.setText(selectedDate.format(DateTimeFormatter.ofPattern("yyyy年MM月dd日")) + " 的日程");
+        removeCompletedDropProxy();
         dayScheduleCardsBox.getChildren().clear();
 
         List<Schedule> schedules = schedulesByDate.getOrDefault(selectedDate, List.of());
@@ -524,43 +536,72 @@ public class HeatmapView implements View {
         }
     }
 
-    private VBox createDayScheduleCard(Schedule schedule) {
+    private StackPane createDayScheduleCard(Schedule schedule) {
         VBox card = new VBox(8);
         card.getStyleClass().add("heatmap-day-card");
+        ScheduleCardStyleSupport.applyCardPresentation(
+            card,
+            schedule,
+            controller.getCurrentScheduleCardStyle(),
+            "schedule-card-role-heatmap"
+        );
         if (controller.isScheduleSelected(schedule)) {
-            card.getStyleClass().add("heatmap-day-card-selected");
+            card.getStyleClass().addAll("heatmap-day-card-selected", "schedule-card-state-selected");
         }
+
+        StackPane cardShell = new StackPane(card);
+        cardShell.getStyleClass().add("schedule-card-motion-shell");
+        cardShell.setPickOnBounds(false);
+
+        StackPane cardMotionHost = new StackPane(cardShell);
+        cardMotionHost.getStyleClass().add("schedule-card-motion-host");
+        cardMotionHost.setPickOnBounds(false);
+        Rectangle clip = new Rectangle();
+        clip.widthProperty().bind(cardMotionHost.widthProperty());
+        clip.heightProperty().bind(cardMotionHost.heightProperty());
+        cardMotionHost.setClip(clip);
+        ScheduleCollapsePopAnimator.bindMotionHandle(
+            cardMotionHost,
+            cardShell,
+            () -> {
+                cardMotionHost.requestLayout();
+                dayScheduleCardsBox.requestLayout();
+                if (daySchedulePanel != null) {
+                    daySchedulePanel.requestLayout();
+                }
+            }
+        );
+        ScheduleReflowAnimator.bindCard(cardMotionHost, schedule);
 
         Rectangle colorMark = new Rectangle(10, 10);
         colorMark.setArcWidth(10);
         colorMark.setArcHeight(10);
         colorMark.getStyleClass().add("schedule-color-mark");
 
-        if (schedule.isCompleted()) {
-            card.getStyleClass().add("status-completed");
-            colorMark.getStyleClass().add("mark-completed");
-        } else if (schedule.isOverdue()) {
-            card.getStyleClass().add("status-overdue");
-            colorMark.getStyleClass().add("mark-overdue");
+        String color = schedule.getColor();
+        if (color != null && !color.isBlank()) {
+            colorMark.setStyle("-fx-fill: " + color + ";");
         } else {
-            String color = schedule.getColor();
-            if (color != null && !color.isBlank()) {
-                card.setStyle("-fx-border-color: transparent transparent transparent " + color + "; -fx-border-width: 1 1 1 4;");
-                colorMark.setStyle("-fx-fill: " + color + ";");
-            } else {
-                card.getStyleClass().add("status-default");
-                colorMark.getStyleClass().add("mark-default");
-            }
+            colorMark.getStyleClass().add("mark-default");
         }
+
+        ScheduleStatusControl[] statusControlRef = new ScheduleStatusControl[1];
+        ScheduleStatusControl statusControl = new ScheduleStatusControl(
+            schedule.isCompleted(),
+            ScheduleStatusControl.SizePreset.HEATMAP,
+            "schedule-status-role-heatmap",
+            targetCompleted -> handleStatusToggle(cardMotionHost, card, schedule, statusControlRef[0], targetCompleted)
+        );
+        statusControlRef[0] = statusControl;
 
         HBox header = new HBox(10);
         header.setAlignment(Pos.CENTER_LEFT);
 
         VBox textGroup = new VBox(4);
         Label titleLabel = new Label(schedule.getName());
-        titleLabel.getStyleClass().add("schedule-title");
+        titleLabel.getStyleClass().addAll("schedule-title", "schedule-card-title-text");
         Label dateLabel = new Label(getScheduleDateText(schedule));
-        dateLabel.getStyleClass().add("schedule-date");
+        dateLabel.getStyleClass().addAll("schedule-date", "schedule-card-subtitle-text");
         textGroup.getChildren().addAll(titleLabel, dateLabel);
 
         Region spacer = new Region();
@@ -572,14 +613,14 @@ public class HeatmapView implements View {
         Label categoryLabel = new Label(schedule.getCategory());
         categoryLabel.getStyleClass().add("category-tag");
 
-        header.getChildren().addAll(colorMark, textGroup, spacer, priorityLabel, categoryLabel);
+        header.getChildren().addAll(statusControl, colorMark, textGroup, spacer, priorityLabel, categoryLabel);
 
         Label descriptionLabel = new Label(getScheduleDescriptionText(schedule));
-        descriptionLabel.getStyleClass().add("schedule-description");
+        descriptionLabel.getStyleClass().addAll("schedule-description", "schedule-card-body-text");
         descriptionLabel.setWrapText(true);
 
         Label statusLabel = new Label(getScheduleStatusText(schedule));
-        statusLabel.getStyleClass().add("label-hint");
+        statusLabel.getStyleClass().addAll("label-hint", "schedule-card-subtitle-text");
 
         card.getChildren().addAll(header, descriptionLabel, statusLabel);
 
@@ -591,7 +632,92 @@ public class HeatmapView implements View {
             }
         });
 
-        return card;
+        return cardMotionHost;
+    }
+
+    private boolean handleStatusToggle(
+        Node cardNode,
+        Node snapshotNode,
+        Schedule schedule,
+        ScheduleStatusControl control,
+        boolean targetCompleted
+    ) {
+        if (!targetCompleted) {
+            return controller.updateScheduleCompletion(schedule, false);
+        }
+
+        WritableImage completedSnapshot = ScheduleLandingTransition.snapshotNodeWithTemporaryClass(
+            snapshotNode,
+            ScheduleLandingTransition.COMPLETED_PREVIEW_CLASS
+        );
+
+        ScheduleCollapsePopAnimator.playHeatmapComplete(
+            ScheduleCollapsePopAnimator.resolveMotionHandle(cardNode),
+            () -> controller.updateScheduleCompletion(schedule, true),
+            () -> createCompletedProxyHandle(completedSnapshot),
+            () -> completedDropZone,
+            () -> {
+                removeCompletedDropProxy();
+                if (control != null) {
+                    control.syncCompleted(false);
+                }
+            },
+            this::removeCompletedDropProxy
+        );
+        return true;
+    }
+
+    private ScheduleCollapsePopAnimator.MotionHandle createCompletedProxyHandle(WritableImage completedSnapshot) {
+        if (completedDropZone == null) {
+            return null;
+        }
+
+        removeCompletedDropProxy();
+
+        StackPane proxyShell = new StackPane();
+        proxyShell.getStyleClass().add(COMPLETED_PROXY_STYLE);
+        proxyShell.setPickOnBounds(false);
+
+        if (completedSnapshot != null) {
+            ImageView imageView = new ImageView(completedSnapshot);
+            imageView.setPreserveRatio(true);
+            imageView.setFitHeight(Math.min(60.0, completedSnapshot.getHeight()));
+            imageView.setSmooth(true);
+            proxyShell.getChildren().add(imageView);
+        } else {
+            Label fallbackLabel = new Label("已完成");
+            fallbackLabel.getStyleClass().add("heatmap-completed-zone-label");
+            proxyShell.getChildren().add(fallbackLabel);
+        }
+
+        StackPane proxyHost = new StackPane(proxyShell);
+        proxyHost.getStyleClass().addAll("schedule-card-motion-host", COMPLETED_PROXY_STYLE);
+        proxyHost.setPickOnBounds(false);
+        Rectangle clip = new Rectangle();
+        clip.widthProperty().bind(proxyHost.widthProperty());
+        clip.heightProperty().bind(proxyHost.heightProperty());
+        proxyHost.setClip(clip);
+
+        completedDropZone.getChildren().add(proxyHost);
+
+        ScheduleCollapsePopAnimator.MotionHandle handle = ScheduleCollapsePopAnimator.bindMotionHandle(
+            proxyHost,
+            proxyShell,
+            () -> {
+                proxyHost.requestLayout();
+                completedDropZone.requestLayout();
+            }
+        );
+        ScheduleCollapsePopAnimator.prepareTargetPopState(handle);
+        proxyHost.getProperties().put(COMPLETED_PROXY_STYLE, Boolean.TRUE);
+        return handle;
+    }
+
+    private void removeCompletedDropProxy() {
+        if (completedDropZone == null) {
+            return;
+        }
+        completedDropZone.getChildren().removeIf(node -> Boolean.TRUE.equals(node.getProperties().get(COMPLETED_PROXY_STYLE)));
     }
 
     private String getStatsPeriodLabel(LocalDate startDate, LocalDate endDate) {

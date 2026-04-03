@@ -32,7 +32,9 @@ class ThemeCssTest {
             () -> assertTrue(baseContent.contains(".heatmap-cell-selected {")),
             () -> assertTrue(baseContent.contains(".heatmap-day-panel {")),
             () -> assertTrue(baseContent.contains(".heatmap-day-title {")),
-            () -> assertTrue(baseContent.contains(".heatmap-day-scroll {"))
+            () -> assertTrue(baseContent.contains(".heatmap-day-scroll {")),
+            () -> assertTrue(baseContent.contains(".heatmap-completed-zone {")),
+            () -> assertTrue(baseContent.contains(".heatmap-completed-zone-label {"))
         );
     }
 
@@ -59,6 +61,47 @@ class ThemeCssTest {
             () -> assertTrue(lavender.contains("-color-primary")),
             () -> assertTrue(forest.contains("-color-primary")),
             () -> assertTrue(slate.contains("-color-primary"))
+        );
+    }
+
+    @Test
+    void baseCssContainsSharedScheduleCardStyleSelectors() throws IOException {
+        String baseContent = readCss("/styles/base.css");
+
+        assertAll(
+            () -> assertTrue(baseContent.contains(".schedule-card-surface {")),
+            () -> assertTrue(baseContent.contains(".schedule-card-role-list")),
+            () -> assertTrue(baseContent.contains(".schedule-card-role-heatmap")),
+            () -> assertTrue(baseContent.contains(".schedule-card-role-timeline")),
+            () -> assertTrue(baseContent.contains(".schedule-card-style-classic")),
+            () -> assertTrue(baseContent.contains(".schedule-card-style-material-you")),
+            () -> assertTrue(baseContent.contains(".schedule-card-motion-host")),
+            () -> assertTrue(baseContent.contains(".schedule-card-motion-shell")),
+            () -> assertTrue(baseContent.contains(".schedule-card-transition-completed")),
+            () -> assertTrue(baseContent.contains(".schedule-card-transition-receiving"))
+        );
+    }
+
+    @Test
+    void baseCssContainsSharedScheduleStatusSelectors() throws IOException {
+        String baseContent = readCss("/styles/base.css");
+
+        assertAll(
+            () -> assertTrue(baseContent.contains(".schedule-status-control {")),
+            () -> assertTrue(baseContent.contains(".schedule-status-ring-base")),
+            () -> assertTrue(baseContent.contains(".schedule-status-ring-segment-a")),
+            () -> assertTrue(baseContent.contains(".schedule-status-ring-segment-b")),
+            () -> assertTrue(baseContent.contains(".schedule-status-ring-segment-c")),
+            () -> assertTrue(baseContent.contains(".schedule-status-check")),
+            () -> assertTrue(baseContent.contains(".schedule-status-state-pending")),
+            () -> assertTrue(baseContent.contains(".schedule-status-state-completed")),
+            () -> assertTrue(baseContent.contains(".schedule-status-state-busy")),
+            () -> assertTrue(baseContent.contains(".schedule-status-role-list")),
+            () -> assertTrue(baseContent.contains(".schedule-status-role-timeline")),
+            () -> assertTrue(baseContent.contains(".schedule-status-role-heatmap")),
+            () -> assertTrue(baseContent.contains(".schedule-status-size-list")),
+            () -> assertTrue(baseContent.contains(".schedule-status-size-timeline")),
+            () -> assertTrue(baseContent.contains(".schedule-status-size-heatmap"))
         );
     }
 

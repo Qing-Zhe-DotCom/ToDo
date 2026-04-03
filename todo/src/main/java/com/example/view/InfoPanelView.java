@@ -313,15 +313,7 @@ public class InfoPanelView {
     private void toggleComplete() {
         if (currentSchedule == null) return;
 
-        try {
-            boolean newStatus = !currentSchedule.isCompleted();
-            scheduleDAO.updateScheduleStatus(currentSchedule.getId(), newStatus);
-            currentSchedule.setCompleted(newStatus);
-            updateDisplay();
-            controller.refreshAllViews();
-        } catch (SQLException e) {
-            controller.showError("更新状态失败", e.getMessage());
-        }
+        controller.updateScheduleCompletion(currentSchedule, !currentSchedule.isCompleted());
     }
 
     private void deleteSchedule() {

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg id="svg-status-circle" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="w-24 h-24 sm:w-32 sm:h-32 drop-shadow-sm">
+                        <!-- 1. 圆环 3D 白色底座 -->
+                        <circle cx="50" cy="50" r="34" fill="none" stroke="#FFFFFF" stroke-width="16" transform="translate(0, 4)"/>
+                        
+                        <!-- 2. 彩色拼接马卡龙圆环 (修复了微小的尾迹溢出) -->
+                        <g transform="rotate(-90 50 50)">
+                            <circle cx="50" cy="50" r="34" fill="none" stroke="#FFAB91" stroke-width="16" stroke-linecap="round" stroke-dasharray="71.2 150" stroke-dashoffset="0"/>
+                            <circle cx="50" cy="50" r="34" fill="none" stroke="#FFE082" stroke-width="16" stroke-linecap="round" stroke-dasharray="71.2 150" stroke-dashoffset="-71.2"/>
+                            <circle cx="50" cy="50" r="34" fill="none" stroke="#80CBC4" stroke-width="16" stroke-linecap="round" stroke-dasharray="71.2 150" stroke-dashoffset="-142.4"/>
+                        </g>
+                    </svg>

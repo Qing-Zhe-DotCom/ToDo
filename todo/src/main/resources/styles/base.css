@@ -408,17 +408,199 @@
     -fx-border-width: 1;
     -fx-border-radius: 12;
     -fx-background-radius: 12;
+    -fx-cursor: hand;
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.03), 4, 0, 0, 2);
 }
 
+.schedule-card-motion-host {
+    -fx-padding: 0;
+}
+
+.schedule-card-motion-shell {
+    -fx-padding: 0;
+}
+
+.schedule-card-surface {
+    -schedule-card-accent: -color-primary;
+    -schedule-status-ring-shadow-color: rgba(255, 255, 255, 0.96);
+    -schedule-status-segment-a: #ffab91;
+    -schedule-status-segment-b: #ffe082;
+    -schedule-status-segment-c: #80cbc4;
+    -schedule-status-check-color: -color-success;
+}
+
+.schedule-card-surface.schedule-card-state-priority-high {
+    -schedule-card-accent: -color-danger;
+}
+
+.schedule-card-surface.schedule-card-state-priority-medium {
+    -schedule-card-accent: -color-warning;
+}
+
+.schedule-card-surface.schedule-card-state-priority-low {
+    -schedule-card-accent: -color-primary;
+}
+
+.schedule-card-surface.schedule-card-state-upcoming {
+    -schedule-card-accent: -color-warning;
+}
+
+.schedule-card-surface.schedule-card-state-overdue {
+    -schedule-card-accent: -color-danger;
+}
+
+.schedule-card-surface.schedule-card-state-completed {
+    -schedule-card-accent: -color-success;
+}
+
+.schedule-card-surface.schedule-card-transition-completed {
+    -schedule-card-accent: -color-success;
+    -fx-background-color: derive(-color-success-bg, 35%);
+    -fx-border-color: derive(-color-success, 50%);
+    -fx-effect: none;
+    -fx-opacity: 0.7;
+}
+
+.schedule-card-surface.schedule-card-transition-completed .schedule-title,
+.schedule-card-surface.schedule-card-transition-completed .schedule-card-title-text {
+    -fx-strikethrough: true;
+    -fx-text-fill: -color-text-muted;
+}
+
+.schedule-card-surface.schedule-card-transition-completed .schedule-date,
+.schedule-card-surface.schedule-card-transition-completed .schedule-card-subtitle-text {
+    -fx-text-fill: -color-border;
+}
+
+.schedule-card-surface.schedule-card-transition-completed .priority-high,
+.schedule-card-surface.schedule-card-transition-completed .priority-medium,
+.schedule-card-surface.schedule-card-transition-completed .priority-low,
+.schedule-card-surface.schedule-card-transition-completed .category-tag {
+    -fx-opacity: 0.4;
+}
+
+.schedule-card-surface.schedule-card-transition-receiving {
+    -schedule-card-accent: -color-success;
+    -fx-background-color: derive(-color-success-bg, 42%);
+    -fx-border-color: derive(-color-success, 58%);
+    -fx-effect: none;
+}
+
+.schedule-status-control {
+    -fx-alignment: center;
+    -fx-cursor: hand;
+    -fx-opacity: 1;
+}
+
+.schedule-status-control.schedule-status-state-busy {
+    -fx-opacity: 0.94;
+}
+
+.schedule-status-control.schedule-status-size-list {
+    -fx-padding: 0 2 0 0;
+}
+
+.schedule-status-control.schedule-status-size-timeline {
+    -fx-padding: 0 1 0 0;
+}
+
+.schedule-status-control.schedule-status-size-heatmap {
+    -fx-padding: 0;
+}
+
+.schedule-status-control.schedule-status-role-list {
+    -fx-background-color: transparent;
+}
+
+.schedule-status-control.schedule-status-role-timeline {
+    -fx-background-color: transparent;
+}
+
+.schedule-status-control.schedule-status-role-heatmap {
+    -fx-background-color: transparent;
+}
+
+.schedule-status-control .schedule-status-ring-base {
+    -fx-stroke: -schedule-status-ring-shadow-color;
+    -fx-fill: transparent;
+}
+
+.schedule-status-control .schedule-status-ring-shadow {
+    -fx-opacity: 0.96;
+}
+
+.schedule-status-control .schedule-status-ring-segment {
+    -fx-opacity: 0.9;
+    -fx-fill: transparent;
+}
+
+.schedule-status-control .schedule-status-ring-segment-a {
+    -fx-stroke: -schedule-status-segment-a;
+}
+
+.schedule-status-control .schedule-status-ring-segment-b {
+    -fx-stroke: -schedule-status-segment-b;
+}
+
+.schedule-status-control .schedule-status-ring-segment-c {
+    -fx-stroke: -schedule-status-segment-c;
+}
+
+.schedule-status-control .schedule-status-ring-progress {
+    -fx-opacity: 1;
+    -fx-effect: dropshadow(gaussian, rgba(255, 255, 255, 0.22), 4, 0.18, 0, 0);
+}
+
+.schedule-status-control .schedule-status-check-shadow,
+.schedule-status-control .schedule-status-check-outline {
+    -fx-stroke: rgba(255, 255, 255, 0.96);
+    -fx-fill: transparent;
+}
+
+.schedule-status-control .schedule-status-check {
+    -fx-stroke: -schedule-status-check-color;
+    -fx-fill: transparent;
+}
+
+.schedule-status-control .schedule-status-ripple {
+    -fx-stroke: -schedule-status-check-color;
+    -fx-fill: transparent;
+}
+
+.schedule-status-control.schedule-status-state-pending .schedule-status-check-shadow,
+.schedule-status-control.schedule-status-state-pending .schedule-status-check-outline,
+.schedule-status-control.schedule-status-state-pending .schedule-status-check {
+    -fx-opacity: 0;
+}
+
+.schedule-status-control.schedule-status-state-completed .schedule-status-check-shadow,
+.schedule-status-control.schedule-status-state-completed .schedule-status-check-outline,
+.schedule-status-control.schedule-status-state-completed .schedule-status-check {
+    -fx-opacity: 1;
+}
+
+.schedule-card-surface.schedule-card-style-modern-minimal {
+    -schedule-status-ring-shadow-color: rgba(255, 255, 255, 0.92);
+}
+
+.schedule-card-surface.schedule-card-style-neo-brutalism {
+    -schedule-status-ring-shadow-color: rgba(255, 255, 255, 0.9);
+    -schedule-status-check-color: -color-bg-panel;
+}
+
+.schedule-card-surface.schedule-card-style-material-you {
+    -schedule-status-check-color: derive(-schedule-card-accent, -55%);
+}
+
 .schedule-list .list-cell:hover .schedule-card-inner {
-    -fx-background-color: -color-bg-hover;
+    -fx-border-color: derive(-schedule-card-accent, -10%);
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 6, 0, 0, 3);
 }
 
 .schedule-list .list-cell:selected .schedule-card-inner {
     -fx-background-color: -color-bg-active;
     -fx-border-color: -color-primary-hover;
+    -fx-border-width: 2;
 }
 
 
@@ -477,8 +659,8 @@
     -fx-text-fill: -color-text-muted;
 }
 .schedule-list .list-cell.completed .schedule-card-inner {
-    -fx-background-color: transparent;
-    -fx-border-color: -color-border;
+    -fx-background-color: derive(-color-success-bg, 35%);
+    -fx-border-color: derive(-color-success, 50%);
     -fx-effect: none;
 }
 
@@ -525,11 +707,13 @@
 .schedule-list .list-cell.overdue .schedule-card-inner {
     -fx-border-color: -color-danger;
     -fx-border-width: 1 1 1 4;
+    -fx-background-color: derive(-color-danger-bg, 70%);
 }
 
 .schedule-list .list-cell.upcoming .schedule-card-inner {
     -fx-border-color: -color-warning;
     -fx-border-width: 1 1 1 4;
+    -fx-background-color: derive(-color-warning-bg, 85%);
 }
 
 
@@ -572,6 +756,12 @@
 
 }
 
+.schedule-card-title-text {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-text-main;
+}
+
 
 
 .schedule-date {
@@ -582,6 +772,11 @@
 
 }
 
+.schedule-card-subtitle-text {
+    -fx-font-size: 12px;
+    -fx-text-fill: -color-text-hint;
+}
+
 
 
 .schedule-description {
@@ -590,6 +785,11 @@
 
     -fx-text-fill: -color-text-sub;
 
+}
+
+.schedule-card-body-text {
+    -fx-font-size: 12px;
+    -fx-text-fill: -color-text-sub;
 }
 
 
@@ -1413,37 +1613,15 @@
 
     -fx-border-width: 1;
 
-    -fx-border-radius: 6;
+    -fx-border-radius: 12;
 
-    -fx-background-radius: 6;
+    -fx-background-radius: 12;
 
     -fx-padding: 12;
 
     -fx-cursor: hand;
 
-}
-
-.heatmap-day-card {
-    -fx-background-color: -color-bg-panel;
-    -fx-border-color: -color-border;
-    -fx-border-width: 1;
-    -fx-border-radius: 4;
-    -fx-background-radius: 4;
-    -fx-padding: 10;
-    -fx-cursor: hand;
-}
-
-.heatmap-day-card.status-completed {
-    -fx-border-color: transparent transparent transparent -color-success;
-    -fx-border-width: 1 1 1 4;
-}
-.heatmap-day-card.status-overdue {
-    -fx-border-color: transparent transparent transparent -color-danger;
-    -fx-border-width: 1 1 1 4;
-}
-.heatmap-day-card.status-default {
-    -fx-border-color: transparent transparent transparent -color-primary;
-    -fx-border-width: 1 1 1 4;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.03), 4, 0, 0, 2);
 }
 
 .schedule-color-mark.mark-completed { -fx-fill: -color-success; }
@@ -1454,7 +1632,7 @@
 
 .heatmap-day-card:hover {
 
-    -fx-background-color: -color-bg-hover;
+    -fx-border-color: derive(-schedule-card-accent, -10%);
 
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 6, 0, 0, 2);
 
@@ -1469,6 +1647,40 @@
     -fx-border-width: 2;
 
     -fx-background-color: -color-bg-active;
+
+}
+
+.heatmap-completed-zone {
+
+    -fx-alignment: center-left;
+
+    -fx-padding: 10 14;
+
+    -fx-background-color: linear-gradient(to right, rgba(129, 199, 132, 0.16), rgba(129, 199, 132, 0.05));
+
+    -fx-border-color: rgba(129, 199, 132, 0.42);
+
+    -fx-border-width: 1;
+
+    -fx-border-radius: 12;
+
+    -fx-background-radius: 12;
+
+}
+
+.heatmap-completed-zone-label {
+
+    -fx-text-fill: -color-success-pressed;
+
+    -fx-font-size: 12px;
+
+    -fx-font-weight: 700;
+
+}
+
+.heatmap-completed-proxy {
+
+    -fx-padding: 0 0 0 8;
 
 }
 
@@ -1692,151 +1904,103 @@
 
 
 
-/* ÓXh^gX[h~*[1]VS^p 9p+l{ */
+/* ======= 共享日程卡样式系统 ======= */
 
-.timeline-schedule-card {
-
-    /* i?j{`m^[h<j7bW]tQX */
-
-    -color-card-accent: -color-primary;
-
+.schedule-card-surface.schedule-card-state-selected {
+    -fx-border-color: -color-primary-hover;
 }
 
-
-
-/* 5 O0}|m:jS~?*/
-
-.timeline-schedule-card:priority-high {
-
-    -color-card-accent: -color-danger;
-
-}
-
-.timeline-schedule-card:priority-medium {
-
-    -color-card-accent: -color-warning;
-
-}
-
-.timeline-schedule-card:priority-low {
-
-    -color-card-accent: -color-primary;
-
-}
-
-
-
-/* 5 O0}[6C~ȓ?*/
-
-.timeline-schedule-card:overdue {
-
-    -color-card-accent: -color-danger;
-
-}
-
-
-
-/* 5 O0}[clu?(GrayscaleXfXxOYRrj~cef˓n}p\jo~ Wf _i4d? */
-
-.timeline-schedule-card:completed {
-
-    -color-card-accent: -color-success;
-
-    -fx-effect: coloradjust(0, -0.8, 0, 0); /* XfXoR` */
-
-}
-
-.timeline-schedule-card:completed .card-title {
-
+.schedule-card-surface.schedule-card-state-completed .schedule-card-title-text {
     -fx-strikethrough: true;
-
     -fx-text-fill: -color-text-hint;
-
 }
 
+.schedule-card-surface.schedule-card-role-timeline {
+    -color-card-accent: -schedule-card-accent;
+}
 
-
-/* WXPtT4QR"ki?j{͓\!} */
-
-.timeline-schedule-card .card-bg {
-
+.schedule-card-surface.schedule-card-role-timeline .schedule-card-layer {
     -fx-fill: -color-timeline-card-bg;
-
     -fx-stroke: -color-timeline-card-border;
-
     -fx-stroke-width: 1;
-
     -fx-arc-width: 12;
-
     -fx-arc-height: 12;
-
 }
 
-.timeline-schedule-card .card-accent-bar {
-
+.schedule-card-surface.schedule-card-role-timeline .schedule-card-accent {
     -fx-fill: -color-card-accent;
-
     -fx-arc-width: 12;
-
     -fx-arc-height: 12;
-
 }
 
-.timeline-schedule-card .card-clip {
-
+.schedule-card-surface.schedule-card-role-timeline .schedule-card-clip {
     -fx-fill: -color-timeline-card-bg;
-
     -fx-opacity: 0.45;
-
 }
 
-.timeline-schedule-card .card-title {
-
+.schedule-card-surface.schedule-card-role-timeline .schedule-card-title-text {
     -fx-text-fill: -color-timeline-card-text;
-
     -fx-font-size: 12px;
-
     -fx-font-weight: bold;
-
 }
 
-.timeline-schedule-card .card-date {
-
+.schedule-card-surface.schedule-card-role-timeline .schedule-card-subtitle-text {
     -fx-text-fill: -color-text-hint;
-
     -fx-font-size: 10px;
-
 }
-
-
-
-/* ======= 时间轴卡片风格 ======= */
 
 /* 1. 经典实体卡片 */
-.timeline-schedule-card.style-classic .card-bg {
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 12, 0, 0, 4);
-}
-.timeline-schedule-card.style-classic:hover .card-bg {
-    -fx-fill: -color-timeline-card-hover;
+.schedule-card-surface.schedule-card-style-classic.schedule-card-role-list,
+.schedule-card-surface.schedule-card-style-classic.schedule-card-role-heatmap {
+    -fx-background-color: -color-bg-panel;
+    -fx-border-color: -color-border;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 8, 0, 0, 3);
 }
 
-/* 2. 清新扁平 (Fresh Flat) */
-.timeline-schedule-card.style-fresh .card-bg {
+.schedule-card-surface.schedule-card-style-classic.schedule-card-role-timeline .schedule-card-layer {
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 12, 0, 0, 4);
+}
+
+.schedule-card-surface.schedule-card-style-classic.schedule-card-role-timeline:hover .schedule-card-layer,
+.schedule-card-surface.schedule-card-style-classic.schedule-card-role-list:hover,
+.schedule-card-surface.schedule-card-style-classic.schedule-card-role-heatmap:hover {
+    -fx-fill: -color-timeline-card-hover;
+    -fx-background-color: -color-bg-hover;
+}
+
+/* 2. 清新扁平 */
+.schedule-card-surface.schedule-card-style-fresh.schedule-card-role-list,
+.schedule-card-surface.schedule-card-style-fresh.schedule-card-role-heatmap {
+    -fx-background-color: derive(-schedule-card-accent, 88%);
+    -fx-border-color: transparent;
+}
+
+.schedule-card-surface.schedule-card-style-fresh.schedule-card-role-timeline .schedule-card-layer {
     -fx-fill: -color-card-accent;
     -fx-opacity: 0.15;
     -fx-stroke: transparent;
 }
-.timeline-schedule-card.style-fresh .card-clip {
+
+.schedule-card-surface.schedule-card-style-fresh.schedule-card-role-timeline .schedule-card-clip {
     -fx-fill: -color-card-accent;
     -fx-opacity: 0.15;
 }
-.timeline-schedule-card.style-fresh:hover .card-bg {
+
+.schedule-card-surface.schedule-card-style-fresh.schedule-card-role-timeline:hover .schedule-card-layer {
     -fx-opacity: 0.25;
 }
 
-/* 3. 温馨治愈风 (Cozy & Warm) */
-/* 柔和的低饱和背景，配合圆润的强调条，视觉体验像棉花糖般轻盈 */
-.timeline-schedule-card.style-cozy .card-bg {
+/* 3. 温馨治愈风 */
+.schedule-card-surface.schedule-card-style-cozy.schedule-card-role-list,
+.schedule-card-surface.schedule-card-style-cozy.schedule-card-role-heatmap {
+    -fx-background-color: -color-bg-panel;
+    -fx-border-color: derive(-schedule-card-accent, 80%);
+    -fx-border-radius: 18;
+    -fx-background-radius: 18;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 16, 0, 0, 6);
+}
+
+.schedule-card-surface.schedule-card-style-cozy.schedule-card-role-timeline .schedule-card-layer {
     -fx-fill: -color-bg-panel;
     -fx-stroke: derive(-color-card-accent, 80%);
     -fx-stroke-width: 1;
@@ -1844,118 +2008,209 @@
     -fx-arc-height: 20;
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 15, 0, 0, 6);
 }
-.timeline-schedule-card.style-cozy .card-accent-bar {
+
+.schedule-card-surface.schedule-card-style-cozy.schedule-card-role-timeline .schedule-card-accent {
     -fx-arc-width: 20;
     -fx-arc-height: 20;
-    -fx-scale-y: 0.7; /* 强调条变成居中的小胶囊 */
+    -fx-scale-y: 0.7;
     -fx-scale-x: 0.8;
 }
-.timeline-schedule-card.style-cozy .card-clip {
+
+.schedule-card-surface.schedule-card-style-cozy.schedule-card-role-timeline .schedule-card-clip {
     -fx-fill: -color-bg-panel;
 }
-.timeline-schedule-card.style-cozy:hover .card-bg {
+
+.schedule-card-surface.schedule-card-style-cozy.schedule-card-role-timeline:hover .schedule-card-layer,
+.schedule-card-surface.schedule-card-style-cozy.schedule-card-role-list:hover,
+.schedule-card-surface.schedule-card-style-cozy.schedule-card-role-heatmap:hover {
     -fx-stroke: -color-card-accent;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 20, 0, 0, 8);
+    -fx-border-color: -schedule-card-accent;
 }
 
-/* 4. 现代高级极简风 (Modern Premium Minimal) */
-/* 去除所有不必要的视觉噪音，使用极细的高对比边框和纯色块，像高端杂志排版 */
-.timeline-schedule-card.style-modern-minimal .card-bg {
+/* 4. 现代高级极简风 */
+.schedule-card-surface.schedule-card-style-modern-minimal.schedule-card-role-list,
+.schedule-card-surface.schedule-card-style-modern-minimal.schedule-card-role-heatmap {
+    -fx-background-color: transparent;
+    -fx-border-color: -color-border-dark;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-effect: none;
+}
+
+.schedule-card-surface.schedule-card-style-modern-minimal.schedule-card-role-timeline .schedule-card-layer {
     -fx-fill: transparent;
     -fx-stroke: -color-border-dark;
     -fx-stroke-width: 0.5;
     -fx-arc-width: 4;
     -fx-arc-height: 4;
 }
-.timeline-schedule-card.style-modern-minimal .card-accent-bar {
+
+.schedule-card-surface.schedule-card-style-modern-minimal.schedule-card-role-timeline .schedule-card-accent {
     -fx-arc-width: 0;
     -fx-arc-height: 0;
     -fx-scale-x: 0.5;
 }
-.timeline-schedule-card.style-modern-minimal .card-clip {
+
+.schedule-card-surface.schedule-card-style-modern-minimal.schedule-card-role-timeline .schedule-card-clip {
     -fx-fill: -color-bg-base;
 }
-.timeline-schedule-card.style-modern-minimal:hover .card-bg {
+
+.schedule-card-surface.schedule-card-style-modern-minimal.schedule-card-role-timeline:hover .schedule-card-layer,
+.schedule-card-surface.schedule-card-style-modern-minimal.schedule-card-role-list:hover,
+.schedule-card-surface.schedule-card-style-modern-minimal.schedule-card-role-heatmap:hover {
     -fx-stroke: -color-card-accent;
     -fx-stroke-width: 1.5;
     -fx-fill: derive(-color-card-accent, 95%);
+    -fx-background-color: derive(-schedule-card-accent, 95%);
 }
 
-/* 5. 新粗野主义 (Neo-Brutalism) */
-/* 大胆的纯色、粗黑边框、硬朗的平移阴影，极具个性和先锋感 */
-.timeline-schedule-card.style-neo-brutalism .card-bg {
+/* 5. 新粗野主义 */
+.schedule-card-surface.schedule-card-style-neo-brutalism.schedule-card-role-list,
+.schedule-card-surface.schedule-card-style-neo-brutalism.schedule-card-role-heatmap {
+    -fx-background-color: -schedule-card-accent;
+    -fx-border-color: -color-text-main;
+    -fx-border-width: 2;
+    -fx-border-radius: 0;
+    -fx-background-radius: 0;
+    -fx-effect: dropshadow(one-pass-box, -color-text-main, 0, 0, 4, 4);
+}
+
+.schedule-card-surface.schedule-card-style-neo-brutalism.schedule-card-role-list .schedule-card-title-text,
+.schedule-card-surface.schedule-card-style-neo-brutalism.schedule-card-role-list .schedule-card-subtitle-text,
+.schedule-card-surface.schedule-card-style-neo-brutalism.schedule-card-role-list .schedule-card-body-text,
+.schedule-card-surface.schedule-card-style-neo-brutalism.schedule-card-role-heatmap .schedule-card-title-text,
+.schedule-card-surface.schedule-card-style-neo-brutalism.schedule-card-role-heatmap .schedule-card-subtitle-text,
+.schedule-card-surface.schedule-card-style-neo-brutalism.schedule-card-role-heatmap .schedule-card-body-text {
+    -fx-text-fill: -color-bg-panel;
+    -fx-font-weight: 800;
+}
+
+.schedule-card-surface.schedule-card-style-neo-brutalism.schedule-card-role-timeline .schedule-card-layer {
     -fx-fill: -color-card-accent;
-    -fx-stroke: -color-text-main; /* 使用主文本色作为粗黑边框 */
+    -fx-stroke: -color-text-main;
     -fx-stroke-width: 2;
     -fx-arc-width: 0;
     -fx-arc-height: 0;
-    -fx-effect: dropshadow(one-pass-box, -color-text-main, 0, 0, 4, 4); /* 标志性的硬阴影 */
-}
-.timeline-schedule-card.style-neo-brutalism .card-accent-bar {
-    visibility: hidden; /* 粗野主义不需要额外的强调条，卡片本身就是强调 */
-}
-.timeline-schedule-card.style-neo-brutalism .card-clip {
-    -fx-fill: -color-card-accent;
-}
-.timeline-schedule-card.style-neo-brutalism .card-title,
-.timeline-schedule-card.style-neo-brutalism .card-date {
-    -fx-text-fill: -color-bg-panel; /* 字体反色以提高在亮色背景上的对比度 */
-    -fx-font-weight: 900;
-}
-.timeline-schedule-card.style-neo-brutalism:hover .card-bg {
-    -fx-translate-x: 2;
-    -fx-translate-y: 2;
-    -fx-effect: dropshadow(one-pass-box, -color-text-main, 0, 0, 2, 2); /* 点击/悬停时阴影变小，产生被按下的物理感 */
+    -fx-effect: dropshadow(one-pass-box, -color-text-main, 0, 0, 4, 4);
 }
 
-/* 6. Material You (Google MD3 风格) */
-/* 夸张的圆角 (Pill-shape)，根据主色调生成的柔和填充色，非常现代化 */
-.timeline-schedule-card.style-material-you .card-bg {
-    -fx-fill: derive(-color-card-accent, 85%);
-    -fx-stroke: transparent;
-    -fx-arc-width: 44; /* 完美胶囊形状 (等于卡片高度) */
-    -fx-arc-height: 44;
-}
-.timeline-schedule-card.style-material-you .card-accent-bar {
+.schedule-card-surface.schedule-card-style-neo-brutalism.schedule-card-role-timeline .schedule-card-accent {
     visibility: hidden;
 }
-.timeline-schedule-card.style-material-you .card-clip {
+
+.schedule-card-surface.schedule-card-style-neo-brutalism.schedule-card-role-timeline .schedule-card-clip {
+    -fx-fill: -color-card-accent;
+}
+
+.schedule-card-surface.schedule-card-style-neo-brutalism .schedule-card-title-text,
+.schedule-card-surface.schedule-card-style-neo-brutalism.schedule-card-role-timeline .schedule-card-subtitle-text {
+    -fx-text-fill: -color-bg-panel;
+    -fx-font-weight: 900;
+}
+
+.schedule-card-surface.schedule-card-style-neo-brutalism.schedule-card-role-timeline:hover .schedule-card-layer,
+.schedule-card-surface.schedule-card-style-neo-brutalism.schedule-card-role-list:hover,
+.schedule-card-surface.schedule-card-style-neo-brutalism.schedule-card-role-heatmap:hover {
+    -fx-translate-x: 2;
+    -fx-translate-y: 2;
+    -fx-effect: dropshadow(one-pass-box, -color-text-main, 0, 0, 2, 2);
+}
+
+/* 6. Material You */
+.schedule-card-surface.schedule-card-style-material-you.schedule-card-role-list,
+.schedule-card-surface.schedule-card-style-material-you.schedule-card-role-heatmap {
+    -fx-background-color: derive(-schedule-card-accent, 85%);
+    -fx-border-color: transparent;
+    -fx-border-radius: 28;
+    -fx-background-radius: 28;
+}
+
+.schedule-card-surface.schedule-card-style-material-you.schedule-card-role-list .schedule-card-title-text,
+.schedule-card-surface.schedule-card-style-material-you.schedule-card-role-list .schedule-card-subtitle-text,
+.schedule-card-surface.schedule-card-style-material-you.schedule-card-role-list .schedule-card-body-text,
+.schedule-card-surface.schedule-card-style-material-you.schedule-card-role-heatmap .schedule-card-title-text,
+.schedule-card-surface.schedule-card-style-material-you.schedule-card-role-heatmap .schedule-card-subtitle-text,
+.schedule-card-surface.schedule-card-style-material-you.schedule-card-role-heatmap .schedule-card-body-text {
+    -fx-text-fill: derive(-schedule-card-accent, -60%);
+}
+
+.schedule-card-surface.schedule-card-style-material-you.schedule-card-role-timeline .schedule-card-layer {
+    -fx-fill: derive(-color-card-accent, 85%);
+    -fx-stroke: transparent;
+    -fx-arc-width: 44;
+    -fx-arc-height: 44;
+}
+
+.schedule-card-surface.schedule-card-style-material-you.schedule-card-role-timeline .schedule-card-accent {
+    visibility: hidden;
+}
+
+.schedule-card-surface.schedule-card-style-material-you.schedule-card-role-timeline .schedule-card-clip {
     -fx-fill: derive(-color-card-accent, 85%);
 }
-.timeline-schedule-card.style-material-you .card-title {
-    -fx-text-fill: derive(-color-card-accent, -60%); /* 使用更深的同系色作为文字颜色 */
+
+.schedule-card-surface.schedule-card-style-material-you.schedule-card-role-timeline .schedule-card-title-text {
+    -fx-text-fill: derive(-color-card-accent, -60%);
     -fx-font-weight: 700;
 }
-.timeline-schedule-card.style-material-you .card-date {
+
+.schedule-card-surface.schedule-card-style-material-you.schedule-card-role-timeline .schedule-card-subtitle-text {
     -fx-text-fill: derive(-color-card-accent, -30%);
 }
-.timeline-schedule-card.style-material-you:hover .card-bg {
+
+.schedule-card-surface.schedule-card-style-material-you.schedule-card-role-timeline:hover .schedule-card-layer,
+.schedule-card-surface.schedule-card-style-material-you.schedule-card-role-list:hover,
+.schedule-card-surface.schedule-card-style-material-you.schedule-card-role-heatmap:hover {
     -fx-fill: derive(-color-card-accent, 75%);
+    -fx-background-color: derive(-schedule-card-accent, 75%);
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);
 }
 
-/* 7. 拟物浮雕风 (Soft Neumorphism) */
-/* 仿佛是从背景材质中挤压出来的凸起，依靠亮部和暗部阴影塑造立体感 */
-.timeline-schedule-card.style-neumorphism .card-bg {
-    -fx-fill: -color-timeline-track-even; /* 必须和背景同色 */
+/* 7. 拟物浮雕风 */
+.schedule-card-surface.schedule-card-style-neumorphism.schedule-card-role-list,
+.schedule-card-surface.schedule-card-style-neumorphism.schedule-card-role-heatmap {
+    -fx-background-color: -color-bg-base;
+    -fx-border-color: transparent;
+    -fx-border-radius: 16;
+    -fx-background-radius: 16;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 12, 0, 4, 4);
+}
+
+.schedule-card-surface.schedule-card-style-neumorphism.schedule-card-role-timeline .schedule-card-layer {
+    -fx-fill: -color-timeline-track-even;
     -fx-stroke: transparent;
     -fx-arc-width: 16;
     -fx-arc-height: 16;
-    /* 双重阴影：左上亮色，右下暗色 */
     -fx-effect: innershadow(gaussian, rgba(255,255,255,0.8), 6, 0, -3, -3);
 }
-.timeline-schedule-card.style-neumorphism .card-accent-bar {
+
+.schedule-card-surface.schedule-card-style-neumorphism.schedule-card-role-timeline .schedule-card-accent {
     -fx-arc-width: 16;
     -fx-arc-height: 16;
     -fx-scale-y: 0.5;
     -fx-translate-x: 4;
 }
-.timeline-schedule-card.style-neumorphism .card-clip {
+
+.schedule-card-surface.schedule-card-style-neumorphism.schedule-card-role-timeline .schedule-card-clip {
     -fx-fill: -color-timeline-track-even;
 }
-.timeline-schedule-card.style-neumorphism:hover .card-bg {
-    /* 悬停时外发光，增强浮出感 */
+
+.schedule-card-surface.schedule-card-style-neumorphism.schedule-card-role-timeline:hover .schedule-card-layer,
+.schedule-card-surface.schedule-card-style-neumorphism.schedule-card-role-list:hover,
+.schedule-card-surface.schedule-card-style-neumorphism.schedule-card-role-heatmap:hover {
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 10, 0, 4, 4);
+}
+
+.schedule-card-surface.schedule-card-state-selected.schedule-card-role-heatmap,
+.schedule-card-surface.schedule-card-state-selected.schedule-card-role-list {
+    -fx-border-color: -color-primary-hover;
+    -fx-border-width: 2;
+}
+
+.schedule-card-surface.schedule-card-state-selected.schedule-card-role-timeline .schedule-card-layer {
+    -fx-stroke: -color-primary-hover;
+    -fx-stroke-width: 2;
 }
 
 /* 8. 新建日程弹窗现代 UI 样式 (Modern Dialog UI) */
