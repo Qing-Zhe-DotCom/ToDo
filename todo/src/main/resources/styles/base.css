@@ -393,6 +393,24 @@
 
 }
 
+.schedule-list-pane {
+    -fx-background-color: transparent;
+    -fx-padding: 0 10 0 10;
+}
+
+.schedule-list-section {
+    -fx-fill-width: true;
+}
+
+.schedule-list-cards {
+    -fx-spacing: 8;
+}
+
+.schedule-list-card {
+    -fx-padding: 4 0;
+    -fx-cursor: hand;
+}
+
 
 
 .schedule-list .list-cell {
@@ -597,7 +615,19 @@
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 6, 0, 0, 3);
 }
 
+.schedule-list-card:hover .schedule-card-inner {
+    -fx-border-color: derive(-schedule-card-accent, -10%);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 6, 0, 0, 3);
+}
+
 .schedule-list .list-cell:selected .schedule-card-inner {
+    -fx-background-color: -color-bg-active;
+    -fx-border-color: -color-primary-hover;
+    -fx-border-width: 2;
+}
+
+.schedule-list-card.selected .schedule-card-inner,
+.schedule-list-card .schedule-card-inner.schedule-card-state-selected {
     -fx-background-color: -color-bg-active;
     -fx-border-color: -color-primary-hover;
     -fx-border-width: 2;
@@ -664,6 +694,12 @@
     -fx-effect: none;
 }
 
+.schedule-list-card.completed .schedule-card-inner {
+    -fx-background-color: derive(-color-success-bg, 35%);
+    -fx-border-color: derive(-color-success, 50%);
+    -fx-effect: none;
+}
+
 
 
 /* 强制将已完成的标题变成浅灰色，并加上删除线 */
@@ -676,6 +712,11 @@
 
 }
 
+.schedule-list-card.completed .schedule-title {
+    -fx-text-fill: -color-text-muted;
+    -fx-strikethrough: true;
+}
+
 
 
 /* 强制将已完成的日期变成更浅的灰色 */
@@ -684,6 +725,10 @@
 
     -fx-text-fill: -color-border;
 
+}
+
+.schedule-list-card.completed .schedule-date {
+    -fx-text-fill: -color-border;
 }
 
 
@@ -702,6 +747,13 @@
 
 }
 
+.schedule-list-card.completed .priority-high,
+.schedule-list-card.completed .priority-medium,
+.schedule-list-card.completed .priority-low,
+.schedule-list-card.completed .category-tag {
+    -fx-opacity: 0.4;
+}
+
 
 
 .schedule-list .list-cell.overdue .schedule-card-inner {
@@ -710,7 +762,19 @@
     -fx-background-color: derive(-color-danger-bg, 70%);
 }
 
+.schedule-list-card.overdue .schedule-card-inner {
+    -fx-border-color: -color-danger;
+    -fx-border-width: 1 1 1 4;
+    -fx-background-color: derive(-color-danger-bg, 70%);
+}
+
 .schedule-list .list-cell.upcoming .schedule-card-inner {
+    -fx-border-color: -color-warning;
+    -fx-border-width: 1 1 1 4;
+    -fx-background-color: derive(-color-warning-bg, 85%);
+}
+
+.schedule-list-card.upcoming .schedule-card-inner {
     -fx-border-color: -color-warning;
     -fx-border-width: 1 1 1 4;
     -fx-background-color: derive(-color-warning-bg, 85%);

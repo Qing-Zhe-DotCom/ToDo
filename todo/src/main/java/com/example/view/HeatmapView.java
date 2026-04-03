@@ -11,10 +11,13 @@ import java.util.List;
 import java.util.Map;
 
 import com.example.controller.MainController;
+import com.example.controller.ScheduleCompletionCoordinator;
+import com.example.controller.ScheduleCompletionMutation;
 import com.example.databaseutil.ScheduleDAO;
 import com.example.model.Schedule;
 
 import javafx.application.Platform;
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -24,8 +27,6 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
-import javafx.scene.image.ImageView;
-import javafx.scene.image.WritableImage;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -35,9 +36,10 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 
-public class HeatmapView implements View {
+public class HeatmapView implements View, ScheduleCompletionParticipant {
     private static final double GRID_GAP = 3;
     private static final String COMPLETED_PROXY_STYLE = "heatmap-completed-proxy";
+    private static final String COMPLETED_PROXY_HOST_STYLE = "heatmap-completed-proxy-host";
 
     private MainController controller;
     private ScheduleDAO scheduleDAO;
@@ -53,8 +55,14 @@ public class HeatmapView implements View {
     private Label dayScheduleTitle;
     private VBox dayScheduleCardsBox;
     private HBox completedDropZone;
+    private final List<Schedule> loadedSchedules = new ArrayList<>();
     private Map<LocalDate, List<Schedule>> schedulesByDate = new LinkedHashMap<>();
     private boolean redrawQueued;
+    private LocalDate visibleStartDate;
+    private LocalDate visibleEndDate;
+    private ScheduleCollapsePopAnimator.MotionHandle completedProxyHandle;
+    private StackPane completedProxyHost;
+    private StackPane completedProxyShell;
 
     private String currentViewMode = "month"; // week, month, year
     private LocalDate currentDate = LocalDate.now();
@@ -276,8 +284,6 @@ public class HeatmapView implements View {
 
     private void drawHeatmap() throws SQLException {
         heatmapGrid.getChildren().clear();
-        updateNavigationButtons();
-        updateLegend();
 
         LocalDate startDate;
         LocalDate endDate;
@@ -300,7 +306,14 @@ public class HeatmapView implements View {
             cols = 7;
         }
 
-        Map<LocalDate, Integer> stats = scheduleDAO.getDailyCompletionStats(startDate, endDate);
+        visibleStartDate = startDate;
+        visibleEndDate = endDate;
+        loadedSchedules.clear();
+        loadedSchedules.addAll(controller.applyPendingCompletionMutations(scheduleDAO.getAllSchedules()));
+        renderHeatmapFromLoadedSchedules(rows, cols);
+        return;
+    }
+        /* Map<LocalDate, Integer> stats = scheduleDAO.getDailyCompletionStats(startDate, endDate);
         List<Schedule> schedules = scheduleDAO.getAllSchedules();
         schedulesByDate = buildSchedulesByDate(schedules, startDate, endDate);
         ensureSelectedDate(startDate, endDate);
@@ -320,6 +333,44 @@ public class HeatmapView implements View {
             drawYearView(startDate, stats, cellSize);
         } else {
             drawMonthView(startDate, endDate, stats, cellSize);
+        }
+
+        updateDaySchedulePanel();
+    }
+
+    */
+
+    private void renderHeatmapFromLoadedSchedules(int rows, int cols) {
+        if (visibleStartDate == null || visibleEndDate == null) {
+            return;
+        }
+
+        updateNavigationButtons();
+        updateLegend();
+        schedulesByDate = buildSchedulesByDate(loadedSchedules, visibleStartDate, visibleEndDate);
+        ensureSelectedDate(visibleStartDate, visibleEndDate);
+
+        Map<LocalDate, Integer> stats = buildDailyCompletionStats(loadedSchedules, visibleStartDate, visibleEndDate);
+        int totalCompleted = stats.values().stream().mapToInt(Integer::intValue).sum();
+        int activeDays = (int) stats.values().stream().filter(v -> v > 0).count();
+        statsLabel.setText(String.format(
+            "%s: completed %d items across %d active days",
+            getStatsPeriodLabel(visibleStartDate, visibleEndDate),
+            totalCompleted,
+            activeDays
+        )); /*
+        statsLabel.setText(String.format("%s: 鍏卞畬鎴?%d 椤逛换鍔★紝娲昏穬澶╂暟 %d 澶?,
+            getStatsPeriodLabel(visibleStartDate, visibleEndDate),
+            totalCompleted,
+            activeDays)); */
+
+        double cellSize = calculateCellSize(cols, rows);
+        if ("week".equals(currentViewMode)) {
+            drawWeekView(visibleStartDate, stats, cellSize);
+        } else if ("year".equals(currentViewMode)) {
+            drawYearView(visibleStartDate, stats, cellSize);
+        } else {
+            drawMonthView(visibleStartDate, visibleEndDate, stats, cellSize);
         }
 
         updateDaySchedulePanel();
@@ -646,28 +697,30 @@ public class HeatmapView implements View {
             return controller.updateScheduleCompletion(schedule, false);
         }
 
-        WritableImage completedSnapshot = ScheduleLandingTransition.snapshotNodeWithTemporaryClass(
-            snapshotNode,
-            ScheduleLandingTransition.COMPLETED_PREVIEW_CLASS
-        );
+        ScheduleCompletionCoordinator.PendingCompletion pendingCompletion =
+            controller.prepareScheduleCompletion(schedule, true);
+        if (pendingCompletion == null) {
+            return false;
+        }
 
-        ScheduleCollapsePopAnimator.playHeatmapComplete(
+        Map<Integer, Bounds> beforeBounds =
+            ScheduleReflowAnimator.captureVisibleCardBounds(dayScheduleCardsBox, schedule.getId());
+
+        ScheduleCollapsePopAnimator.playCollapseSource(
             ScheduleCollapsePopAnimator.resolveMotionHandle(cardNode),
-            () -> controller.updateScheduleCompletion(schedule, true),
-            () -> createCompletedProxyHandle(completedSnapshot),
-            () -> completedDropZone,
+            pendingCompletion::commit,
+            () -> handleCommittedHeatmapCompletion(beforeBounds),
             () -> {
-                removeCompletedDropProxy();
                 if (control != null) {
                     control.syncCompleted(false);
                 }
             },
-            this::removeCompletedDropProxy
+            null
         );
         return true;
     }
 
-    private ScheduleCollapsePopAnimator.MotionHandle createCompletedProxyHandle(WritableImage completedSnapshot) {
+    /* private ScheduleCollapsePopAnimator.MotionHandle createCompletedProxyHandle(WritableImage completedSnapshot) {
         if (completedDropZone == null) {
             return null;
         }
@@ -718,6 +771,76 @@ public class HeatmapView implements View {
             return;
         }
         completedDropZone.getChildren().removeIf(node -> Boolean.TRUE.equals(node.getProperties().get(COMPLETED_PROXY_STYLE)));
+    }
+
+    }*/
+
+    private void handleCommittedHeatmapCompletion(Map<Integer, Bounds> beforeBounds) {
+        ScheduleReflowAnimator.playVerticalReflow(dayScheduleCardsBox, beforeBounds, null);
+        ScheduleCollapsePopAnimator.MotionHandle proxyHandle = createCompletedProxyHandle();
+        if (proxyHandle != null) {
+            ScheduleCollapsePopAnimator.prepareTargetPopState(proxyHandle);
+            ScheduleCollapsePopAnimator.playPreparedTargetPop(proxyHandle, null);
+            return;
+        }
+        if (completedDropZone != null) {
+            ScheduleReflowAnimator.playTargetPulse(
+                completedDropZone,
+                CollapsePopKeyframePreset.targetPopDuration(),
+                null
+            );
+        }
+    }
+
+    private ScheduleCollapsePopAnimator.MotionHandle createCompletedProxyHandle() {
+        if (completedDropZone == null) {
+            return null;
+        }
+
+        if (completedProxyHost == null || completedProxyShell == null || completedProxyHandle == null) {
+            completedProxyShell = new StackPane();
+            completedProxyShell.getStyleClass().add(COMPLETED_PROXY_STYLE);
+            completedProxyShell.setPickOnBounds(false);
+
+            Label proxyLabel = new Label("Completed");
+            proxyLabel.getStyleClass().add("heatmap-completed-zone-label");
+            completedProxyShell.getChildren().add(proxyLabel);
+
+            completedProxyHost = new StackPane(completedProxyShell);
+            completedProxyHost.getStyleClass().addAll(
+                "schedule-card-motion-host",
+                COMPLETED_PROXY_STYLE,
+                COMPLETED_PROXY_HOST_STYLE
+            );
+            completedProxyHost.setPickOnBounds(false);
+            Rectangle clip = new Rectangle();
+            clip.widthProperty().bind(completedProxyHost.widthProperty());
+            clip.heightProperty().bind(completedProxyHost.heightProperty());
+            completedProxyHost.setClip(clip);
+
+            completedProxyHandle = ScheduleCollapsePopAnimator.bindMotionHandle(
+                completedProxyHost,
+                completedProxyShell,
+                () -> {
+                    completedProxyHost.requestLayout();
+                    completedDropZone.requestLayout();
+                }
+            );
+        }
+
+        if (!completedDropZone.getChildren().contains(completedProxyHost)) {
+            completedDropZone.getChildren().add(completedProxyHost);
+        }
+        completedProxyHost.setManaged(true);
+        completedProxyHost.setVisible(true);
+        return completedProxyHandle;
+    }
+
+    private void removeCompletedDropProxy() {
+        if (completedDropZone == null || completedProxyHost == null) {
+            return;
+        }
+        completedDropZone.getChildren().remove(completedProxyHost);
     }
 
     private String getStatsPeriodLabel(LocalDate startDate, LocalDate endDate) {
@@ -821,6 +944,28 @@ public class HeatmapView implements View {
         return groupedSchedules;
     }
 
+    static Map<LocalDate, Integer> buildDailyCompletionStats(
+        List<Schedule> schedules,
+        LocalDate startDate,
+        LocalDate endDate
+    ) {
+        Map<LocalDate, Integer> stats = new LinkedHashMap<>();
+        if (schedules == null || startDate == null || endDate == null) {
+            return stats;
+        }
+        for (Schedule schedule : schedules) {
+            if (!schedule.isCompleted() || schedule.getUpdatedAt() == null) {
+                continue;
+            }
+            LocalDate completionDate = schedule.getUpdatedAt().toLocalDate();
+            if (completionDate.isBefore(startDate) || completionDate.isAfter(endDate)) {
+                continue;
+            }
+            stats.merge(completionDate, 1, Integer::sum);
+        }
+        return stats;
+    }
+
     static boolean scheduleOccursOnDate(Schedule schedule, LocalDate date) {
         LocalDate startDate = resolveScheduleStart(schedule);
         LocalDate endDate = resolveScheduleEnd(schedule);
@@ -891,6 +1036,52 @@ public class HeatmapView implements View {
         return "状态：进行中";
     }
 
+    @Override
+    public void applyCompletionMutation(ScheduleCompletionMutation mutation) {
+        if (mutation == null || loadedSchedules.isEmpty()) {
+            return;
+        }
+        boolean changed = false;
+        for (Schedule schedule : loadedSchedules) {
+            if (!mutation.matches(schedule)) {
+                continue;
+            }
+            mutation.applyTo(schedule);
+            changed = true;
+        }
+        if (changed && visibleStartDate != null && visibleEndDate != null) {
+            renderHeatmapFromLoadedSchedules(resolveCurrentRows(), resolveCurrentColumns());
+        }
+    }
+
+    @Override
+    public void confirmCompletionMutation(ScheduleCompletionMutation mutation) {
+        if (mutation == null || loadedSchedules.isEmpty()) {
+            return;
+        }
+        if (visibleStartDate != null && visibleEndDate != null) {
+            renderHeatmapFromLoadedSchedules(resolveCurrentRows(), resolveCurrentColumns());
+        }
+    }
+
+    @Override
+    public void revertCompletionMutation(ScheduleCompletionMutation mutation) {
+        if (mutation == null || loadedSchedules.isEmpty()) {
+            return;
+        }
+        boolean changed = false;
+        for (Schedule schedule : loadedSchedules) {
+            if (!mutation.matches(schedule)) {
+                continue;
+            }
+            mutation.revertOn(schedule);
+            changed = true;
+        }
+        if (changed && visibleStartDate != null && visibleEndDate != null) {
+            renderHeatmapFromLoadedSchedules(resolveCurrentRows(), resolveCurrentColumns());
+        }
+    }
+
     private String getPriorityClass(String priority) {
         if ("高".equals(priority)) {
             return "high";
@@ -923,5 +1114,22 @@ public class HeatmapView implements View {
     private static LocalDate getComparableEndDate(Schedule schedule) {
         LocalDate endDate = resolveScheduleEnd(schedule);
         return endDate != null ? endDate : LocalDate.MAX;
+    }
+
+    private int resolveCurrentRows() {
+        if ("week".equals(currentViewMode)) {
+            return 1;
+        }
+        if ("year".equals(currentViewMode)) {
+            return 7;
+        }
+        return 6;
+    }
+
+    private int resolveCurrentColumns() {
+        if ("year".equals(currentViewMode)) {
+            return 53;
+        }
+        return 7;
     }
 }

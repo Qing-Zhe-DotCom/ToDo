@@ -1,6 +1,7 @@
 package com.example.view;
 
 import com.example.controller.MainController;
+import com.example.controller.ScheduleCompletionMutation;
 import com.example.databaseutil.ScheduleDAO;
 import com.example.model.Schedule;
 import javafx.animation.FadeTransition;
@@ -17,7 +18,7 @@ import javafx.util.Duration;
 import java.sql.SQLException;
 import java.time.format.DateTimeFormatter;
 
-public class InfoPanelView {
+public class InfoPanelView implements ScheduleCompletionParticipant {
 
     private MainController controller;
     private ScheduleDAO scheduleDAO;
@@ -354,6 +355,32 @@ public class InfoPanelView {
                 controller.showError("刷新失败", e.getMessage());
             }
         }
+    }
+
+    @Override
+    public void applyCompletionMutation(ScheduleCompletionMutation mutation) {
+        if (currentSchedule == null || mutation == null || !mutation.matches(currentSchedule)) {
+            return;
+        }
+        mutation.applyTo(currentSchedule);
+        updateDisplay();
+    }
+
+    @Override
+    public void confirmCompletionMutation(ScheduleCompletionMutation mutation) {
+        if (currentSchedule == null || mutation == null || !mutation.matches(currentSchedule)) {
+            return;
+        }
+        updateDisplay();
+    }
+
+    @Override
+    public void revertCompletionMutation(ScheduleCompletionMutation mutation) {
+        if (currentSchedule == null || mutation == null || !mutation.matches(currentSchedule)) {
+            return;
+        }
+        mutation.revertOn(currentSchedule);
+        updateDisplay();
     }
 
     private String getPriorityClass(String priority) {

@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.prefs.Preferences;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.function.IntConsumer;
 
 import com.example.databaseutil.ScheduleDAO;
@@ -17,6 +20,7 @@ import com.example.view.FlowchartView;
 import com.example.view.HeatmapView;
 import com.example.view.InfoPanelView;
 import com.example.view.ScheduleCardStyleSupport;
+import com.example.view.ScheduleCompletionParticipant;
 import com.example.view.ScheduleDialog;
 import com.example.view.ScheduleListView;
 import com.example.view.TimelineView;
@@ -125,13 +129,39 @@ public class MainController {
     private static final String PREF_TIMELINE_CARD_STYLE_KEY = "todo.timeline.card.style";
     private static final String DEFAULT_SCHEDULE_CARD_STYLE = ScheduleCardStyleSupport.getDefaultStyleName();
     private final ScheduleDAO scheduleDAO = new ScheduleDAO();
+    private final ExecutorService scheduleCompletionExecutor;
+    private final ScheduleCompletionCoordinator scheduleCompletionCoordinator;
     private IntConsumer pendingCountListener;
+    private int lastKnownPendingCount = -1;
     
     // 主题管理
     private String currentTheme = "light";
     private String currentScheduleCardStyle = DEFAULT_SCHEDULE_CARD_STYLE;
     
     public MainController() {
+        scheduleCompletionExecutor = Executors.newSingleThreadExecutor(createCompletionThreadFactory());
+        scheduleCompletionCoordinator = new ScheduleCompletionCoordinator(
+            scheduleDAO::updateScheduleStatus,
+            new ScheduleCompletionCoordinator.MutationApplier() {
+                @Override
+                public void applyOptimistic(ScheduleCompletionMutation mutation) {
+                    applyCompletionMutationLocally(mutation);
+                }
+
+                @Override
+                public void confirm(ScheduleCompletionMutation mutation) {
+                    confirmCompletionMutationLocally(mutation);
+                }
+
+                @Override
+                public void revert(ScheduleCompletionMutation mutation) {
+                    revertCompletionMutationLocally(mutation);
+                }
+            },
+            this::reportCompletionPersistenceFailure,
+            scheduleCompletionExecutor,
+            Platform::runLater
+        );
         loadThemePreference();
         loadScheduleCardStylePreference();
         initializeUI();
@@ -675,12 +705,19 @@ public class MainController {
         return selectedSchedule;
     }
 
+    public ScheduleCompletionCoordinator.PendingCompletion prepareScheduleCompletion(
+        Schedule schedule,
+        boolean targetCompleted
+    ) {
+        return scheduleCompletionCoordinator.prepare(schedule, targetCompleted);
+    }
+
     public boolean updateScheduleCompletion(Schedule schedule, boolean targetCompleted) {
         if (schedule == null) {
             return false;
         }
-        try {
-            boolean updated = scheduleDAO.updateScheduleStatus(schedule.getId(), targetCompleted);
+        return scheduleCompletionCoordinator.submitImmediate(schedule, targetCompleted);
+        /*    boolean updated = scheduleDAO.updateScheduleStatus(schedule.getId(), targetCompleted);
             if (!updated) {
                 showError("更新状态失败", "未能保存日程状态变更。");
                 return false;
@@ -696,7 +733,7 @@ public class MainController {
         } catch (SQLException e) {
             showError("更新状态失败", e.getMessage());
             return false;
-        }
+        }*/
     }
     
     public void refreshAllViews() {
@@ -705,6 +742,102 @@ public class MainController {
         }
         infoPanelView.refresh();
         updatePendingCountBadge();
+    }
+
+    public List<Schedule> applyPendingCompletionMutations(List<Schedule> schedules) {
+        if (schedules == null || schedules.isEmpty()) {
+            return schedules;
+        }
+        for (ScheduleCompletionMutation mutation : scheduleCompletionCoordinator.snapshotCommittedMutations()) {
+            for (Schedule schedule : schedules) {
+                mutation.applyTo(schedule);
+            }
+        }
+        return schedules;
+    }
+
+    private void applyCompletionMutationLocally(ScheduleCompletionMutation mutation) {
+        mutation.applyTo(selectedSchedule);
+        for (ScheduleCompletionParticipant participant : collectCompletionParticipants()) {
+            participant.applyCompletionMutation(mutation);
+        }
+        adjustPendingCountOptimistically(mutation.pendingCountDelta());
+    }
+
+    private void confirmCompletionMutationLocally(ScheduleCompletionMutation mutation) {
+        mutation.applyTo(selectedSchedule);
+        for (ScheduleCompletionParticipant participant : collectCompletionParticipants()) {
+            participant.confirmCompletionMutation(mutation);
+        }
+    }
+
+    private void revertCompletionMutationLocally(ScheduleCompletionMutation mutation) {
+        mutation.revertOn(selectedSchedule);
+        for (ScheduleCompletionParticipant participant : collectCompletionParticipants()) {
+            participant.revertCompletionMutation(mutation);
+        }
+        adjustPendingCountOptimistically(-mutation.pendingCountDelta());
+    }
+
+    private List<ScheduleCompletionParticipant> collectCompletionParticipants() {
+        List<ScheduleCompletionParticipant> participants = new ArrayList<>();
+        if (scheduleListView instanceof ScheduleCompletionParticipant) {
+            participants.add(scheduleListView);
+        }
+        if (timelineView instanceof ScheduleCompletionParticipant) {
+            participants.add(timelineView);
+        }
+        if (heatmapView instanceof ScheduleCompletionParticipant) {
+            participants.add(heatmapView);
+        }
+        if (infoPanelView instanceof ScheduleCompletionParticipant) {
+            participants.add(infoPanelView);
+        }
+        return participants;
+    }
+
+    private void adjustPendingCountOptimistically(int delta) {
+        if (pendingCountListener == null || delta == 0) {
+            return;
+        }
+        if (lastKnownPendingCount < 0) {
+            updatePendingCountBadge();
+            return;
+        }
+        lastKnownPendingCount = Math.max(0, lastKnownPendingCount + delta);
+        pendingCountListener.accept(lastKnownPendingCount);
+    }
+
+    /* private void reportCompletionPersistenceFailure(Throwable throwable) {
+        Throwable cause = throwable;
+        while (cause != null && cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        String message = cause != null && cause.getMessage() != null && !cause.getMessage().isBlank()
+            ? cause.getMessage()
+            : "鏈兘淇濆瓨鏃ョ▼鐘舵€佸彉鏇淬€?";
+        showError("鏇存柊鐘舵€佸け璐?, message);
+    }
+
+    }*/
+
+    private void reportCompletionPersistenceFailure(Throwable throwable) {
+        Throwable cause = throwable;
+        while (cause != null && cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        String message = cause != null && cause.getMessage() != null && !cause.getMessage().isBlank()
+            ? cause.getMessage()
+            : "Failed to save schedule completion state.";
+        showError("Schedule update failed", message);
+    }
+
+    private ThreadFactory createCompletionThreadFactory() {
+        return runnable -> {
+            Thread thread = new Thread(runnable, "todo-schedule-completion");
+            thread.setDaemon(true);
+            return thread;
+        };
     }
     
     private void switchTheme(String theme) {
@@ -1259,6 +1392,7 @@ public class MainController {
     }
     
     public void shutdown() {
+        scheduleCompletionExecutor.shutdownNow();
     }
 
     private void updatePendingCountBadge() {
@@ -1267,8 +1401,10 @@ public class MainController {
         }
         try {
             long pending = scheduleDAO.getAllSchedules().stream().filter(schedule -> !schedule.isCompleted()).count();
-            pendingCountListener.accept((int) Math.min(Integer.MAX_VALUE, pending));
+            lastKnownPendingCount = (int) Math.min(Integer.MAX_VALUE, pending);
+            pendingCountListener.accept(lastKnownPendingCount);
         } catch (SQLException ignored) {
+            lastKnownPendingCount = 0;
             pendingCountListener.accept(0);
         }
     }

@@ -3,19 +3,22 @@ package com.example.view;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.example.controller.MainController;
+import com.example.controller.ScheduleCompletionCoordinator;
+import com.example.controller.ScheduleCompletionMutation;
 import com.example.databaseutil.ScheduleDAO;
 import com.example.model.Schedule;
 
-import javafx.application.Platform;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -23,8 +26,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -33,15 +35,23 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
 
-public class ScheduleListView implements View {
+public class ScheduleListView implements View, ScheduleCompletionParticipant {
     private static final double COMPLETED_CARD_OPACITY = 0.7;
 
     private final MainController controller;
     private final ScheduleDAO scheduleDAO;
+    private final List<Schedule> loadedSchedules = new ArrayList<>();
+    private final Map<Integer, ScheduleCardNode> cardNodesById = new LinkedHashMap<>();
 
     private VBox root;
-    private ListView<Schedule> scheduleListView;
-    private ObservableList<Schedule> schedules;
+    private ScrollPane listScrollPane;
+    private VBox listContent;
+    private VBox pendingSection;
+    private VBox completedSection;
+    private VBox pendingCardsBox;
+    private VBox completedCardsBox;
+    private GroupHeader pendingHeader;
+    private GroupHeader completedHeader;
 
     private CheckBox showPastCheckbox;
     private ComboBox<String> sortComboBox;
@@ -52,26 +62,194 @@ public class ScheduleListView implements View {
     private boolean pendingCollapsed = false;
     private boolean completedCollapsed = false;
     private Node completedGroupHeaderNode;
-    private final Map<Integer, PendingCollapsePopState> pendingCollapsePopById = new HashMap<>();
 
-    private static final class PendingCollapsePopState {
-        private final int scheduleId;
-        private final boolean expandedTarget;
-        private boolean started;
+    private static final class GroupHeader {
+        private final HBox root;
+        private final Label arrowLabel;
 
-        private PendingCollapsePopState(
-            int scheduleId,
-            boolean expandedTarget
-        ) {
-            this.scheduleId = scheduleId;
-            this.expandedTarget = expandedTarget;
+        private GroupHeader(String title, Runnable toggleAction) {
+            arrowLabel = new Label("鈻?");
+            arrowLabel.getStyleClass().add("schedule-group-arrow");
+
+            Label textLabel = new Label(title);
+            textLabel.getStyleClass().addAll("completed-group-header", "schedule-group-title");
+
+            root = new HBox(6, arrowLabel, textLabel);
+            root.setAlignment(Pos.CENTER_LEFT);
+            root.getStyleClass().add("schedule-group-toggle");
+            root.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> event.consume());
+            root.setOnMouseClicked(event -> {
+                toggleAction.run();
+                event.consume();
+            });
+        }
+
+        private HBox getRoot() {
+            return root;
+        }
+
+        private void updateCollapsed(boolean collapsed) {
+            arrowLabel.setRotate(collapsed ? 0 : 90);
+        }
+    }
+
+    private final class ScheduleCardNode {
+        private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-dd");
+        private final VBox container;
+        private final StackPane cardMotionHost;
+        private final StackPane cardShell;
+        private final HBox cardInner;
+        private final ScheduleStatusControl statusControl;
+        private final Label priorityLabel;
+        private final Label titleLabel;
+        private final Label dateLabel;
+        private final Label categoryLabel;
+        private final ScheduleCollapsePopAnimator.MotionHandle motionHandle;
+        private Schedule schedule;
+
+        private ScheduleCardNode(Schedule schedule) {
+            this.schedule = schedule;
+
+            cardInner = new HBox(12);
+            cardInner.setAlignment(Pos.CENTER_LEFT);
+            cardInner.setPadding(new Insets(12, 16, 12, 16));
+            cardInner.getStyleClass().add("schedule-card-inner");
+
+            cardShell = new StackPane(cardInner);
+            cardShell.getStyleClass().add("schedule-card-motion-shell");
+            cardShell.setPickOnBounds(false);
+
+            cardMotionHost = new StackPane(cardShell);
+            cardMotionHost.getStyleClass().add("schedule-card-motion-host");
+            cardMotionHost.setPickOnBounds(false);
+            cardMotionHost.setMaxWidth(Double.MAX_VALUE);
+            Rectangle clip = new Rectangle();
+            clip.widthProperty().bind(cardMotionHost.widthProperty());
+            clip.heightProperty().bind(cardMotionHost.heightProperty());
+            cardMotionHost.setClip(clip);
+
+            motionHandle = ScheduleCollapsePopAnimator.bindMotionHandle(
+                cardMotionHost,
+                cardShell,
+                () -> {
+                    cardMotionHost.requestLayout();
+                    if (listContent != null) {
+                        listContent.requestLayout();
+                    }
+                }
+            );
+
+            priorityLabel = new Label();
+            titleLabel = new Label();
+            titleLabel.getStyleClass().addAll("schedule-title", "schedule-card-title-text");
+            dateLabel = new Label();
+            dateLabel.getStyleClass().addAll("schedule-date", "schedule-card-subtitle-text");
+            categoryLabel = new Label();
+            categoryLabel.getStyleClass().add("category-tag");
+
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+
+            statusControl = new ScheduleStatusControl(
+                schedule != null && schedule.isCompleted(),
+                ScheduleStatusControl.SizePreset.LIST,
+                "schedule-status-role-list",
+                targetCompleted -> handleStatusToggle(this, targetCompleted)
+            );
+
+            cardInner.getChildren().addAll(statusControl, priorityLabel, titleLabel, spacer, dateLabel, categoryLabel);
+
+            container = new VBox(cardMotionHost);
+            container.getStyleClass().add("schedule-list-card");
+            container.setFillWidth(true);
+            container.setMaxWidth(Double.MAX_VALUE);
+            cardMotionHost.setMaxWidth(Double.MAX_VALUE);
+
+            cardMotionHost.setOnMouseClicked(event -> {
+                if (event.getTarget() instanceof Node
+                    && isDescendant((Node) event.getTarget(), statusControl)) {
+                    event.consume();
+                    return;
+                }
+                controller.showScheduleDetails(this.schedule);
+                refreshSelectionState();
+                event.consume();
+            });
+
+            bindSchedule(schedule);
+        }
+
+        private VBox getContainer() {
+            return container;
+        }
+
+        private Schedule getSchedule() {
+            return schedule;
+        }
+
+        private ScheduleCollapsePopAnimator.MotionHandle getMotionHandle() {
+            return motionHandle;
+        }
+
+        private void bindSchedule(Schedule schedule) {
+            this.schedule = schedule;
+            statusControl.syncCompleted(schedule.isCompleted());
+
+            ScheduleCardStyleSupport.applyCardPresentation(
+                cardInner,
+                schedule,
+                controller.getCurrentScheduleCardStyle(),
+                "schedule-card-role-list"
+            );
+
+            cardInner.setOpacity(schedule.isCompleted() ? COMPLETED_CARD_OPACITY : 1.0);
+            priorityLabel.setText(schedule.getPriority());
+            priorityLabel.getStyleClass().removeAll("priority-high", "priority-medium", "priority-low");
+            priorityLabel.getStyleClass().add("priority-" + getPriorityClass(schedule.getPriority()));
+
+            titleLabel.setText(schedule.getName());
+            titleLabel.getStyleClass().remove("title-completed");
+            if (schedule.isCompleted()) {
+                titleLabel.getStyleClass().add("title-completed");
+            }
+
+            String dateText = "";
+            if (schedule.getDueDate() != null) {
+                dateText = schedule.getDueDate().format(formatter);
+                if (schedule.isOverdue() && !schedule.isCompleted()) {
+                    dateText += " (宸茶繃鏈?)";
+                }
+            }
+            dateLabel.setText(dateText);
+            categoryLabel.setText(schedule.getCategory());
+
+            container.getStyleClass().removeAll("completed", "overdue", "upcoming", "selected");
+            cardInner.getStyleClass().remove("schedule-card-state-selected");
+            if (schedule.isCompleted()) {
+                container.getStyleClass().add("completed");
+            } else if (schedule.isOverdue()) {
+                container.getStyleClass().add("overdue");
+            } else if (schedule.isUpcoming()) {
+                container.getStyleClass().add("upcoming");
+            }
+            if (controller.isScheduleSelected(schedule)) {
+                container.getStyleClass().add("selected");
+                cardInner.getStyleClass().add("schedule-card-state-selected");
+            }
+
+            ScheduleReflowAnimator.bindCard(container, schedule);
+            ScheduleReflowAnimator.bindCard(cardMotionHost, schedule);
+        }
+
+        private void syncAfterFailedCommit() {
+            motionHandle.restoreSteadyState();
+            statusControl.syncCompleted(schedule.isCompleted());
         }
     }
 
     public ScheduleListView(MainController controller) {
         this.controller = controller;
         this.scheduleDAO = new ScheduleDAO();
-        this.schedules = FXCollections.observableArrayList();
         initializeUI();
     }
 
@@ -82,17 +260,39 @@ public class ScheduleListView implements View {
 
         HBox toolbar = createToolbar();
 
-        scheduleListView = new ListView<>();
-        scheduleListView.getStyleClass().add("schedule-list");
-        scheduleListView.setItems(schedules);
-        scheduleListView.setCellFactory(listView -> new ScheduleListCell());
-        scheduleListView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
-            if (newValue != null) {
-                controller.showScheduleDetails(newValue);
-            }
+        pendingHeader = new GroupHeader("寰呭姙", () -> {
+            pendingCollapsed = !pendingCollapsed;
+            renderSchedules();
         });
+        completedHeader = new GroupHeader("宸插畬鎴?", () -> {
+            completedCollapsed = !completedCollapsed;
+            renderSchedules();
+        });
+        completedGroupHeaderNode = completedHeader.getRoot();
 
-        Button newScheduleBtn = new Button("新建日程");
+        pendingCardsBox = new VBox(8);
+        pendingCardsBox.getStyleClass().add("schedule-list-cards");
+
+        completedCardsBox = new VBox(8);
+        completedCardsBox.getStyleClass().add("schedule-list-cards");
+
+        pendingSection = new VBox(8, pendingHeader.getRoot(), pendingCardsBox);
+        pendingSection.getStyleClass().add("schedule-list-section");
+
+        completedSection = new VBox(8, completedHeader.getRoot(), completedCardsBox);
+        completedSection.getStyleClass().add("schedule-list-section");
+
+        listContent = new VBox(12, pendingSection, completedSection);
+        listContent.getStyleClass().addAll("schedule-list", "schedule-list-pane");
+        listContent.setFillWidth(true);
+
+        listScrollPane = new ScrollPane(listContent);
+        listScrollPane.getStyleClass().addAll("schedule-list", "schedule-list-scroll");
+        listScrollPane.setFitToWidth(true);
+        listScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        VBox.setVgrow(listScrollPane, Priority.ALWAYS);
+
+        Button newScheduleBtn = new Button("鏂板缓鏃ョ▼");
         newScheduleBtn.setGraphic(controller.createSvgIcon("/icons/macaron-logo-new-schedule.svg", null, 20));
         newScheduleBtn.getStyleClass().add("fab-button");
         newScheduleBtn.setOnAction(event -> controller.openNewScheduleDialog());
@@ -101,18 +301,17 @@ public class ScheduleListView implements View {
         buttonBox.setAlignment(Pos.CENTER_RIGHT);
         buttonBox.setPadding(new Insets(10, 0, 0, 0));
 
-        VBox.setVgrow(scheduleListView, Priority.ALWAYS);
-        root.getChildren().addAll(toolbar, scheduleListView, buttonBox);
+        root.getChildren().addAll(toolbar, listScrollPane, buttonBox);
     }
 
     private HBox createToolbar() {
         HBox toolbar = new HBox(15);
         toolbar.setAlignment(Pos.CENTER_LEFT);
 
-        Label titleLabel = new Label("日程管理");
+        Label titleLabel = new Label("鏃ョ▼绠＄悊");
         titleLabel.getStyleClass().add("label-title");
 
-        showPastCheckbox = new CheckBox("显示过去日程");
+        showPastCheckbox = new CheckBox("鏄剧ず杩囧幓鏃ョ▼");
         showPastCheckbox.getStyleClass().add("check-box");
         showPastCheckbox.setOnAction(event -> {
             if (!showingSearchResults) {
@@ -121,20 +320,20 @@ public class ScheduleListView implements View {
         });
 
         sortComboBox = new ComboBox<>();
-        sortComboBox.getItems().addAll("按日期排序", "按优先级排序", "按分类排序");
-        sortComboBox.setValue("按日期排序");
+        sortComboBox.getItems().addAll("鎸夋棩鏈熸帓搴?", "鎸変紭鍏堢骇鎺掑簭", "鎸夊垎绫绘帓搴?");
+        sortComboBox.setValue("鎸夋棩鏈熸帓搴?");
         sortComboBox.setOnAction(event -> {
             if (!showingSearchResults) {
-                loadSchedules();
+                renderSchedules();
             }
         });
 
         filterComboBox = new ComboBox<>();
-        filterComboBox.getItems().addAll("全部", "未完成", "已完成", "高优先级", "即将到期");
-        filterComboBox.setValue("全部");
+        filterComboBox.getItems().addAll("鍏ㄩ儴", "鏈畬鎴?", "宸插畬鎴?", "楂樹紭鍏堢骇", "鍗冲皢鍒版湡");
+        filterComboBox.setValue("鍏ㄩ儴");
         filterComboBox.setOnAction(event -> {
             if (!showingSearchResults) {
-                loadSchedules();
+                renderSchedules();
             }
         });
 
@@ -151,93 +350,155 @@ public class ScheduleListView implements View {
 
     @Override
     public void refresh() {
-        if (!showingSearchResults) {
-            loadSchedules();
+        if (showingSearchResults) {
+            loadSearchResults(currentSearchKeyword);
+            return;
         }
+        loadSchedules();
     }
 
     private void loadSchedules() {
-        runListMutation(() -> {
-            try {
-                List<Schedule> filteredSchedules = scheduleDAO.getAllSchedules().stream()
-                    .filter(this::applyFilter)
-                    .sorted(getDisplayComparator())
-                    .collect(Collectors.toList());
-                applySchedules(filteredSchedules);
-            } catch (SQLException e) {
-                controller.showError("加载日程失败", e.getMessage());
-            }
-        });
+        try {
+            List<Schedule> schedules = controller.applyPendingCompletionMutations(scheduleDAO.getAllSchedules());
+            setLoadedSchedules(schedules);
+        } catch (SQLException e) {
+            controller.showError("鍔犺浇鏃ョ▼澶辫触", e.getMessage());
+        }
     }
 
-    private boolean applyFilter(Schedule schedule) {
-        if (!showPastCheckbox.isSelected() && schedule.getDueDate() != null && schedule.getDueDate().isBefore(LocalDate.now()) && !schedule.isCompleted()) {
-            return false;
+    private void loadSearchResults(String keyword) {
+        try {
+            List<Schedule> schedules = controller.applyPendingCompletionMutations(scheduleDAO.searchSchedules(keyword));
+            setLoadedSchedules(schedules);
+        } catch (SQLException e) {
+            controller.showError("鎼滅储澶辫触", e.getMessage());
         }
-        if (!showPastCheckbox.isSelected() && schedule.getDueDate() != null && schedule.getDueDate().isAfter(LocalDate.now().plusDays(7))) {
-            return false;
-        }
-
-        String filter = filterComboBox.getValue();
-        if (filter == null) {
-            filter = "全部";
-        }
-
-        if ("未完成".equals(filter)) {
-            return !schedule.isCompleted();
-        }
-        if ("已完成".equals(filter)) {
-            return schedule.isCompleted();
-        }
-        if ("高优先级".equals(filter)) {
-            return "高".equals(schedule.getPriority());
-        }
-        if ("即将到期".equals(filter)) {
-            return schedule.isUpcoming();
-        }
-        return true;
     }
 
-    private Comparator<Schedule> getComparator() {
-        String sort = sortComboBox.getValue();
-        if (sort == null) {
-            sort = "按日期排序";
+    private void setLoadedSchedules(List<Schedule> schedules) {
+        loadedSchedules.clear();
+        if (schedules != null) {
+            loadedSchedules.addAll(schedules);
         }
-
-        if ("按优先级排序".equals(sort)) {
-            return Comparator
-                .comparing(Schedule::isCompleted)
-                .thenComparing(Schedule::getPriorityValue, Comparator.reverseOrder());
-        }
-        if ("按分类排序".equals(sort)) {
-            return Comparator
-                .comparing(Schedule::isCompleted)
-                .thenComparing(Schedule::getCategory, Comparator.nullsFirst(Comparator.naturalOrder()));
-        }
-        return Comparator
-            .comparing(Schedule::isCompleted)
-            .thenComparing(Schedule::getDueDate, Comparator.nullsLast(Comparator.naturalOrder()));
+        renderSchedules();
     }
 
     public void searchSchedules(String keyword) {
         showingSearchResults = true;
-        currentSearchKeyword = keyword;
-
-        runListMutation(() -> {
-            try {
-                applySchedules(scheduleDAO.searchSchedules(keyword).stream()
-                    .sorted(getDisplayComparator())
-                    .collect(Collectors.toList()));
-            } catch (SQLException e) {
-                controller.showError("搜索失败", e.getMessage());
-            }
-        });
+        currentSearchKeyword = keyword == null ? "" : keyword.trim();
+        loadSearchResults(currentSearchKeyword);
     }
 
     public void clearSearch() {
         showingSearchResults = false;
         currentSearchKeyword = "";
         loadSchedules();
+    }
+
+    private void renderSchedules() {
+        List<Schedule> displayedSchedules = buildDisplayedSchedules();
+        Set<Integer> loadedIds = loadedSchedules.stream()
+            .map(Schedule::getId)
+            .filter(id -> id > 0)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        List<Node> pendingNodes = new ArrayList<>();
+        List<Node> completedNodes = new ArrayList<>();
+        for (Schedule schedule : displayedSchedules) {
+            ScheduleCardNode cardNode = cardNodesById.computeIfAbsent(schedule.getId(), id -> new ScheduleCardNode(schedule));
+            cardNode.bindSchedule(schedule);
+            if (schedule.isCompleted()) {
+                completedNodes.add(cardNode.getContainer());
+            } else {
+                pendingNodes.add(cardNode.getContainer());
+            }
+        }
+
+        List<Integer> staleIds = cardNodesById.keySet().stream()
+            .filter(id -> !loadedIds.contains(id))
+            .collect(Collectors.toList());
+        for (Integer staleId : staleIds) {
+            ScheduleCardNode staleNode = cardNodesById.remove(staleId);
+            if (staleNode != null) {
+                pendingCardsBox.getChildren().remove(staleNode.getContainer());
+                completedCardsBox.getChildren().remove(staleNode.getContainer());
+            }
+        }
+
+        pendingCardsBox.getChildren().setAll(pendingNodes);
+        completedCardsBox.getChildren().setAll(completedNodes);
+
+        pendingHeader.updateCollapsed(pendingCollapsed);
+        completedHeader.updateCollapsed(completedCollapsed);
+
+        updateSectionState(pendingSection, pendingHeader.getRoot(), pendingCardsBox, !pendingNodes.isEmpty(), pendingCollapsed);
+        updateSectionState(completedSection, completedHeader.getRoot(), completedCardsBox, !completedNodes.isEmpty(), completedCollapsed);
+        refreshSelectionState();
+    }
+
+    private void updateSectionState(
+        VBox section,
+        HBox header,
+        VBox cardsBox,
+        boolean hasCards,
+        boolean collapsed
+    ) {
+        section.setManaged(hasCards);
+        section.setVisible(hasCards);
+        header.setManaged(hasCards);
+        header.setVisible(hasCards);
+        cardsBox.setManaged(hasCards && !collapsed);
+        cardsBox.setVisible(hasCards && !collapsed);
+    }
+
+    private List<Schedule> buildDisplayedSchedules() {
+        Comparator<Schedule> comparator = getDisplayComparator();
+        if (showingSearchResults) {
+            return loadedSchedules.stream().sorted(comparator).collect(Collectors.toList());
+        }
+        return loadedSchedules.stream()
+            .filter(this::applyFilter)
+            .sorted(comparator)
+            .collect(Collectors.toList());
+    }
+
+    private void refreshSelectionState() {
+        for (ScheduleCardNode cardNode : cardNodesById.values()) {
+            cardNode.bindSchedule(cardNode.getSchedule());
+        }
+    }
+
+    private boolean applyFilter(Schedule schedule) {
+        if (!showPastCheckbox.isSelected()
+            && schedule.getDueDate() != null
+            && schedule.getDueDate().isBefore(LocalDate.now())
+            && !schedule.isCompleted()) {
+            return false;
+        }
+        if (!showPastCheckbox.isSelected()
+            && schedule.getDueDate() != null
+            && schedule.getDueDate().isAfter(LocalDate.now().plusDays(7))) {
+            return false;
+        }
+
+        String filter = filterComboBox.getValue();
+        if (filter == null) {
+            filter = "鍏ㄩ儴";
+        }
+
+        if ("鏈畬鎴?".equals(filter)) {
+            return !schedule.isCompleted();
+        }
+        if ("宸插畬鎴?".equals(filter)) {
+            return schedule.isCompleted();
+        }
+        if ("楂樹紭鍏堢骇".equals(filter)) {
+            return "楂?".equals(schedule.getPriority());
+        }
+        if ("鍗冲皢鍒版湡".equals(filter)) {
+            return schedule.isUpcoming();
+        }
+        return true;
     }
 
     private Comparator<Schedule> getDisplayComparator() {
@@ -285,32 +546,6 @@ public class ScheduleListView implements View {
             .thenComparing(Schedule::getId);
     }
 
-    private void applySchedules(List<Schedule> nextSchedules) {
-        completedGroupHeaderNode = null;
-        schedules.setAll(nextSchedules);
-        forceListRefresh();
-    }
-
-    private void forceListRefresh() {
-        if (scheduleListView == null) {
-            return;
-        }
-        scheduleListView.refresh();
-        scheduleListView.requestLayout();
-        Platform.runLater(() -> {
-            scheduleListView.refresh();
-            scheduleListView.requestLayout();
-        });
-    }
-
-    private void runListMutation(Runnable action) {
-        if (Platform.isFxApplicationThread()) {
-            action.run();
-            return;
-        }
-        Platform.runLater(action);
-    }
-
     public void addSchedule(Schedule schedule) throws SQLException {
         scheduleDAO.addSchedule(schedule);
         refresh();
@@ -326,284 +561,135 @@ public class ScheduleListView implements View {
         refresh();
     }
 
-    private ScheduleStatusControl createStatusControl(Schedule schedule, Node cardNode, ScheduleStatusControl[] controlRef) {
-        ScheduleStatusControl control = new ScheduleStatusControl(
-            schedule.isCompleted(),
-            ScheduleStatusControl.SizePreset.LIST,
-            "schedule-status-role-list",
-            targetCompleted -> handleStatusToggle(cardNode, schedule, controlRef[0], targetCompleted)
-        );
-        controlRef[0] = control;
-        return control;
-    }
-
-    private boolean handleStatusToggle(Node cardNode, Schedule schedule, ScheduleStatusControl control, boolean targetCompleted) {
+    private boolean handleStatusToggle(ScheduleCardNode cardNode, boolean targetCompleted) {
+        Schedule schedule = cardNode.getSchedule();
+        if (schedule == null) {
+            return false;
+        }
         if (!targetCompleted) {
             return controller.updateScheduleCompletion(schedule, false);
         }
 
-        int scheduleId = schedule.getId();
-        clearPendingCollapsePop(scheduleId);
+        ScheduleCompletionCoordinator.PendingCompletion pendingCompletion =
+            controller.prepareScheduleCompletion(schedule, true);
+        if (pendingCompletion == null) {
+            return false;
+        }
 
-        ScheduleCollapsePopAnimator.playListComplete(
-            ScheduleCollapsePopAnimator.resolveMotionHandle(cardNode),
+        Map<Integer, Bounds> beforeBounds =
+            ScheduleReflowAnimator.captureVisibleCardBounds(listContent, schedule.getId());
+
+        ScheduleCollapsePopAnimator.playCollapseSource(
+            cardNode.getMotionHandle(),
+            pendingCompletion::commit,
+            () -> handleCommittedListCompletion(schedule.getId(), beforeBounds),
             () -> {
-                pendingCollapsePopById.put(scheduleId, new PendingCollapsePopState(scheduleId, !completedCollapsed));
-                boolean updated = controller.updateScheduleCompletion(schedule, true);
-                if (!updated) {
-                    clearPendingCollapsePop(scheduleId);
-                }
-                return updated;
+                pendingCompletion.cancel();
+                cardNode.syncAfterFailedCommit();
             },
-            completedCollapsed ? null : () -> resolveExpandedTargetHandle(scheduleId),
-            () -> completedGroupHeaderNode,
-            () -> {
-                clearPendingCollapsePop(scheduleId);
-                if (control != null) {
-                    control.syncCompleted(false);
-                }
-            },
-            () -> clearPendingCollapsePop(scheduleId)
+            null
         );
         return true;
     }
 
-    private void clearPendingCollapsePop(int scheduleId) {
-        pendingCollapsePopById.remove(scheduleId);
+    private void handleCommittedListCompletion(int scheduleId, Map<Integer, Bounds> beforeBounds) {
+        ScheduleCollapsePopAnimator.MotionHandle targetHandle = resolveExpandedTargetHandle(scheduleId);
+        if (targetHandle != null) {
+            ScheduleCollapsePopAnimator.prepareTargetPopState(targetHandle);
+        }
+
+        ScheduleReflowAnimator.playVerticalReflow(listContent, beforeBounds, null);
+
+        if (targetHandle != null) {
+            ScheduleCollapsePopAnimator.playPreparedTargetPop(targetHandle, null);
+            return;
+        }
+
+        if (completedGroupHeaderNode != null && completedGroupHeaderNode.isVisible()) {
+            ScheduleReflowAnimator.playCollapsedReceive(
+                completedGroupHeaderNode,
+                CollapsePopKeyframePreset.targetPopDuration(),
+                null
+            );
+        }
     }
 
     private ScheduleCollapsePopAnimator.MotionHandle resolveExpandedTargetHandle(int scheduleId) {
-        PendingCollapsePopState state = pendingCollapsePopById.get(scheduleId);
-        if (state == null || !state.expandedTarget) {
+        if (completedCollapsed) {
             return null;
         }
-        ScheduleReflowAnimator.VisibleCard targetCard =
-            ScheduleReflowAnimator.findVisibleCardByIdAndCompletion(scheduleListView, scheduleId, true);
-        if (targetCard == null) {
+        ScheduleCardNode targetNode = cardNodesById.get(scheduleId);
+        if (targetNode == null || targetNode.getSchedule() == null || !targetNode.getSchedule().isCompleted()) {
             return null;
         }
-        ScheduleCollapsePopAnimator.MotionHandle handle =
-            ScheduleCollapsePopAnimator.resolveMotionHandle(targetCard.getNode());
-        if (handle != null) {
-            state.started = true;
+        if (!completedCardsBox.getChildren().contains(targetNode.getContainer())) {
+            return null;
         }
-        return handle;
+        return targetNode.getMotionHandle();
     }
 
-    private class ScheduleListCell extends ListCell<Schedule> {
-        private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-dd");
-
-        @Override
-        protected void updateItem(Schedule schedule, boolean empty) {
-            super.updateItem(schedule, empty);
-
-            setGraphic(null);
-            setText(null);
-            setManaged(true);
-            setVisible(true);
-            setOpacity(1.0);
-            setTranslateX(0.0);
-            setTranslateY(0.0);
-            setScaleX(1.0);
-            setScaleY(1.0);
-            setMouseTransparent(false);
-            setPrefHeight(Region.USE_COMPUTED_SIZE);
-            setMinHeight(Region.USE_COMPUTED_SIZE);
-            setMaxHeight(Region.USE_COMPUTED_SIZE);
-
-            if (empty || schedule == null) {
-                getStyleClass().removeAll("completed", "overdue", "upcoming");
-                return;
-            }
-
-            HBox cardInner = new HBox(12);
-            cardInner.setAlignment(Pos.CENTER_LEFT);
-            cardInner.setPadding(new Insets(12, 16, 12, 16));
-            cardInner.getStyleClass().add("schedule-card-inner");
-            cardInner.setOpacity(schedule.isCompleted() ? COMPLETED_CARD_OPACITY : 1.0);
-            cardInner.setMouseTransparent(false);
-            ScheduleCardStyleSupport.applyCardPresentation(
-                cardInner,
-                schedule,
-                controller.getCurrentScheduleCardStyle(),
-                "schedule-card-role-list"
-            );
-
-            StackPane cardShell = new StackPane(cardInner);
-            cardShell.getStyleClass().add("schedule-card-motion-shell");
-            cardShell.setPickOnBounds(false);
-
-            StackPane cardMotionHost = new StackPane(cardShell);
-            cardMotionHost.getStyleClass().add("schedule-card-motion-host");
-            cardMotionHost.setPickOnBounds(false);
-            cardMotionHost.setMaxWidth(Double.MAX_VALUE);
-            Rectangle clip = new Rectangle();
-            clip.widthProperty().bind(cardMotionHost.widthProperty());
-            clip.heightProperty().bind(cardMotionHost.heightProperty());
-            cardMotionHost.setClip(clip);
-
-            ScheduleCollapsePopAnimator.MotionHandle motionHandle = ScheduleCollapsePopAnimator.bindMotionHandle(
-                cardMotionHost,
-                cardShell,
-                () -> {
-                    cardMotionHost.requestLayout();
-                    requestLayout();
-                    if (scheduleListView != null) {
-                        scheduleListView.requestLayout();
-                    }
-                }
-            );
-            ScheduleReflowAnimator.bindCard(cardMotionHost, schedule);
-
-            ScheduleStatusControl[] statusControlRef = new ScheduleStatusControl[1];
-            ScheduleStatusControl statusControl = createStatusControl(schedule, cardMotionHost, statusControlRef);
-
-            Label priorityLabel = new Label(schedule.getPriority());
-            priorityLabel.getStyleClass().add("priority-" + getPriorityClass(schedule.getPriority()));
-
-            Label titleLabel = new Label(schedule.getName());
-            titleLabel.getStyleClass().addAll("schedule-title", "schedule-card-title-text");
-            if (schedule.isCompleted()) {
-                titleLabel.getStyleClass().add("title-completed");
-            }
-
-            String dateText = "";
-            if (schedule.getDueDate() != null) {
-                dateText = schedule.getDueDate().format(formatter);
-                if (schedule.isOverdue() && !schedule.isCompleted()) {
-                    dateText += " (已过期)";
-                }
-            }
-            Label dateLabel = new Label(dateText);
-            dateLabel.getStyleClass().addAll("schedule-date", "schedule-card-subtitle-text");
-
-            Label categoryLabel = new Label(schedule.getCategory());
-            categoryLabel.getStyleClass().add("category-tag");
-
-            Region spacer = new Region();
-            HBox.setHgrow(spacer, Priority.ALWAYS);
-
-            cardInner.getChildren().addAll(statusControl, priorityLabel, titleLabel, spacer, dateLabel, categoryLabel);
-
-            VBox container = new VBox(5);
-            int index = getIndex();
-            boolean isFirstPending = !schedule.isCompleted() && isFirstPending(index);
-            boolean isFirstCompleted = schedule.isCompleted() && isFirstCompleted(index);
-            boolean groupCollapsed = schedule.isCompleted() ? completedCollapsed : pendingCollapsed;
-
-            if (isFirstPending) {
-                HBox pendingHeader = createGroupHeaderLabel("待办", pendingCollapsed, () -> {
-                    pendingCollapsed = !pendingCollapsed;
-                    scheduleListView.refresh();
-                });
-                container.getChildren().add(pendingHeader);
-            }
-
-            if (isFirstCompleted) {
-                HBox completedHeader = createGroupHeaderLabel("已完成", completedCollapsed, () -> {
-                    completedCollapsed = !completedCollapsed;
-                    scheduleListView.refresh();
-                });
-                completedGroupHeaderNode = completedHeader;
-                container.getChildren().add(completedHeader);
-            }
-
-            PendingCollapsePopState popState = pendingCollapsePopById.get(schedule.getId());
-            if (popState != null && schedule.isCompleted() && popState.expandedTarget && !popState.started) {
-                ScheduleCollapsePopAnimator.prepareTargetPopState(motionHandle);
-            }
-
-            if (!groupCollapsed) {
-                container.getChildren().add(cardMotionHost);
-            } else if (!isFirstPending && !isFirstCompleted) {
-                setGraphic(null);
-                setText(null);
-                setManaged(false);
-                setVisible(false);
-                setPrefHeight(0);
-                setMinHeight(0);
-                setMaxHeight(0);
-                getStyleClass().removeAll("completed", "overdue", "upcoming");
-                return;
-            }
-
-            setGraphic(container);
-
-            if (!groupCollapsed) {
-                cardMotionHost.setOnMouseClicked(event -> {
-                    getListView().getSelectionModel().select(schedule);
-                    controller.showScheduleDetails(schedule);
-                    event.consume();
-                });
-            }
-
-            getStyleClass().removeAll("completed", "overdue", "upcoming");
-            if (schedule.isCompleted()) {
-                getStyleClass().add("completed");
-            } else if (schedule.isOverdue()) {
-                getStyleClass().add("overdue");
-            } else if (schedule.isUpcoming()) {
-                getStyleClass().add("upcoming");
-            }
+    @Override
+    public void applyCompletionMutation(ScheduleCompletionMutation mutation) {
+        if (mutation == null) {
+            return;
         }
+        if (applyMutation(mutation, true)) {
+            renderSchedules();
+        }
+    }
 
-        private boolean isFirstPending(int index) {
-            if (index < 0 || index >= getListView().getItems().size()) {
-                return false;
+    @Override
+    public void confirmCompletionMutation(ScheduleCompletionMutation mutation) {
+        if (mutation == null) {
+            return;
+        }
+        renderSchedules();
+    }
+
+    @Override
+    public void revertCompletionMutation(ScheduleCompletionMutation mutation) {
+        if (mutation == null) {
+            return;
+        }
+        if (applyMutation(mutation, false)) {
+            renderSchedules();
+        }
+    }
+
+    private boolean applyMutation(ScheduleCompletionMutation mutation, boolean optimistic) {
+        boolean changed = false;
+        for (Schedule schedule : loadedSchedules) {
+            if (!mutation.matches(schedule)) {
+                continue;
             }
-            Schedule current = getListView().getItems().get(index);
-            if (current == null || current.isCompleted()) {
-                return false;
+            if (optimistic) {
+                mutation.applyTo(schedule);
+            } else {
+                mutation.revertOn(schedule);
             }
-            if (index == 0) {
+            changed = true;
+        }
+        return changed;
+    }
+
+    private boolean isDescendant(Node node, Node possibleAncestor) {
+        Node current = node;
+        while (current != null) {
+            if (current == possibleAncestor) {
                 return true;
             }
-            Schedule previous = getListView().getItems().get(index - 1);
-            return previous != null && previous.isCompleted();
+            current = current.getParent();
         }
+        return false;
+    }
 
-        private boolean isFirstCompleted(int index) {
-            if (index < 0 || index >= getListView().getItems().size()) {
-                return false;
-            }
-            Schedule current = getListView().getItems().get(index);
-            if (current == null || !current.isCompleted()) {
-                return false;
-            }
-            if (index == 0) {
-                return true;
-            }
-            Schedule previous = getListView().getItems().get(index - 1);
-            return previous != null && !previous.isCompleted();
+    private String getPriorityClass(String priority) {
+        if ("楂?".equals(priority)) {
+            return "high";
         }
-
-        private HBox createGroupHeaderLabel(String title, boolean collapsed, Runnable toggleAction) {
-            Label arrowLabel = new Label("▸");
-            arrowLabel.setRotate(collapsed ? 0 : 90);
-            arrowLabel.getStyleClass().add("schedule-group-arrow");
-
-            Label textLabel = new Label(title);
-            textLabel.getStyleClass().addAll("completed-group-header", "schedule-group-title");
-
-            HBox header = new HBox(6, arrowLabel, textLabel);
-            header.setAlignment(Pos.CENTER_LEFT);
-            header.getStyleClass().add("schedule-group-toggle");
-            header.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> event.consume());
-            header.setOnMouseClicked(event -> {
-                toggleAction.run();
-                event.consume();
-            });
-            return header;
+        if ("浣?".equals(priority)) {
+            return "low";
         }
-
-        private String getPriorityClass(String priority) {
-            if ("高".equals(priority)) {
-                return "high";
-            }
-            if ("低".equals(priority)) {
-                return "low";
-            }
-            return "medium";
-        }
+        return "medium";
     }
 }

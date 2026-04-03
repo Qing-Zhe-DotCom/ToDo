@@ -3,19 +3,33 @@ package com.example.view;
 import javafx.util.Duration;
 
 final class CollapsePopKeyframePreset {
-    static final Duration SOURCE_STAGE_ONE = Duration.millis(100);
-    static final Duration SOURCE_STAGE_TWO = Duration.millis(200);
-    static final Duration SOURCE_STAGE_THREE = Duration.millis(300);
-    static final Duration COMMIT_POINT = Duration.millis(400);
-    static final Duration TARGET_APPEAR = Duration.millis(450);
-    static final Duration TARGET_STAGE_ONE = Duration.millis(550);
-    static final Duration TARGET_STAGE_TWO = Duration.millis(650);
-    static final Duration TARGET_STAGE_THREE = Duration.millis(725);
-    static final Duration TARGET_FINISH = Duration.millis(800);
+    private static final double TIME_SCALE = 1.5;
 
-    private static final double[] SOURCE_TIMES = {0.0, 100.0, 200.0, 300.0, 400.0};
+    static final Duration SOURCE_STAGE_ONE = scaledMillis(100.0);
+    static final Duration SOURCE_STAGE_TWO = scaledMillis(200.0);
+    static final Duration SOURCE_STAGE_THREE = scaledMillis(300.0);
+    static final Duration COMMIT_POINT = scaledMillis(400.0);
+    static final Duration TARGET_APPEAR = scaledMillis(450.0);
+    static final Duration TARGET_STAGE_ONE = scaledMillis(550.0);
+    static final Duration TARGET_STAGE_TWO = scaledMillis(650.0);
+    static final Duration TARGET_STAGE_THREE = scaledMillis(725.0);
+    static final Duration TARGET_FINISH = scaledMillis(800.0);
+
+    private static final double[] SOURCE_TIMES = {
+        0.0,
+        SOURCE_STAGE_ONE.toMillis(),
+        SOURCE_STAGE_TWO.toMillis(),
+        SOURCE_STAGE_THREE.toMillis(),
+        COMMIT_POINT.toMillis()
+    };
     private static final double[] SOURCE_SCALES = {1.0, 0.8, 0.5, 0.12, 0.0};
-    private static final double[] TARGET_TIMES = {450.0, 550.0, 650.0, 725.0, 800.0};
+    private static final double[] TARGET_TIMES = {
+        TARGET_APPEAR.toMillis(),
+        TARGET_STAGE_ONE.toMillis(),
+        TARGET_STAGE_TWO.toMillis(),
+        TARGET_STAGE_THREE.toMillis(),
+        TARGET_FINISH.toMillis()
+    };
     private static final double[] TARGET_SCALES = {0.12, 0.8, 1.1, 0.95, 1.0};
 
     private CollapsePopKeyframePreset() {
@@ -31,6 +45,10 @@ final class CollapsePopKeyframePreset {
 
     static Duration targetPopDuration() {
         return TARGET_FINISH.subtract(TARGET_APPEAR);
+    }
+
+    private static Duration scaledMillis(double baseMillis) {
+        return Duration.millis(baseMillis * TIME_SCALE);
     }
 
     private static double interpolate(Duration time, double[] times, double[] values) {

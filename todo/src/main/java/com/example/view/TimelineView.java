@@ -1,5 +1,6 @@
 package com.example.view;
 
+import com.example.controller.ScheduleCompletionMutation;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -40,7 +41,7 @@ import javafx.animation.ParallelTransition;
 import javafx.util.Duration;
 import javafx.scene.input.ScrollEvent;
 
-public class TimelineView implements View {
+public class TimelineView implements View, ScheduleCompletionParticipant {
 
     private double DAY_WIDTH = 90;
     private static final double LEFT_PADDING = 36;
@@ -69,6 +70,7 @@ public class TimelineView implements View {
     private AnimationTimer autoScrollTimer;
     private long lastUpdate = 0;
     private double scrollVelocity = 0;
+    private List<Schedule> loadedSchedules = new ArrayList<>();
 
     public TimelineView(MainController controller) {
         this.controller = controller;
@@ -210,9 +212,14 @@ public class TimelineView implements View {
     }
 
     private void drawTimeline() throws SQLException {
+        loadedSchedules = new ArrayList<>(controller.applyPendingCompletionMutations(scheduleDAO.getAllSchedules()));
+        renderTimeline(loadedSchedules);
+    }
+
+    private void renderTimeline(List<Schedule> allSchedules) {
         timelinePane.getChildren().clear();
 
-        List<Schedule> allSchedules = scheduleDAO.getAllSchedules();
+        allSchedules = new ArrayList<>(allSchedules == null ? List.of() : allSchedules);
         if (allSchedules.isEmpty()) {
             showTimelineState("暂无可显示的日程，请为日程补充开始日期或截止日期");
             return;
@@ -611,6 +618,50 @@ public class TimelineView implements View {
     private void hideTimelineState() {
         timelineStateLabel.setVisible(false);
         timelineStateLabel.setManaged(false);
+    }
+
+    @Override
+    public void applyCompletionMutation(ScheduleCompletionMutation mutation) {
+        if (mutation == null || loadedSchedules.isEmpty()) {
+            return;
+        }
+        boolean changed = false;
+        for (Schedule schedule : loadedSchedules) {
+            if (!mutation.matches(schedule)) {
+                continue;
+            }
+            mutation.applyTo(schedule);
+            changed = true;
+        }
+        if (changed) {
+            renderTimeline(loadedSchedules);
+        }
+    }
+
+    @Override
+    public void confirmCompletionMutation(ScheduleCompletionMutation mutation) {
+        if (mutation == null || loadedSchedules.isEmpty()) {
+            return;
+        }
+        renderTimeline(loadedSchedules);
+    }
+
+    @Override
+    public void revertCompletionMutation(ScheduleCompletionMutation mutation) {
+        if (mutation == null || loadedSchedules.isEmpty()) {
+            return;
+        }
+        boolean changed = false;
+        for (Schedule schedule : loadedSchedules) {
+            if (!mutation.matches(schedule)) {
+                continue;
+            }
+            mutation.revertOn(schedule);
+            changed = true;
+        }
+        if (changed) {
+            renderTimeline(loadedSchedules);
+        }
     }
 
     private List<Schedule> getFilteredSchedules(List<Schedule> schedules) {
