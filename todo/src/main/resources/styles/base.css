@@ -1777,6 +1777,40 @@
 
 /* 热力图样式 */
 
+.heatmap-meta-bar {
+
+    -fx-alignment: center-left;
+
+    -fx-spacing: 12;
+
+    -fx-padding: 0 2 0 0;
+
+}
+
+.heatmap-legend {
+
+    -fx-alignment: center-right;
+
+    -fx-spacing: 8;
+
+    -fx-padding: 0;
+
+}
+
+.heatmap-body {
+
+    -fx-alignment: top-left;
+
+    -fx-spacing: 16;
+
+}
+
+.heatmap-main-pane {
+
+    -fx-background-color: transparent;
+
+}
+
 .heatmap-scroll {
 
     -fx-background-color: transparent;
@@ -1855,6 +1889,61 @@
 
 }
 
+.heatmap-sidebar-shell {
+
+    -fx-background-color: transparent;
+
+    -fx-border-color: transparent;
+
+    -fx-padding: 0;
+
+}
+
+.heatmap-sidebar {
+}
+
+.heatmap-sidebar-collapsed {
+
+    -fx-background-color: transparent;
+
+    -fx-border-color: transparent;
+
+    -fx-padding: 0;
+
+    -fx-min-width: 56px;
+
+    -fx-pref-width: 56px;
+
+    -fx-max-width: 56px;
+
+}
+
+.heatmap-sidebar-expanded {
+
+    -fx-background-color: transparent;
+
+    -fx-min-width: 280px;
+
+    -fx-pref-width: 280px;
+
+    -fx-max-width: 280px;
+
+}
+
+.heatmap-day-panel-content {
+
+    -fx-spacing: 12;
+
+}
+
+.heatmap-day-panel-header {
+
+    -fx-alignment: center-left;
+
+    -fx-spacing: 10;
+
+}
+
 
 
 .heatmap-day-title {
@@ -1864,6 +1953,23 @@
     -fx-font-weight: bold;
 
     -fx-text-fill: -color-text-main;
+
+}
+
+.heatmap-day-count,
+.heatmap-day-rail-badge {
+
+    -fx-background-color: -color-bg-active;
+
+    -fx-text-fill: -color-primary-hover;
+
+    -fx-padding: 3 10;
+
+    -fx-background-radius: 999;
+
+    -fx-font-size: 11px;
+
+    -fx-font-weight: 700;
 
 }
 
@@ -1893,6 +1999,8 @@
 
     -fx-padding: 2;
 
+    -fx-spacing: 8;
+
 }
 
 
@@ -1909,11 +2017,37 @@
 
     -fx-background-radius: 12;
 
-    -fx-padding: 12;
+    -fx-padding: 9 10;
 
     -fx-cursor: hand;
 
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.03), 4, 0, 0, 2);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.03), 3, 0, 0, 1);
+}
+
+.heatmap-day-card-top,
+.heatmap-day-card-meta,
+.heatmap-day-card-tags {
+
+    -fx-spacing: 8;
+
+}
+
+.heatmap-day-card-tags {
+
+    -fx-alignment: center-right;
+
+}
+
+.heatmap-day-card .schedule-card-title-text {
+
+    -fx-font-size: 13px;
+
+}
+
+.heatmap-day-card .schedule-card-subtitle-text {
+
+    -fx-font-size: 11px;
+
 }
 
 .schedule-color-mark.mark-completed { -fx-fill: -color-success; }
@@ -1942,11 +2076,95 @@
 
 }
 
+.heatmap-sidebar-toggle {
+
+    -fx-min-width: 30px;
+
+    -fx-min-height: 30px;
+
+    -fx-pref-width: 30px;
+
+    -fx-pref-height: 30px;
+
+    -fx-padding: 0;
+
+}
+
+.heatmap-day-rail {
+
+    -fx-alignment: top-center;
+
+    -fx-spacing: 10;
+
+    -fx-padding: 6 0 0 0;
+
+}
+
+.heatmap-day-rail-date {
+
+    -fx-font-size: 11px;
+
+    -fx-font-weight: 700;
+
+    -fx-text-fill: -color-text-main;
+
+}
+
+.heatmap-year-card {
+
+    -fx-background-color: derive(-color-bg-panel, 2%);
+
+    -fx-border-color: -color-border;
+
+    -fx-border-width: 1;
+
+    -fx-border-radius: 14;
+
+    -fx-background-radius: 14;
+
+    -fx-padding: 10;
+
+    -fx-spacing: 8;
+
+}
+
+.heatmap-year-title {
+
+    -fx-font-size: 13px;
+
+    -fx-font-weight: 700;
+
+    -fx-text-fill: -color-text-main;
+
+}
+
+.heatmap-year-month-grid {
+
+    -fx-hgap: 3;
+
+    -fx-vgap: 3;
+
+}
+
+.heatmap-year-weekday {
+
+    -fx-min-width: 16px;
+
+    -fx-alignment: center;
+
+}
+
+.heatmap-cell-placeholder {
+
+    -fx-background-color: transparent;
+
+}
+
 .heatmap-completed-zone {
 
     -fx-alignment: center-left;
 
-    -fx-padding: 10 14;
+    -fx-padding: 8 10;
 
     -fx-background-color: linear-gradient(to right, rgba(129, 199, 132, 0.16), rgba(129, 199, 132, 0.05));
 

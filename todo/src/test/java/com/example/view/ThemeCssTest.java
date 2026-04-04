@@ -27,14 +27,37 @@ class ThemeCssTest {
     @Test
     void themeFilesContainHeatmapSelectionAndDayCardStyles() throws IOException {
         String baseContent = readCss("/styles/base.css");
+        String sidebarBlock = extractCssBlock(baseContent, ".heatmap-sidebar");
+        String collapsedSidebarBlock = extractCssBlock(baseContent, ".heatmap-sidebar-collapsed");
+        String expandedSidebarBlock = extractCssBlock(baseContent, ".heatmap-sidebar-expanded");
         
         assertAll("theme files heatmap specific styles",
             () -> assertTrue(baseContent.contains(".heatmap-cell-selected {")),
+            () -> assertTrue(baseContent.contains(".heatmap-meta-bar {")),
+            () -> assertTrue(baseContent.contains(".heatmap-body {")),
+            () -> assertTrue(baseContent.contains(".heatmap-main-pane {")),
             () -> assertTrue(baseContent.contains(".heatmap-day-panel {")),
+            () -> assertTrue(baseContent.contains(".heatmap-sidebar-shell {")),
+            () -> assertTrue(baseContent.contains(".heatmap-sidebar {")),
+            () -> assertTrue(baseContent.contains(".heatmap-sidebar-collapsed {")),
+            () -> assertTrue(baseContent.contains(".heatmap-sidebar-expanded {")),
             () -> assertTrue(baseContent.contains(".heatmap-day-title {")),
             () -> assertTrue(baseContent.contains(".heatmap-day-scroll {")),
+            () -> assertTrue(baseContent.contains(".heatmap-day-rail {")),
+            () -> assertTrue(baseContent.contains(".heatmap-year-card {")),
+            () -> assertTrue(baseContent.contains(".heatmap-year-title {")),
+            () -> assertTrue(baseContent.contains(".heatmap-year-month-grid {")),
             () -> assertTrue(baseContent.contains(".heatmap-completed-zone {")),
-            () -> assertTrue(baseContent.contains(".heatmap-completed-zone-label {"))
+            () -> assertTrue(baseContent.contains(".heatmap-completed-zone-label {")),
+            () -> assertTrue(sidebarBlock != null && !sidebarBlock.contains("-fx-pref-width")),
+            () -> assertTrue(sidebarBlock != null && !sidebarBlock.contains("-fx-min-width")),
+            () -> assertTrue(sidebarBlock != null && !sidebarBlock.contains("-fx-max-width")),
+            () -> assertTrue(collapsedSidebarBlock != null && collapsedSidebarBlock.contains("-fx-pref-width: 56px")),
+            () -> assertTrue(collapsedSidebarBlock != null && collapsedSidebarBlock.contains("-fx-min-width: 56px")),
+            () -> assertTrue(collapsedSidebarBlock != null && collapsedSidebarBlock.contains("-fx-max-width: 56px")),
+            () -> assertTrue(expandedSidebarBlock != null && expandedSidebarBlock.contains("-fx-pref-width: 280px")),
+            () -> assertTrue(expandedSidebarBlock != null && expandedSidebarBlock.contains("-fx-min-width: 280px")),
+            () -> assertTrue(expandedSidebarBlock != null && expandedSidebarBlock.contains("-fx-max-width: 280px"))
         );
     }
 
@@ -122,5 +145,17 @@ class ThemeCssTest {
             assertNotNull(inputStream);
             return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
         }
+    }
+
+    private String extractCssBlock(String content, String selector) {
+        int start = content.indexOf(selector + " {");
+        if (start < 0) {
+            return null;
+        }
+        int end = content.indexOf("}", start);
+        if (end < 0) {
+            return null;
+        }
+        return content.substring(start, end + 1);
     }
 }
