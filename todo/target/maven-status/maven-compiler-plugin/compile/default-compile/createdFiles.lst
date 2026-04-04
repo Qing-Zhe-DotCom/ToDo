@@ -28,6 +28,7 @@ module-info.class
 com\example\databaseutil\Connectdatabase.class
 com\example\view\ScheduleCardMotionSupport$ArchiveAnimationListener.class
 com\example\controller\MainController$1.class
+com\example\view\ScheduleListView$1.class
 com\example\model\Schedule.class
 com\example\view\ScheduleStatusInteractionModel$ReleaseDecision.class
 com\example\MainApp.class
@@ -36,6 +37,7 @@ com\example\view\ScheduleListView$ScheduleCardNode.class
 com\example\view\ScheduleStatusInteractionModel$VisualState.class
 com\example\view\ScheduleListView$GroupHeader.class
 com\example\view\View.class
+com\example\view\ScheduleListView$2.class
 com\example\controller\ScheduleCompletionCoordinator.class
 com\example\view\ScheduleListView.class
 com\example\view\ScheduleCompletionParticipant.class

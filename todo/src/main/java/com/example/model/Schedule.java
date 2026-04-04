@@ -3,6 +3,7 @@ package com.example.model;
 import javafx.beans.property.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.time.format.DateTimeFormatter;
 
 public class Schedule {
@@ -161,11 +162,65 @@ public class Schedule {
         return !completed.get() && dueDate.get() != null && dueDate.get().isBefore(LocalDate.now());
     }
 
-    // 检查是否即将到期（7天内）
+    public LocalDate getEffectiveStartDate() {
+        LocalDate[] normalizedRange = getNormalizedEffectiveDateRange();
+        return normalizedRange != null ? normalizedRange[0] : null;
+    }
+
+    public LocalDate getEffectiveEndDate() {
+        LocalDate[] normalizedRange = getNormalizedEffectiveDateRange();
+        return normalizedRange != null ? normalizedRange[1] : null;
+    }
+
+    public long getEffectiveDurationDays() {
+        LocalDate effectiveStartDate = getEffectiveStartDate();
+        LocalDate effectiveEndDate = getEffectiveEndDate();
+        if (effectiveStartDate == null || effectiveEndDate == null) {
+            return 0;
+        }
+        return ChronoUnit.DAYS.between(effectiveStartDate, effectiveEndDate) + 1;
+    }
+
+    public boolean includesDate(LocalDate date) {
+        if (date == null) {
+            return false;
+        }
+        LocalDate effectiveStartDate = getEffectiveStartDate();
+        LocalDate effectiveEndDate = getEffectiveEndDate();
+        if (effectiveStartDate == null || effectiveEndDate == null) {
+            return false;
+        }
+        return !date.isBefore(effectiveStartDate) && !date.isAfter(effectiveEndDate);
+    }
+
+    // 检查是否即将到期（按时长分级）
     public boolean isUpcoming() {
-        return !completed.get() && dueDate.get() != null && 
-               !dueDate.get().isBefore(LocalDate.now()) && 
-               dueDate.get().isBefore(LocalDate.now().plusDays(7));
+        if (completed.get()) {
+            return false;
+        }
+
+        LocalDate effectiveDeadline = getEffectiveDeadlineDate();
+        if (effectiveDeadline == null) {
+            return false;
+        }
+
+        long daysUntilDeadline = ChronoUnit.DAYS.between(LocalDate.now(), effectiveDeadline);
+        if (daysUntilDeadline < 0) {
+            return false;
+        }
+
+        long durationDays = getEffectiveDurationDays();
+        if (durationDays <= 0) {
+            return false;
+        }
+
+        if (durationDays < 7) {
+            return daysUntilDeadline == 0;
+        }
+        if (durationDays <= 35) {
+            return daysUntilDeadline <= 3;
+        }
+        return daysUntilDeadline <= 7;
     }
 
     // 获取优先级数值（用于排序）
@@ -180,5 +235,26 @@ public class Schedule {
     @Override
     public String toString() {
         return name.get();
+    }
+
+    private LocalDate getEffectiveDeadlineDate() {
+        if (dueDate.get() == null) {
+            return null;
+        }
+        return getEffectiveEndDate();
+    }
+
+    private LocalDate[] getNormalizedEffectiveDateRange() {
+        LocalDate effectiveStartDate = startDate.get() != null ? startDate.get() : dueDate.get();
+        LocalDate effectiveEndDate = dueDate.get() != null ? dueDate.get() : startDate.get();
+        if (effectiveStartDate == null || effectiveEndDate == null) {
+            return null;
+        }
+        if (effectiveStartDate.isAfter(effectiveEndDate)) {
+            LocalDate temp = effectiveStartDate;
+            effectiveStartDate = effectiveEndDate;
+            effectiveEndDate = temp;
+        }
+        return new LocalDate[] { effectiveStartDate, effectiveEndDate };
     }
 }

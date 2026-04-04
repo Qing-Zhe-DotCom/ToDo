@@ -508,9 +508,9 @@ public class ScheduleDialog extends Dialog<Schedule> {
         } else {
             result.setPriority("中");
         }
-        
-        result.setCategory(categoryField.getText() != null && !categoryField.getText().trim().isEmpty() ? categoryField.getText().trim() : "默认");
-        result.setTags(tagsField.getText() != null ? tagsField.getText() : "");
+
+        result.setCategory(resolveCategoryValue(categoryField.getText(), isEditMode));
+        result.setTags(resolveTagsValue(tagsField.getText(), isEditMode));
         result.setColor(selectedColorHex);
 
         if (reminderToggle.isSelected()) {
@@ -521,5 +521,21 @@ public class ScheduleDialog extends Dialog<Schedule> {
         }
 
         return result;
+    }
+
+    static String resolveCategoryValue(String input, boolean isEditMode) {
+        String normalized = input != null ? input.trim() : "";
+        if (!normalized.isEmpty()) {
+            return normalized;
+        }
+        return isEditMode ? "" : "默认";
+    }
+
+    static String resolveTagsValue(String input, boolean isEditMode) {
+        String normalized = input != null ? input.trim() : "";
+        if (!normalized.isEmpty()) {
+            return normalized;
+        }
+        return isEditMode ? "" : "无";
     }
 }

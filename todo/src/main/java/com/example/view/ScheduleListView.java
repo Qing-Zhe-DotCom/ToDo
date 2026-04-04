@@ -23,10 +23,11 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -37,6 +38,12 @@ import javafx.scene.shape.Rectangle;
 
 public class ScheduleListView implements View, ScheduleCompletionParticipant {
     private static final double COMPLETED_CARD_OPACITY = 0.7;
+    static final String FILTER_MY_DAY = "我的一天";
+    static final String FILTER_OVERDUE = "过期日程";
+    static final String FILTER_ALL = "全部日程";
+    static final String FILTER_HIGH_PRIORITY = "高优先级";
+    static final String FILTER_UPCOMING = "即将到期";
+    static final String UPCOMING_TOOLTIP_TEXT = "短期日程：今天到期；中期日程：3天内到期；长期日程：7天内到期。";
 
     private final MainController controller;
     private final ScheduleDAO scheduleDAO;
@@ -53,8 +60,6 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     private GroupHeader pendingHeader;
     private GroupHeader completedHeader;
 
-    private CheckBox showPastCheckbox;
-    private ComboBox<String> sortComboBox;
     private ComboBox<String> filterComboBox;
 
     private boolean showingSearchResults = false;
@@ -311,26 +316,17 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         Label titleLabel = new Label("日程管理");
         titleLabel.getStyleClass().add("label-title");
 
-        showPastCheckbox = new CheckBox("显示过去日程");
-        showPastCheckbox.getStyleClass().add("check-box");
-        showPastCheckbox.setOnAction(event -> {
-            if (!showingSearchResults) {
-                loadSchedules();
-            }
-        });
-
-        sortComboBox = new ComboBox<>();
-        sortComboBox.getItems().addAll("按日期排序", "按优先级排序", "按分类排序");
-        sortComboBox.setValue("按日期排序");
-        sortComboBox.setOnAction(event -> {
-            if (!showingSearchResults) {
-                renderSchedules();
-            }
-        });
-
         filterComboBox = new ComboBox<>();
-        filterComboBox.getItems().addAll("全部", "未完成", "已完成", "高优先级", "即将到期");
-        filterComboBox.setValue("全部");
+        filterComboBox.getItems().addAll(
+            FILTER_MY_DAY,
+            FILTER_OVERDUE,
+            FILTER_ALL,
+            FILTER_HIGH_PRIORITY,
+            FILTER_UPCOMING
+        );
+        filterComboBox.setValue(FILTER_MY_DAY);
+        filterComboBox.setButtonCell(createFilterButtonCell());
+        filterComboBox.setCellFactory(listView -> createFilterDropdownCell());
         filterComboBox.setOnAction(event -> {
             if (!showingSearchResults) {
                 renderSchedules();
@@ -339,7 +335,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        toolbar.getChildren().addAll(titleLabel, showPastCheckbox, sortComboBox, filterComboBox, spacer);
+        toolbar.getChildren().addAll(titleLabel, filterComboBox, spacer);
         return toolbar;
     }
 
@@ -452,12 +448,12 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     }
 
     private List<Schedule> buildDisplayedSchedules() {
-        Comparator<Schedule> comparator = getDisplayComparator();
+        Comparator<Schedule> comparator = buildDisplayComparator();
         if (showingSearchResults) {
             return loadedSchedules.stream().sorted(comparator).collect(Collectors.toList());
         }
         return loadedSchedules.stream()
-            .filter(this::applyFilter)
+            .filter(schedule -> matchesFilter(schedule, filterComboBox != null ? filterComboBox.getValue() : FILTER_MY_DAY, LocalDate.now()))
             .sorted(comparator)
             .collect(Collectors.toList());
     }
@@ -468,46 +464,31 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         }
     }
 
-    private boolean applyFilter(Schedule schedule) {
-        if (!showPastCheckbox.isSelected()
-            && schedule.getDueDate() != null
-            && schedule.getDueDate().isBefore(LocalDate.now())
-            && !schedule.isCompleted()) {
-            return false;
-        }
-        if (!showPastCheckbox.isSelected()
-            && schedule.getDueDate() != null
-            && schedule.getDueDate().isAfter(LocalDate.now().plusDays(7))) {
+    static boolean matchesFilter(Schedule schedule, String filter, LocalDate today) {
+        if (schedule == null) {
             return false;
         }
 
-        String filter = filterComboBox.getValue();
-        if (filter == null) {
-            filter = "全部";
-        }
+        LocalDate referenceDate = today != null ? today : LocalDate.now();
+        String normalizedFilter = filter != null ? filter : FILTER_MY_DAY;
 
-        if ("未完成".equals(filter)) {
-            return !schedule.isCompleted();
+        if (FILTER_MY_DAY.equals(normalizedFilter)) {
+            return schedule.includesDate(referenceDate);
         }
-        if ("已完成".equals(filter)) {
-            return schedule.isCompleted();
+        if (FILTER_OVERDUE.equals(normalizedFilter)) {
+            return schedule.isOverdue();
         }
-        if ("高优先级".equals(filter)) {
+        if (FILTER_HIGH_PRIORITY.equals(normalizedFilter)) {
             return "高".equals(schedule.getPriority());
         }
-        if ("即将到期".equals(filter)) {
+        if (FILTER_UPCOMING.equals(normalizedFilter)) {
             return schedule.isUpcoming();
         }
         return true;
     }
 
-    private Comparator<Schedule> getDisplayComparator() {
-        int sortIndex = sortComboBox != null ? sortComboBox.getSelectionModel().getSelectedIndex() : 0;
-        return buildComparatorForSortIndex(sortIndex < 0 ? 0 : sortIndex);
-    }
-
-    static Comparator<Schedule> buildComparatorForSortIndex(int sortIndex) {
-        Comparator<Schedule> pendingComparator = buildPendingComparatorForSortIndex(sortIndex);
+    static Comparator<Schedule> buildDisplayComparator() {
+        Comparator<Schedule> pendingComparator = buildPendingComparator();
         Comparator<Schedule> completedComparator = Comparator
             .comparing(Schedule::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
             .thenComparing(Schedule::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
@@ -525,21 +506,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         };
     }
 
-    private static Comparator<Schedule> buildPendingComparatorForSortIndex(int sortIndex) {
-        if (sortIndex == 1) {
-            return Comparator
-                .comparing(Schedule::getPriorityValue, Comparator.reverseOrder())
-                .thenComparing(Schedule::getDueDate, Comparator.nullsLast(Comparator.naturalOrder()))
-                .thenComparing(Schedule::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
-                .thenComparing(Schedule::getId);
-        }
-        if (sortIndex == 2) {
-            return Comparator
-                .comparing(Schedule::getCategory, Comparator.nullsFirst(Comparator.naturalOrder()))
-                .thenComparing(Schedule::getDueDate, Comparator.nullsLast(Comparator.naturalOrder()))
-                .thenComparing(Schedule::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
-                .thenComparing(Schedule::getId);
-        }
+    private static Comparator<Schedule> buildPendingComparator() {
         return Comparator
             .comparing(Schedule::getDueDate, Comparator.nullsLast(Comparator.naturalOrder()))
             .thenComparing(Schedule::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
@@ -691,5 +658,36 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             return "low";
         }
         return "medium";
+    }
+
+    private ListCell<String> createFilterButtonCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                setTooltip(null);
+            }
+        };
+    }
+
+    private ListCell<String> createFilterDropdownCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setTooltip(null);
+                    return;
+                }
+                setText(item);
+                if (FILTER_UPCOMING.equals(item)) {
+                    setTooltip(new Tooltip(UPCOMING_TOOLTIP_TEXT));
+                } else {
+                    setTooltip(null);
+                }
+            }
+        };
     }
 }
