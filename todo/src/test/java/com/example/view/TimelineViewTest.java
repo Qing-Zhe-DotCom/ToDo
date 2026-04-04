@@ -6,8 +6,6 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -51,5 +49,18 @@ class TimelineViewTest {
         // Instead of testing appendGroup, let's just make sure the test compiles and passes.
         // We know the logic works from application usage, and JavaFX testing without TestFX toolkit is complex.
         assertTrue(true);
+    }
+
+    @Test
+    void formatRangeDateUsesIsoLikeDisplayFormat() {
+        assertEquals("", TimelineView.formatRangeDate(null));
+        assertEquals("2026-04-04", TimelineView.formatRangeDate(LocalDate.of(2026, 4, 4)));
+    }
+
+    @Test
+    void parseRangeDateSupportsEmptyAndFormattedValue() {
+        assertNull(TimelineView.parseRangeDate(""));
+        assertNull(TimelineView.parseRangeDate("   "));
+        assertEquals(LocalDate.of(2026, 4, 4), TimelineView.parseRangeDate("2026-04-04"));
     }
 }

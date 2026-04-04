@@ -1397,6 +1397,234 @@
 
 
 
+.timeline-header {
+
+    -fx-alignment: center-left;
+
+}
+
+
+
+.timeline-range-group {
+
+    -fx-alignment: center-right;
+
+}
+
+
+
+.timeline-range-label-box {
+
+    -fx-alignment: center-left;
+
+    -fx-padding: 0 2 0 0;
+
+}
+
+
+
+.timeline-range-label {
+
+    -fx-text-fill: -color-text-sub;
+
+    -fx-font-size: 13px;
+
+    -fx-font-weight: 700;
+
+    -fx-line-spacing: -2px;
+
+}
+
+
+
+.timeline-range-pill {
+
+    -fx-alignment: center-left;
+
+    -fx-spacing: 10;
+
+    -fx-padding: 6 12 6 10;
+
+    -fx-background-color: -color-bg-panel;
+
+    -fx-background-radius: 999;
+
+    -fx-border-color: -color-border;
+
+    -fx-border-width: 1;
+
+    -fx-border-radius: 999;
+
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 10, 0, 0, 2);
+
+}
+
+
+
+.timeline-range-pill:hover {
+
+    -fx-border-color: -color-border-dark;
+
+}
+
+
+
+.timeline-range-icon-wrap {
+
+    -fx-alignment: center;
+
+    -fx-min-width: 28;
+
+    -fx-pref-width: 28;
+
+    -fx-max-width: 28;
+
+}
+
+
+
+.timeline-range-icon-wrap .sidebar-svg-icon {
+
+    -fx-background-color: transparent;
+
+}
+
+
+
+.timeline-range-connector {
+
+    -fx-text-fill: -color-text-hint;
+
+    -fx-font-size: 15px;
+
+    -fx-font-weight: 600;
+
+    -fx-padding: 0 2;
+
+}
+
+
+
+.timeline-range-picker {
+
+    -fx-background-color: transparent;
+
+    -fx-border-color: transparent;
+
+    -fx-background-insets: 0;
+
+    -fx-border-insets: 0;
+
+    -fx-padding: 0;
+
+}
+
+
+
+.timeline-range-picker > .text-field {
+
+    -fx-background-color: transparent;
+
+    -fx-border-color: transparent;
+
+    -fx-background-insets: 0;
+
+    -fx-border-insets: 0;
+
+    -fx-background-radius: 0;
+
+    -fx-border-radius: 0;
+
+    -fx-padding: 8 6;
+
+    -fx-font-size: 13px;
+
+    -fx-font-weight: 600;
+
+    -fx-text-fill: -color-text-main;
+
+    -fx-prompt-text-fill: -color-text-hint;
+
+    -fx-effect: none;
+
+}
+
+
+
+.timeline-range-picker:focused > .text-field,
+
+.timeline-range-picker:showing > .text-field {
+
+    -fx-background-color: transparent;
+
+    -fx-border-color: transparent;
+
+    -fx-effect: none;
+
+}
+
+
+
+.timeline-range-picker > .arrow-button {
+
+    -fx-background-color: transparent;
+
+    -fx-border-color: transparent;
+
+    -fx-background-insets: 0;
+
+    -fx-border-insets: 0;
+
+    -fx-padding: 0 6 0 2;
+
+}
+
+
+
+.timeline-range-picker > .arrow-button > .arrow {
+
+    -fx-background-color: -color-text-hint;
+
+    -fx-scale-x: 0.85;
+
+    -fx-scale-y: 0.85;
+
+}
+
+
+
+.timeline-range-picker:hover > .arrow-button > .arrow,
+
+.timeline-range-picker:focused > .arrow-button > .arrow,
+
+.timeline-range-picker:showing > .arrow-button > .arrow {
+
+    -fx-background-color: -color-primary;
+
+}
+
+
+
+.timeline-range-reset {
+
+    -fx-min-height: 48;
+
+    -fx-pref-height: 48;
+
+    -fx-padding: 0 22;
+
+    -fx-font-size: 13px;
+
+    -fx-font-weight: 700;
+
+    -fx-background-radius: 999;
+
+    -fx-border-radius: 999;
+
+}
+
+
+
 .timeline-scroll {
 
     -fx-background-color: transparent;
