@@ -16,6 +16,23 @@ import com.example.model.Schedule;
 class HeatmapViewTest {
 
     @Test
+    void determineYearMonthColumnsRespondsToAvailableWidth() {
+        assertEquals(4, HeatmapView.determineYearMonthColumns(1320));
+        assertEquals(3, HeatmapView.determineYearMonthColumns(980));
+        assertEquals(2, HeatmapView.determineYearMonthColumns(720));
+        assertEquals(1, HeatmapView.determineYearMonthColumns(520));
+    }
+
+    @Test
+    void layoutSizingHelpersPreserveCompactPanelAndCellBounds() {
+        assertEquals(332.0, HeatmapView.determineDayPanelPreferredExtent(true), 0.001);
+        assertEquals(132.0, HeatmapView.determineDayPanelPreferredExtent(false), 0.001);
+        assertEquals(28.0, HeatmapView.clampGridCellSize("month", true, 12.0), 0.001);
+        assertEquals(22.0, HeatmapView.clampGridCellSize("month", false, 12.0), 0.001);
+        assertEquals(118.0, HeatmapView.clampGridCellSize("week", true, 200.0), 0.001);
+    }
+
+    @Test
     void buildSchedulesByDateIncludesEachCoveredDay() {
         Schedule spanningSchedule = new Schedule();
         spanningSchedule.setName("阶段任务");

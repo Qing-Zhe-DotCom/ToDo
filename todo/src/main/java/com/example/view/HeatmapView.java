@@ -4,6 +4,7 @@ import java.sql.SQLException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -22,30 +23,53 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 
 public class HeatmapView implements View, ScheduleCompletionParticipant {
-    private static final double GRID_GAP = 3;
+    private static final double GRID_GAP = 4;
+    private static final double HEATMAP_GRID_PADDING = 8;
+    private static final double YEAR_GRID_GAP = 14;
+    private static final double DAY_PANEL_SIDE_WIDTH = 332;
+    private static final double DAY_PANEL_BOTTOM_HEIGHT = 132;
+    private static final double DAY_PANEL_BOTTOM_MAX_HEIGHT = 144;
     private static final String COMPLETED_PROXY_STYLE = "heatmap-completed-proxy";
     private static final String COMPLETED_PROXY_HOST_STYLE = "heatmap-completed-proxy-host";
 
-    private MainController controller;
-    private ScheduleDAO scheduleDAO;
+    private enum PanelLayoutMode {
+        SIDE,
+        BOTTOM
+    }
+
+    private enum HeatmapCellVariant {
+        STANDARD,
+        YEAR_CARD
+    }
+
+    private final MainController controller;
+    private final ScheduleDAO scheduleDAO;
+    private final List<Schedule> loadedSchedules = new ArrayList<>();
 
     private VBox root;
+    private HBox metaBar;
+    private BorderPane workspaceHost;
+    private VBox heatmapPane;
+    private StackPane heatmapCanvasHost;
     private GridPane heatmapGrid;
+    private GridPane yearMonthsGrid;
     private ScrollPane scrollPane;
     private Label statsLabel;
     private HBox legend;
@@ -54,8 +78,12 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private VBox daySchedulePanel;
     private Label dayScheduleTitle;
     private VBox dayScheduleCardsBox;
+    private Label dayScheduleCountLabel;
+    private ScrollPane dayScheduleScrollPane;
+    private VBox dayScheduleCardsColumn;
+    private HBox dayScheduleCardsRow;
+    private Pane currentDayScheduleCardsContainer;
     private HBox completedDropZone;
-    private final List<Schedule> loadedSchedules = new ArrayList<>();
     private Map<LocalDate, List<Schedule>> schedulesByDate = new LinkedHashMap<>();
     private boolean redrawQueued;
     private LocalDate visibleStartDate;
@@ -64,7 +92,8 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private StackPane completedProxyHost;
     private StackPane completedProxyShell;
 
-    private String currentViewMode = "month"; // week, month, year
+    private PanelLayoutMode panelLayoutMode = PanelLayoutMode.SIDE;
+    private String currentViewMode = "month";
     private LocalDate currentDate = LocalDate.now();
     private LocalDate selectedDate;
 
@@ -72,7 +101,295 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         this.controller = controller;
         this.scheduleDAO = new ScheduleDAO();
 
-        initializeUI();
+        initializeHeatmapWorkspace();
+    }
+
+    private void initializeHeatmapWorkspace() {
+        root = new VBox(12);
+        root.getStyleClass().addAll("main-content", "heatmap-root");
+        root.setPadding(new Insets(14));
+
+        HBox header = buildHeatmapHeader();
+
+        statsLabel = new Label();
+        statsLabel.getStyleClass().addAll("label-subtitle", "heatmap-stats-label");
+
+        legend = buildHeatmapLegend();
+        Region metaSpacer = new Region();
+        HBox.setHgrow(metaSpacer, Priority.ALWAYS);
+        metaBar = new HBox(12, statsLabel, metaSpacer, legend);
+        metaBar.setAlignment(Pos.CENTER_LEFT);
+        metaBar.getStyleClass().add("heatmap-meta-bar");
+
+        scrollPane = new ScrollPane();
+        scrollPane.getStyleClass().add("heatmap-scroll");
+        scrollPane.setFitToWidth(true);
+        scrollPane.setFitToHeight(true);
+        scrollPane.setPannable(true);
+        scrollPane.viewportBoundsProperty().addListener((obs, oldBounds, newBounds) -> queueRefresh());
+
+        heatmapGrid = new GridPane();
+        heatmapGrid.getStyleClass().add("heatmap-grid");
+        heatmapGrid.setHgap(GRID_GAP);
+        heatmapGrid.setVgap(GRID_GAP);
+        heatmapGrid.setPadding(new Insets(HEATMAP_GRID_PADDING));
+        heatmapGrid.setAlignment(Pos.CENTER);
+        heatmapGrid.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+
+        yearMonthsGrid = new GridPane();
+        yearMonthsGrid.getStyleClass().add("heatmap-year-grid");
+        yearMonthsGrid.setAlignment(Pos.TOP_CENTER);
+        yearMonthsGrid.setHgap(YEAR_GRID_GAP);
+        yearMonthsGrid.setVgap(YEAR_GRID_GAP);
+        yearMonthsGrid.setPadding(new Insets(6, 2, 8, 2));
+        yearMonthsGrid.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+
+        heatmapCanvasHost = new StackPane(heatmapGrid, yearMonthsGrid);
+        heatmapCanvasHost.getStyleClass().add("heatmap-canvas-host");
+        heatmapCanvasHost.setAlignment(Pos.TOP_CENTER);
+        scrollPane.setContent(heatmapCanvasHost);
+
+        heatmapPane = new VBox(scrollPane);
+        heatmapPane.getStyleClass().add("heatmap-visual-pane");
+        VBox.setVgrow(scrollPane, Priority.ALWAYS);
+
+        daySchedulePanel = buildDaySchedulePanel();
+
+        workspaceHost = new BorderPane();
+        workspaceHost.getStyleClass().add("heatmap-workspace");
+        workspaceHost.setCenter(heatmapPane);
+        VBox.setVgrow(workspaceHost, Priority.ALWAYS);
+        workspaceHost.widthProperty().addListener((obs, oldValue, newValue) -> queueRefresh());
+        workspaceHost.heightProperty().addListener((obs, oldValue, newValue) -> queueRefresh());
+
+        root.widthProperty().addListener((obs, oldValue, newValue) -> queueRefresh());
+        root.heightProperty().addListener((obs, oldValue, newValue) -> queueRefresh());
+
+        applyCurrentPanelLayout(false);
+        root.getChildren().addAll(header, metaBar, workspaceHost);
+    }
+
+    private HBox buildHeatmapHeader() {
+        HBox header = new HBox(12);
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.getStyleClass().add("heatmap-toolbar");
+
+        Label titleLabel = new Label("日程热力图");
+        titleLabel.getStyleClass().addAll("label-title", "heatmap-title");
+
+        ToggleGroup viewGroup = new ToggleGroup();
+        HBox viewModes = new HBox(8);
+        viewModes.setAlignment(Pos.CENTER_LEFT);
+        viewModes.getStyleClass().add("heatmap-mode-group");
+        viewModes.getChildren().addAll(
+            createViewModeButton(viewGroup, "/icons/macaron_week_icon.svg", "周视图", false, "week"),
+            createViewModeButton(viewGroup, "/icons/macaron_month_icon.svg", "月视图", true, "month"),
+            createViewModeButton(viewGroup, "/icons/macaron_year_icon.svg", "年视图", false, "year")
+        );
+
+        ToggleGroup layoutGroup = new ToggleGroup();
+        HBox layoutModes = new HBox(0);
+        layoutModes.setAlignment(Pos.CENTER_LEFT);
+        layoutModes.getStyleClass().add("heatmap-layout-group");
+        layoutModes.getChildren().addAll(
+            createLayoutModeButton(layoutGroup, "侧栏", "切换到侧栏布局", true, PanelLayoutMode.SIDE),
+            createLayoutModeButton(layoutGroup, "底栏", "切换到底栏布局", false, PanelLayoutMode.BOTTOM)
+        );
+
+        HBox navButtons = new HBox(8);
+        navButtons.setAlignment(Pos.CENTER_RIGHT);
+        navButtons.getStyleClass().add("heatmap-nav-group");
+
+        prevBtn = createNavigationButton("/icons/macaron_prev_icon.svg", "上一周期", () -> navigate(-1));
+        Button todayBtn = createNavigationButton("/icons/macaron_today_icon.svg", "回到今天", () -> {
+            currentDate = LocalDate.now();
+            queueRefresh();
+        });
+        nextBtn = createNavigationButton("/icons/macaron_next_icon.svg", "下一周期", () -> navigate(1));
+        navButtons.getChildren().addAll(prevBtn, todayBtn, nextBtn);
+
+        updateNavigationButtons();
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        header.getChildren().addAll(titleLabel, spacer, viewModes, layoutModes, navButtons);
+        return header;
+    }
+
+    private ToggleButton createViewModeButton(
+        ToggleGroup viewGroup,
+        String iconPath,
+        String tooltipText,
+        boolean selected,
+        String targetMode
+    ) {
+        ToggleButton button = new ToggleButton();
+        button.setToggleGroup(viewGroup);
+        button.setGraphic(controller.createSvgIcon(iconPath, tooltipText, 46));
+        button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        button.setTooltip(new Tooltip(tooltipText));
+        button.setAccessibleText(tooltipText);
+        button.getStyleClass().addAll("heatmap-toolbar-button", "heatmap-toolbar-icon-button");
+        button.setSelected(selected);
+        button.setOnAction(event -> {
+            if (!button.isSelected()) {
+                button.setSelected(true);
+                return;
+            }
+            currentViewMode = targetMode;
+            queueRefresh();
+        });
+        return button;
+    }
+
+    private ToggleButton createLayoutModeButton(
+        ToggleGroup layoutGroup,
+        String text,
+        String tooltipText,
+        boolean selected,
+        PanelLayoutMode targetMode
+    ) {
+        ToggleButton button = new ToggleButton(text);
+        button.setToggleGroup(layoutGroup);
+        button.setTooltip(new Tooltip(tooltipText));
+        button.setAccessibleText(text);
+        button.getStyleClass().addAll("heatmap-toolbar-button", "heatmap-layout-button");
+        button.setSelected(selected);
+        button.setOnAction(event -> {
+            if (!button.isSelected()) {
+                button.setSelected(true);
+                return;
+            }
+            panelLayoutMode = targetMode;
+            applyCurrentPanelLayout(true);
+        });
+        return button;
+    }
+
+    private Button createNavigationButton(String iconPath, String tooltipText, Runnable action) {
+        Button button = new Button();
+        button.setGraphic(controller.createSvgIcon(iconPath, tooltipText, 46));
+        button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        button.setTooltip(new Tooltip(tooltipText));
+        button.setAccessibleText(tooltipText);
+        button.getStyleClass().addAll("heatmap-toolbar-button", "heatmap-toolbar-icon-button");
+        button.setOnAction(event -> action.run());
+        return button;
+    }
+
+    private HBox buildHeatmapLegend() {
+        HBox legendBox = new HBox(8);
+        legendBox.setAlignment(Pos.CENTER_LEFT);
+        legendBox.getStyleClass().add("heatmap-legend");
+        return legendBox;
+    }
+
+    private VBox buildDaySchedulePanel() {
+        VBox panel = new VBox(8);
+        panel.getStyleClass().add("heatmap-day-panel");
+
+        HBox header = new HBox(8);
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.getStyleClass().add("heatmap-day-header");
+
+        dayScheduleTitle = new Label("选择日期");
+        dayScheduleTitle.getStyleClass().add("heatmap-day-title");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        dayScheduleCountLabel = new Label("0 项");
+        dayScheduleCountLabel.getStyleClass().add("heatmap-day-count");
+        header.getChildren().addAll(dayScheduleTitle, spacer, dayScheduleCountLabel);
+
+        dayScheduleScrollPane = new ScrollPane();
+        dayScheduleScrollPane.getStyleClass().add("heatmap-day-scroll");
+        dayScheduleScrollPane.setPannable(true);
+        VBox.setVgrow(dayScheduleScrollPane, Priority.ALWAYS);
+
+        dayScheduleCardsBox = new VBox(8);
+        dayScheduleCardsBox.getStyleClass().addAll("heatmap-day-cards", "heatmap-day-cards-column");
+        dayScheduleCardsColumn = dayScheduleCardsBox;
+
+        dayScheduleCardsRow = new HBox(10);
+        dayScheduleCardsRow.setAlignment(Pos.CENTER_LEFT);
+        dayScheduleCardsRow.getStyleClass().addAll("heatmap-day-cards", "heatmap-day-cards-row");
+
+        switchDayCardsContainer(dayScheduleCardsColumn);
+
+        completedDropZone = new HBox();
+        completedDropZone.setAlignment(Pos.CENTER_LEFT);
+        completedDropZone.getStyleClass().add("heatmap-completed-zone");
+        Label completedDropLabel = new Label("已完成归档区");
+        completedDropLabel.getStyleClass().add("heatmap-completed-zone-label");
+        completedDropZone.getChildren().add(completedDropLabel);
+
+        panel.getChildren().addAll(header, dayScheduleScrollPane, completedDropZone);
+        return panel;
+    }
+
+    private void switchDayCardsContainer(Pane targetContainer) {
+        if (targetContainer == null || targetContainer == currentDayScheduleCardsContainer) {
+            return;
+        }
+        currentDayScheduleCardsContainer = targetContainer;
+        if (dayScheduleScrollPane != null) {
+            dayScheduleScrollPane.setContent(targetContainer);
+        }
+    }
+
+    private void applyCurrentPanelLayout(boolean refreshAfter) {
+        if (workspaceHost == null || daySchedulePanel == null || dayScheduleScrollPane == null) {
+            return;
+        }
+
+        workspaceHost.getStyleClass().removeAll("heatmap-workspace-side", "heatmap-workspace-bottom");
+        daySchedulePanel.getStyleClass().removeAll("heatmap-day-panel-side", "heatmap-day-panel-bottom");
+        workspaceHost.setRight(null);
+        workspaceHost.setBottom(null);
+
+        if (panelLayoutMode == PanelLayoutMode.SIDE) {
+            workspaceHost.getStyleClass().add("heatmap-workspace-side");
+            workspaceHost.setRight(daySchedulePanel);
+            BorderPane.setMargin(daySchedulePanel, new Insets(0, 0, 0, 14));
+
+            daySchedulePanel.getStyleClass().add("heatmap-day-panel-side");
+            daySchedulePanel.setMinWidth(320);
+            daySchedulePanel.setPrefWidth(determineDayPanelPreferredExtent(true));
+            daySchedulePanel.setMaxWidth(340);
+            daySchedulePanel.setMinHeight(0);
+            daySchedulePanel.setMaxHeight(Double.MAX_VALUE);
+
+            dayScheduleScrollPane.setFitToWidth(true);
+            dayScheduleScrollPane.setFitToHeight(false);
+            dayScheduleScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+            dayScheduleScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            dayScheduleScrollPane.setPrefViewportHeight(360);
+            switchDayCardsContainer(dayScheduleCardsColumn);
+        } else {
+            workspaceHost.getStyleClass().add("heatmap-workspace-bottom");
+            workspaceHost.setBottom(daySchedulePanel);
+            BorderPane.setMargin(daySchedulePanel, new Insets(12, 0, 0, 0));
+
+            daySchedulePanel.getStyleClass().add("heatmap-day-panel-bottom");
+            daySchedulePanel.setMinWidth(0);
+            daySchedulePanel.setMaxWidth(Double.MAX_VALUE);
+            daySchedulePanel.setMinHeight(124);
+            daySchedulePanel.setPrefHeight(determineDayPanelPreferredExtent(false));
+            daySchedulePanel.setMaxHeight(DAY_PANEL_BOTTOM_MAX_HEIGHT);
+
+            dayScheduleScrollPane.setFitToWidth(false);
+            dayScheduleScrollPane.setFitToHeight(true);
+            dayScheduleScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            dayScheduleScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+            dayScheduleScrollPane.setPrefViewportHeight(76);
+            switchDayCardsContainer(dayScheduleCardsRow);
+        }
+
+        if (refreshAfter) {
+            updateDaySchedulePanelContent();
+            queueRefresh();
+        }
     }
 
     private void initializeUI() {
@@ -275,11 +592,241 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         Platform.runLater(() -> {
             redrawQueued = false;
             try {
-                drawHeatmap();
+                renderHeatmapSurface();
             } catch (SQLException e) {
                 controller.showError("加载热力图失败", e.getMessage());
             }
         });
+    }
+
+    private void renderHeatmapSurface() throws SQLException {
+        int rows = 0;
+        int cols = 0;
+
+        if ("week".equals(currentViewMode)) {
+            visibleStartDate = currentDate.with(DayOfWeek.MONDAY);
+            visibleEndDate = visibleStartDate.plusDays(6);
+            rows = 1;
+            cols = 7;
+        } else if ("year".equals(currentViewMode)) {
+            visibleStartDate = currentDate.withDayOfYear(1);
+            visibleEndDate = visibleStartDate.plusYears(1).minusDays(1);
+        } else {
+            visibleStartDate = currentDate.withDayOfMonth(1);
+            visibleEndDate = visibleStartDate.plusMonths(1).minusDays(1);
+            rows = calculateMonthRowCount(visibleStartDate, visibleEndDate);
+            cols = 7;
+        }
+
+        loadedSchedules.clear();
+        loadedSchedules.addAll(controller.applyPendingCompletionMutations(scheduleDAO.getAllSchedules()));
+        renderLoadedSchedules(rows, cols);
+    }
+
+    private void renderLoadedSchedules(int rows, int cols) {
+        if (visibleStartDate == null || visibleEndDate == null) {
+            return;
+        }
+
+        updateNavigationButtons();
+        updateHeatmapLegend();
+        schedulesByDate = buildSchedulesByDate(loadedSchedules, visibleStartDate, visibleEndDate);
+        ensureSelectedDate(visibleStartDate, visibleEndDate);
+
+        Map<LocalDate, Integer> stats = buildDailyCompletionStats(loadedSchedules, visibleStartDate, visibleEndDate);
+        int totalCompleted = stats.values().stream().mapToInt(Integer::intValue).sum();
+        int activeDays = (int) stats.values().stream().filter(value -> value > 0).count();
+        statsLabel.setText(String.format(
+            "%s：完成 %d 项，活跃 %d 天",
+            getStatsPeriodLabel(visibleStartDate, visibleEndDate),
+            totalCompleted,
+            activeDays
+        ));
+
+        if ("year".equals(currentViewMode)) {
+            renderYearOverview(visibleStartDate, stats);
+        } else {
+            showStandardGridSurface();
+            double cellSize = calculateAdaptiveCellSize(cols, rows);
+            if ("week".equals(currentViewMode)) {
+                renderWeekHeatmap(visibleStartDate, stats, cellSize);
+            } else {
+                renderMonthHeatmap(visibleStartDate, visibleEndDate, stats, cellSize);
+            }
+        }
+
+        updateDaySchedulePanelContent();
+    }
+
+    private void showStandardGridSurface() {
+        heatmapGrid.setManaged(true);
+        heatmapGrid.setVisible(true);
+        yearMonthsGrid.setManaged(false);
+        yearMonthsGrid.setVisible(false);
+        yearMonthsGrid.getChildren().clear();
+    }
+
+    private void showYearOverviewSurface() {
+        heatmapGrid.setManaged(false);
+        heatmapGrid.setVisible(false);
+        heatmapGrid.getChildren().clear();
+        yearMonthsGrid.setManaged(true);
+        yearMonthsGrid.setVisible(true);
+    }
+
+    private void renderWeekHeatmap(LocalDate startDate, Map<LocalDate, Integer> stats, double cellSize) {
+        heatmapGrid.getChildren().clear();
+        String[] dayNames = {"周一", "周二", "周三", "周四", "周五", "周六", "周日"};
+
+        for (int index = 0; index < 7; index++) {
+            LocalDate date = startDate.plusDays(index);
+            Label dayLabel = new Label(dayNames[index]);
+            dayLabel.getStyleClass().addAll("label-hint", "heatmap-grid-label");
+            heatmapGrid.add(dayLabel, index, 0);
+
+            StackPane cell = buildHeatmapCell(date, stats.getOrDefault(date, 0), cellSize, true, HeatmapCellVariant.STANDARD);
+            heatmapGrid.add(cell, index, 1);
+
+            Label dateLabel = new Label(date.format(DateTimeFormatter.ofPattern("MM/dd")));
+            dateLabel.getStyleClass().addAll("label-hint", "heatmap-grid-label");
+            heatmapGrid.add(dateLabel, index, 2);
+        }
+    }
+
+    private void renderMonthHeatmap(LocalDate startDate, LocalDate endDate, Map<LocalDate, Integer> stats, double cellSize) {
+        heatmapGrid.getChildren().clear();
+
+        String[] dayNames = {"日", "一", "二", "三", "四", "五", "六"};
+        for (int index = 0; index < dayNames.length; index++) {
+            Label label = new Label(dayNames[index]);
+            label.getStyleClass().addAll("label-hint", "heatmap-grid-label");
+            heatmapGrid.add(label, index, 0);
+        }
+
+        populateMonthGridCells(heatmapGrid, startDate, endDate, stats, cellSize, HeatmapCellVariant.STANDARD, 1);
+    }
+
+    private void populateMonthGridCells(
+        GridPane targetGrid,
+        LocalDate monthStart,
+        LocalDate monthEnd,
+        Map<LocalDate, Integer> stats,
+        double cellSize,
+        HeatmapCellVariant variant,
+        int rowOffset
+    ) {
+        LocalDate current = calculateMonthGridStart(monthStart);
+        LocalDate gridEnd = calculateMonthGridEnd(monthEnd);
+        int row = rowOffset;
+
+        while (!current.isAfter(gridEnd)) {
+            for (int col = 0; col < 7; col++) {
+                boolean active = current.getMonth() == monthStart.getMonth();
+                int count = active ? stats.getOrDefault(current, 0) : 0;
+                StackPane cell = buildHeatmapCell(current, count, cellSize, active, variant);
+                targetGrid.add(cell, col, row);
+                current = current.plusDays(1);
+            }
+            row++;
+        }
+    }
+
+    private void renderYearOverview(LocalDate startDate, Map<LocalDate, Integer> stats) {
+        showYearOverviewSurface();
+        yearMonthsGrid.getChildren().clear();
+
+        double availableWidth = Math.max(resolveViewportWidth() - 8.0, 320.0);
+        int columns = determineYearMonthColumns(availableWidth);
+        double cardWidth = calculateYearMonthCardWidth(availableWidth, columns);
+
+        for (int month = 1; month <= 12; month++) {
+            LocalDate monthStart = startDate.withMonth(month).withDayOfMonth(1);
+            VBox monthCard = buildYearMonthCard(monthStart, stats, cardWidth);
+            int columnIndex = (month - 1) % columns;
+            int rowIndex = (month - 1) / columns;
+            yearMonthsGrid.add(monthCard, columnIndex, rowIndex);
+        }
+    }
+
+    private VBox buildYearMonthCard(LocalDate monthStart, Map<LocalDate, Integer> stats, double cardWidth) {
+        VBox card = new VBox(8);
+        card.setAlignment(Pos.TOP_LEFT);
+        card.setMinWidth(cardWidth);
+        card.setPrefWidth(cardWidth);
+        card.setMaxWidth(cardWidth);
+        card.getStyleClass().add("heatmap-year-card");
+
+        Label monthLabel = new Label(monthStart.format(DateTimeFormatter.ofPattern("M月")));
+        monthLabel.getStyleClass().add("heatmap-year-card-title");
+
+        GridPane monthGrid = new GridPane();
+        monthGrid.setHgap(3);
+        monthGrid.setVgap(3);
+        monthGrid.setAlignment(Pos.TOP_CENTER);
+        monthGrid.getStyleClass().add("heatmap-year-card-grid");
+
+        LocalDate monthEnd = monthStart.plusMonths(1).minusDays(1);
+        int monthRows = calculateMonthRowCount(monthStart, monthEnd);
+        double cellSize = calculateYearMonthCardCellSize(cardWidth, monthRows);
+        populateMonthGridCells(monthGrid, monthStart, monthEnd, stats, cellSize, HeatmapCellVariant.YEAR_CARD, 0);
+
+        card.getChildren().addAll(monthLabel, monthGrid);
+        return card;
+    }
+
+    private StackPane buildHeatmapCell(
+        LocalDate date,
+        int count,
+        double cellSize,
+        boolean activeInCurrentPeriod,
+        HeatmapCellVariant variant
+    ) {
+        double inset = variant == HeatmapCellVariant.YEAR_CARD
+            ? Math.max(1.2, cellSize * 0.14)
+            : Math.max(2.0, cellSize * 0.12);
+        double fillSize = Math.max(variant == HeatmapCellVariant.YEAR_CARD ? 4.0 : 6.0, cellSize - inset * 2.0);
+
+        Rectangle shell = new Rectangle(cellSize, cellSize);
+        shell.getStyleClass().add("heatmap-cell-shell");
+        if (variant == HeatmapCellVariant.YEAR_CARD) {
+            shell.getStyleClass().add("heatmap-cell-shell-compact");
+        }
+        applyPebbleShape(shell, cellSize, cellSize);
+
+        Rectangle fill = new Rectangle(fillSize, fillSize);
+        fill.getStyleClass().add("heatmap-cell-fill");
+        applyPebbleShape(fill, fillSize, fillSize);
+        updateHeatmapCellColor(fill, getLevelForCount(count));
+
+        StackPane cell = new StackPane(shell, fill);
+        cell.setMinSize(cellSize, cellSize);
+        cell.setPrefSize(cellSize, cellSize);
+        cell.setMaxSize(cellSize, cellSize);
+        cell.setAlignment(Pos.CENTER);
+        cell.getStyleClass().add("heatmap-cell");
+        cell.getStyleClass().add(variant == HeatmapCellVariant.YEAR_CARD ? "heatmap-cell-year" : "heatmap-cell-standard");
+
+        if (!activeInCurrentPeriod) {
+            cell.getStyleClass().add("heatmap-cell-inactive");
+        }
+        if (date != null && date.equals(selectedDate)) {
+            cell.getStyleClass().add("heatmap-cell-selected");
+        }
+        if (activeInCurrentPeriod) {
+            cell.setOnMouseClicked(event -> {
+                selectedDate = date;
+                renderLoadedSchedules(resolveCurrentRows(), resolveCurrentColumns());
+            });
+        }
+
+        Tooltip.install(cell, new Tooltip(buildTooltipText(date, count, schedulesByDate.getOrDefault(date, List.of()))));
+        return cell;
+    }
+
+    private void applyPebbleShape(Rectangle rectangle, double width, double height) {
+        double pebbleRadius = Math.max(12.0, Math.min(width, height) * 0.86);
+        rectangle.setArcWidth(pebbleRadius);
+        rectangle.setArcHeight(pebbleRadius);
     }
 
     private void drawHeatmap() throws SQLException {
@@ -504,6 +1051,209 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         return builder.toString();
     }
 
+    private void updateHeatmapLegend() {
+        if (legend == null) {
+            return;
+        }
+
+        legend.getChildren().clear();
+
+        Label title = new Label("完成强度");
+        title.getStyleClass().addAll("label-hint", "heatmap-legend-title");
+        legend.getChildren().add(title);
+
+        String[] labels = {"0", "1-2", "3-5", "6-8", "9+"};
+        for (int level = 0; level < labels.length; level++) {
+            HBox item = new HBox(4);
+            item.setAlignment(Pos.CENTER_LEFT);
+            item.getStyleClass().add("heatmap-legend-item");
+
+            item.getChildren().addAll(buildLegendSwatch(level), new Label(labels[level]));
+            ((Label) item.getChildren().get(1)).getStyleClass().addAll("label-hint", "heatmap-legend-label");
+            legend.getChildren().add(item);
+        }
+    }
+
+    private StackPane buildLegendSwatch(int level) {
+        Rectangle shell = new Rectangle(18, 18);
+        shell.getStyleClass().addAll("heatmap-cell-shell", "heatmap-legend-shell");
+        applyPebbleShape(shell, 18, 18);
+
+        Rectangle fill = new Rectangle(12, 12);
+        fill.getStyleClass().add("heatmap-cell-fill");
+        applyPebbleShape(fill, 12, 12);
+        updateHeatmapCellColor(fill, level);
+
+        StackPane swatch = new StackPane(shell, fill);
+        swatch.setMinSize(18, 18);
+        swatch.setPrefSize(18, 18);
+        swatch.setMaxSize(18, 18);
+        swatch.getStyleClass().add("heatmap-legend-swatch");
+        return swatch;
+    }
+
+    private void updateDaySchedulePanelContent() {
+        if (dayScheduleTitle == null || dayScheduleCountLabel == null || currentDayScheduleCardsContainer == null) {
+            return;
+        }
+
+        currentDayScheduleCardsContainer.getChildren().clear();
+        removeCompletedDropProxy();
+
+        if (selectedDate == null) {
+            dayScheduleTitle.setText("选择日期");
+            dayScheduleCountLabel.setText("0 项");
+            return;
+        }
+
+        List<Schedule> schedules = schedulesByDate.getOrDefault(selectedDate, List.of());
+        dayScheduleTitle.setText(selectedDate.format(DateTimeFormatter.ofPattern("M月d日")));
+        dayScheduleCountLabel.setText(schedules.size() + " 项");
+
+        if (schedules.isEmpty()) {
+            Label emptyLabel = new Label("该日期暂无日程");
+            emptyLabel.getStyleClass().add("heatmap-day-empty");
+            currentDayScheduleCardsContainer.getChildren().add(emptyLabel);
+            return;
+        }
+
+        for (Schedule schedule : schedules) {
+            currentDayScheduleCardsContainer.getChildren().add(buildDayScheduleCard(schedule));
+        }
+    }
+
+    private StackPane buildDayScheduleCard(Schedule schedule) {
+        VBox card = new VBox(panelLayoutMode == PanelLayoutMode.SIDE ? 8 : 6);
+        card.getStyleClass().addAll(
+            "heatmap-day-card",
+            panelLayoutMode == PanelLayoutMode.SIDE ? "heatmap-day-card-side" : "heatmap-day-card-bottom"
+        );
+        card.setMaxWidth(Double.MAX_VALUE);
+        ScheduleCardStyleSupport.applyCardPresentation(
+            card,
+            schedule,
+            controller.getCurrentScheduleCardStyle(),
+            "schedule-card-role-heatmap",
+            "heatmap-day-card-surface"
+        );
+        if (controller.isScheduleSelected(schedule)) {
+            card.getStyleClass().addAll("heatmap-day-card-selected", "schedule-card-state-selected");
+        }
+
+        StackPane cardShell = new StackPane(card);
+        cardShell.getStyleClass().add("schedule-card-motion-shell");
+        cardShell.setPickOnBounds(false);
+
+        StackPane cardMotionHost = new StackPane(cardShell);
+        cardMotionHost.getStyleClass().add("schedule-card-motion-host");
+        cardMotionHost.setPickOnBounds(false);
+
+        if (panelLayoutMode == PanelLayoutMode.BOTTOM) {
+            double cardWidth = resolveDayCardWidth();
+            card.setMinWidth(cardWidth);
+            card.setPrefWidth(cardWidth);
+            card.setMaxWidth(cardWidth);
+            cardMotionHost.setMinWidth(cardWidth);
+            cardMotionHost.setPrefWidth(cardWidth);
+            cardMotionHost.setMaxWidth(cardWidth);
+        } else {
+            cardMotionHost.setMaxWidth(Double.MAX_VALUE);
+        }
+
+        Rectangle clip = new Rectangle();
+        clip.widthProperty().bind(cardMotionHost.widthProperty());
+        clip.heightProperty().bind(cardMotionHost.heightProperty());
+        cardMotionHost.setClip(clip);
+        ScheduleCollapsePopAnimator.bindMotionHandle(
+            cardMotionHost,
+            cardShell,
+            () -> {
+                cardMotionHost.requestLayout();
+                getActiveDayCardsContainer().requestLayout();
+                if (daySchedulePanel != null) {
+                    daySchedulePanel.requestLayout();
+                }
+            }
+        );
+        ScheduleReflowAnimator.bindCard(cardMotionHost, schedule);
+
+        Rectangle colorMark = new Rectangle(12, 12);
+        colorMark.getStyleClass().add("schedule-color-mark");
+        applyPebbleShape(colorMark, 12, 12);
+
+        String color = schedule.getColor();
+        if (color != null && !color.isBlank()) {
+            colorMark.setStyle("-fx-fill: " + color + ";");
+        } else {
+            colorMark.getStyleClass().add("mark-default");
+        }
+
+        ScheduleStatusControl[] statusControlRef = new ScheduleStatusControl[1];
+        ScheduleStatusControl statusControl = new ScheduleStatusControl(
+            schedule.isCompleted(),
+            ScheduleStatusControl.SizePreset.HEATMAP,
+            "schedule-status-role-heatmap",
+            targetCompleted -> handleStatusToggle(cardMotionHost, card, schedule, statusControlRef[0], targetCompleted)
+        );
+        statusControlRef[0] = statusControl;
+
+        HBox header = new HBox(10);
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.getStyleClass().add("heatmap-day-card-header");
+
+        VBox textGroup = new VBox(3);
+        Label titleLabel = new Label(schedule.getName());
+        titleLabel.getStyleClass().addAll("schedule-title", "schedule-card-title-text");
+        titleLabel.setWrapText(true);
+
+        Label dateLabel = new Label(getScheduleDateText(schedule));
+        dateLabel.getStyleClass().addAll("schedule-date", "schedule-card-subtitle-text");
+        dateLabel.setWrapText(true);
+        textGroup.getChildren().addAll(titleLabel, dateLabel);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Label priorityLabel = new Label(schedule.getPriority());
+        priorityLabel.getStyleClass().add("priority-" + getPriorityClass(schedule.getPriority()));
+
+        Label categoryLabel = new Label(schedule.getCategory());
+        categoryLabel.getStyleClass().add("category-tag");
+
+        header.getChildren().addAll(statusControl, colorMark, textGroup, spacer, priorityLabel, categoryLabel);
+
+        Label descriptionLabel = new Label(getScheduleDescriptionText(schedule));
+        descriptionLabel.getStyleClass().addAll("schedule-description", "schedule-card-body-text");
+        descriptionLabel.setWrapText(true);
+
+        Label statusLabel = new Label(getScheduleStatusText(schedule));
+        statusLabel.getStyleClass().addAll("label-hint", "schedule-card-subtitle-text", "heatmap-day-card-status");
+
+        card.getChildren().addAll(header, descriptionLabel, statusLabel);
+
+        card.setOnMouseClicked(event -> {
+            controller.showScheduleDetails(schedule);
+            updateDaySchedulePanelContent();
+            if (event.getClickCount() == 2) {
+                controller.openEditScheduleDialog(schedule);
+            }
+        });
+
+        return cardMotionHost;
+    }
+
+    private Pane getActiveDayCardsContainer() {
+        return currentDayScheduleCardsContainer != null ? currentDayScheduleCardsContainer : dayScheduleCardsColumn;
+    }
+
+    private double resolveDayCardWidth() {
+        double availableWidth = root != null ? root.getWidth() : 0.0;
+        if (availableWidth <= 0 && scrollPane != null) {
+            availableWidth = scrollPane.getViewportBounds().getWidth();
+        }
+        return clamp(availableWidth * 0.24, 236.0, 278.0);
+    }
+
     private void updateNavigationButtons() {
         String periodName = getPeriodName();
         if (prevBtn != null) {
@@ -704,7 +1454,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         }
 
         Map<Integer, Bounds> beforeBounds =
-            ScheduleReflowAnimator.captureVisibleCardBounds(dayScheduleCardsBox, schedule.getId());
+            ScheduleReflowAnimator.captureVisibleCardBounds(getActiveDayCardsContainer(), schedule.getId());
 
         ScheduleCollapsePopAnimator.playCollapseSource(
             ScheduleCollapsePopAnimator.resolveMotionHandle(cardNode),
@@ -776,7 +1526,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     }*/
 
     private void handleCommittedHeatmapCompletion(Map<Integer, Bounds> beforeBounds) {
-        ScheduleReflowAnimator.playVerticalReflow(dayScheduleCardsBox, beforeBounds, null);
+        ScheduleReflowAnimator.playVerticalReflow(getActiveDayCardsContainer(), beforeBounds, null);
         ScheduleCollapsePopAnimator.MotionHandle proxyHandle = createCompletedProxyHandle();
         if (proxyHandle != null) {
             ScheduleCollapsePopAnimator.prepareTargetPopState(proxyHandle);
@@ -802,7 +1552,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             completedProxyShell.getStyleClass().add(COMPLETED_PROXY_STYLE);
             completedProxyShell.setPickOnBounds(false);
 
-            Label proxyLabel = new Label("Completed");
+            Label proxyLabel = new Label("已完成");
             proxyLabel.getStyleClass().add("heatmap-completed-zone-label");
             completedProxyShell.getChildren().add(proxyLabel);
 
@@ -855,6 +1605,99 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         return currentDate.format(DateTimeFormatter.ofPattern("yyyy年MM月"));
     }
 
+    private double calculateAdaptiveCellSize(int cols, int rows) {
+        double viewportWidth = resolveViewportWidth();
+        double viewportHeight = resolveViewportHeight();
+        double horizontalPadding = heatmapGrid.getPadding().getLeft() + heatmapGrid.getPadding().getRight();
+        double verticalPadding = heatmapGrid.getPadding().getTop() + heatmapGrid.getPadding().getBottom();
+        double reservedHeight = "week".equals(currentViewMode) ? 78.0 : 24.0;
+
+        double availableWidth = Math.max(viewportWidth - horizontalPadding - 8.0, 120.0);
+        double availableHeight = Math.max(viewportHeight - verticalPadding - reservedHeight, 120.0);
+
+        double widthBasedSize = (availableWidth - Math.max(0, cols - 1) * GRID_GAP) / cols;
+        double heightBasedSize = (availableHeight - Math.max(0, rows - 1) * GRID_GAP) / rows;
+        return clampGridCellSize(currentViewMode, panelLayoutMode == PanelLayoutMode.SIDE, Math.min(widthBasedSize, heightBasedSize));
+    }
+
+    private double resolveViewportWidth() {
+        double viewportWidth = scrollPane.getViewportBounds().getWidth();
+        if (viewportWidth <= 0) {
+            viewportWidth = scrollPane.getWidth();
+        }
+        if (viewportWidth <= 0 && heatmapPane != null) {
+            viewportWidth = heatmapPane.getWidth();
+        }
+        return Math.max(viewportWidth, 120.0);
+    }
+
+    private double resolveViewportHeight() {
+        double viewportHeight = scrollPane.getViewportBounds().getHeight();
+        if (viewportHeight <= 0) {
+            viewportHeight = scrollPane.getHeight();
+        }
+        if (viewportHeight <= 0 && heatmapPane != null) {
+            viewportHeight = heatmapPane.getHeight();
+        }
+        return Math.max(viewportHeight, 120.0);
+    }
+
+    static int determineYearMonthColumns(double availableWidth) {
+        if (availableWidth >= 1200.0) {
+            return 4;
+        }
+        if (availableWidth >= 900.0) {
+            return 3;
+        }
+        if (availableWidth >= 620.0) {
+            return 2;
+        }
+        return 1;
+    }
+
+    static double determineDayPanelPreferredExtent(boolean sideLayout) {
+        return sideLayout ? DAY_PANEL_SIDE_WIDTH : DAY_PANEL_BOTTOM_HEIGHT;
+    }
+
+    static double clampGridCellSize(String viewMode, boolean sideLayout, double proposedSize) {
+        if ("week".equals(viewMode)) {
+            return clamp(proposedSize, sideLayout ? 44.0 : 36.0, 118.0);
+        }
+        if ("year".equals(viewMode)) {
+            return clamp(proposedSize, 12.0, 22.0);
+        }
+        return clamp(proposedSize, sideLayout ? 28.0 : 22.0, sideLayout ? 106.0 : 92.0);
+    }
+
+    private double calculateYearMonthCardWidth(double availableWidth, int columns) {
+        double rawWidth = (availableWidth - Math.max(0, columns - 1) * YEAR_GRID_GAP) / columns;
+        return clamp(rawWidth, 208.0, 420.0);
+    }
+
+    private double calculateYearMonthCardCellSize(double cardWidth, int monthRows) {
+        double gridWidth = Math.max(cardWidth - 24.0, 120.0);
+        double widthBased = (gridWidth - 6.0 * 3.0) / 7.0;
+        double heightBased = (monthRows <= 0 ? widthBased : (gridWidth * 0.8) / Math.max(monthRows, 1));
+        return clampGridCellSize("year", true, Math.min(widthBased, heightBased));
+    }
+
+    private static LocalDate calculateMonthGridStart(LocalDate monthStart) {
+        int leadingDays = monthStart.getDayOfWeek().getValue() % 7;
+        return monthStart.minusDays(leadingDays);
+    }
+
+    private static LocalDate calculateMonthGridEnd(LocalDate monthEnd) {
+        int trailingDays = 6 - (monthEnd.getDayOfWeek().getValue() % 7);
+        return monthEnd.plusDays(trailingDays);
+    }
+
+    private static int calculateMonthRowCount(LocalDate monthStart, LocalDate monthEnd) {
+        LocalDate gridStart = calculateMonthGridStart(monthStart);
+        LocalDate gridEnd = calculateMonthGridEnd(monthEnd);
+        long totalDays = ChronoUnit.DAYS.between(gridStart, gridEnd) + 1L;
+        return (int) Math.ceil(totalDays / 7.0);
+    }
+
     private double calculateCellSize(int cols, int rows) {
         double viewportWidth = scrollPane.getViewportBounds().getWidth();
         double viewportHeight = scrollPane.getViewportBounds().getHeight();
@@ -901,7 +1744,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         return verticalPadding + 20;
     }
 
-    private double clamp(double value, double min, double max) {
+    private static double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
     }
 
@@ -1050,7 +1893,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             changed = true;
         }
         if (changed && visibleStartDate != null && visibleEndDate != null) {
-            renderHeatmapFromLoadedSchedules(resolveCurrentRows(), resolveCurrentColumns());
+            renderLoadedSchedules(resolveCurrentRows(), resolveCurrentColumns());
         }
     }
 
@@ -1060,7 +1903,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             return;
         }
         if (visibleStartDate != null && visibleEndDate != null) {
-            renderHeatmapFromLoadedSchedules(resolveCurrentRows(), resolveCurrentColumns());
+            renderLoadedSchedules(resolveCurrentRows(), resolveCurrentColumns());
         }
     }
 
@@ -1078,7 +1921,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             changed = true;
         }
         if (changed && visibleStartDate != null && visibleEndDate != null) {
-            renderHeatmapFromLoadedSchedules(resolveCurrentRows(), resolveCurrentColumns());
+            renderLoadedSchedules(resolveCurrentRows(), resolveCurrentColumns());
         }
     }
 
@@ -1121,14 +1964,17 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             return 1;
         }
         if ("year".equals(currentViewMode)) {
-            return 7;
+            return 0;
+        }
+        if (visibleStartDate != null && visibleEndDate != null) {
+            return calculateMonthRowCount(visibleStartDate, visibleEndDate);
         }
         return 6;
     }
 
     private int resolveCurrentColumns() {
         if ("year".equals(currentViewMode)) {
-            return 53;
+            return 0;
         }
         return 7;
     }

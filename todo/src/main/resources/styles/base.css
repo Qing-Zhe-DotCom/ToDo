@@ -1996,6 +1996,260 @@
 .heatmap-cell.level-3 { -fx-fill: -color-heatmap-3; }
 .heatmap-cell.level-4 { -fx-fill: -color-heatmap-4; }
 
+.heatmap-root {
+    -fx-spacing: 12;
+}
+
+.heatmap-toolbar {
+    -fx-alignment: center-left;
+}
+
+.heatmap-title {
+    -fx-padding: 0 8 0 0;
+}
+
+.heatmap-toolbar-button {
+    -fx-background-color: #ffffff;
+    -fx-border-color: derive(-color-primary, 42%);
+    -fx-border-width: 3;
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+    -fx-padding: 8 14;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 12, 0.14, 0, 4);
+}
+
+.heatmap-toolbar-button:hover {
+    -fx-background-color: derive(-color-primary, 95%);
+    -fx-border-color: derive(-color-primary, -4%);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 16, 0.16, 0, 5);
+}
+
+.heatmap-toolbar-button:pressed,
+.heatmap-toolbar-button:selected {
+    -fx-background-color: derive(-color-primary, 90%);
+    -fx-border-color: -color-primary;
+}
+
+.heatmap-toolbar-icon-button {
+    -fx-min-width: 58;
+    -fx-pref-width: 58;
+    -fx-max-width: 58;
+    -fx-min-height: 58;
+    -fx-pref-height: 58;
+    -fx-max-height: 58;
+    -fx-padding: 6;
+}
+
+.heatmap-layout-group {
+    -fx-background-color: rgba(255,255,255,0.75);
+    -fx-background-radius: 999;
+    -fx-padding: 3;
+}
+
+.heatmap-layout-button {
+    -fx-min-width: 66;
+    -fx-pref-width: 66;
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+    -fx-text-fill: -color-text-main;
+    -fx-padding: 8 10;
+}
+
+.heatmap-meta-bar {
+    -fx-alignment: center-left;
+}
+
+.heatmap-stats-label {
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-main;
+}
+
+.heatmap-legend {
+    -fx-alignment: center-left;
+}
+
+.heatmap-legend-item {
+    -fx-alignment: center-left;
+}
+
+.heatmap-workspace {
+    -fx-background-color: transparent;
+}
+
+.heatmap-visual-pane {
+    -fx-padding: 0;
+}
+
+.heatmap-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.heatmap-canvas-host {
+    -fx-padding: 0;
+}
+
+.heatmap-grid-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-sub;
+}
+
+.heatmap-year-grid {
+    -fx-background-color: transparent;
+}
+
+.heatmap-year-card {
+    -fx-background-color: #ffffff;
+    -fx-border-color: derive(-color-primary, 40%);
+    -fx-border-width: 3;
+    -fx-border-radius: 28;
+    -fx-background-radius: 28;
+    -fx-padding: 14 14 12 14;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 12, 0.14, 0, 4);
+}
+
+.heatmap-year-card-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
+    -fx-text-fill: -color-text-main;
+}
+
+.heatmap-year-card-grid {
+    -fx-alignment: center;
+}
+
+.heatmap-cell {
+    -fx-padding: 0;
+    -fx-cursor: hand;
+}
+
+.heatmap-cell-inactive {
+    -fx-opacity: 0.35;
+}
+
+.heatmap-cell-shell {
+    -fx-fill: rgba(255,255,255,0.98);
+    -fx-stroke: rgba(255,255,255,0.98);
+    -fx-stroke-width: 2.8;
+}
+
+.heatmap-cell-shell-compact {
+    -fx-stroke-width: 2.2;
+}
+
+.heatmap-cell:hover .heatmap-cell-shell {
+    -fx-stroke: derive(-color-primary, 22%);
+}
+
+.heatmap-cell-selected .heatmap-cell-shell {
+    -fx-stroke: -color-primary;
+    -fx-stroke-width: 3.2;
+    -fx-effect: dropshadow(gaussian, rgba(255,107,107,0.26), 12, 0.18, 0, 0);
+}
+
+.heatmap-day-panel {
+    -fx-background-color: #ffffff;
+    -fx-border-color: derive(-color-primary, 40%);
+    -fx-border-width: 3;
+    -fx-border-radius: 30;
+    -fx-background-radius: 30;
+    -fx-padding: 12 14 12 14;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 14, 0.14, 0, 4);
+}
+
+.heatmap-day-panel-bottom {
+    -fx-padding: 10 12 10 12;
+}
+
+.heatmap-day-header {
+    -fx-alignment: center-left;
+}
+
+.heatmap-day-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: 800;
+    -fx-text-fill: -color-text-main;
+}
+
+.heatmap-day-count {
+    -fx-background-color: derive(-color-primary, 92%);
+    -fx-border-color: derive(-color-primary, 54%);
+    -fx-border-width: 2;
+    -fx-border-radius: 999;
+    -fx-background-radius: 999;
+    -fx-padding: 3 10;
+    -fx-font-size: 11px;
+    -fx-font-weight: 800;
+    -fx-text-fill: derive(-color-primary, -25%);
+}
+
+.heatmap-day-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.heatmap-day-card {
+    -fx-cursor: hand;
+}
+
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-classic,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-fresh,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-cozy,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-modern-minimal,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-neo-brutalism,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-material-you,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-neumorphism {
+    -fx-background-color: #ffffff;
+    -fx-border-color: derive(-schedule-card-accent, 18%);
+    -fx-border-width: 3;
+    -fx-border-radius: 28;
+    -fx-background-radius: 28;
+    -fx-padding: 12 14 12 14;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 12, 0.14, 0, 4);
+}
+
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-classic:hover,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-fresh:hover,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-cozy:hover,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-modern-minimal:hover,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-neo-brutalism:hover,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-material-you:hover,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-neumorphism:hover {
+    -fx-background-color: derive(-schedule-card-accent, 97%);
+    -fx-border-color: -schedule-card-accent;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.14), 16, 0.18, 0, 5);
+}
+
+.schedule-card-surface.heatmap-day-card-surface.heatmap-day-card-selected,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-state-selected {
+    -fx-background-color: derive(-color-primary, 96%);
+    -fx-border-color: -color-primary;
+    -fx-border-width: 3;
+}
+
+.heatmap-completed-zone {
+    -fx-alignment: center-left;
+    -fx-padding: 9 14;
+    -fx-background-color: #ffffff;
+    -fx-border-color: derive(-color-success, 34%);
+    -fx-border-width: 3;
+    -fx-border-radius: 999;
+    -fx-background-radius: 999;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 10, 0.12, 0, 3);
+}
+
+.heatmap-completed-zone-label {
+    -fx-text-fill: derive(-color-success, -20%);
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+}
+
+.heatmap-cell-fill.level-0 { -fx-fill: -color-heatmap-0; }
+.heatmap-cell-fill.level-1 { -fx-fill: -color-heatmap-1; }
+.heatmap-cell-fill.level-2 { -fx-fill: -color-heatmap-2; }
+.heatmap-cell-fill.level-3 { -fx-fill: -color-heatmap-3; }
+.heatmap-cell-fill.level-4 { -fx-fill: -color-heatmap-4; }
+
 
 
 /* 对话框样式 */
@@ -2503,6 +2757,41 @@
 .schedule-card-surface.schedule-card-state-selected.schedule-card-role-timeline .schedule-card-layer {
     -fx-stroke: -color-primary-hover;
     -fx-stroke-width: 2;
+}
+
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-classic,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-fresh,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-cozy,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-modern-minimal,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-neo-brutalism,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-material-you,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-neumorphism {
+    -fx-background-color: #ffffff;
+    -fx-border-color: derive(-schedule-card-accent, 18%);
+    -fx-border-width: 3;
+    -fx-border-radius: 28;
+    -fx-background-radius: 28;
+    -fx-padding: 12 14 12 14;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 12, 0.14, 0, 4);
+}
+
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-classic:hover,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-fresh:hover,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-cozy:hover,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-modern-minimal:hover,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-neo-brutalism:hover,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-material-you:hover,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-style-neumorphism:hover {
+    -fx-background-color: derive(-schedule-card-accent, 97%);
+    -fx-border-color: -schedule-card-accent;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.14), 16, 0.18, 0, 5);
+}
+
+.schedule-card-surface.heatmap-day-card-surface.heatmap-day-card-selected,
+.schedule-card-surface.heatmap-day-card-surface.schedule-card-state-selected {
+    -fx-background-color: derive(-color-primary, 96%);
+    -fx-border-color: -color-primary;
+    -fx-border-width: 3;
 }
 
 /* 8. 新建日程弹窗现代 UI 样式 (Modern Dialog UI) */

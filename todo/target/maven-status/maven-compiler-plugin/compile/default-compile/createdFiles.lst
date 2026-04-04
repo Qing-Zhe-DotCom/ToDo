@@ -23,6 +23,7 @@ com\example\view\HeatmapView.class
 com\example\view\FlowchartView.class
 com\example\controller\ScheduleCompletionCoordinator$MutationApplier.class
 com\example\view\ScheduleReflowAnimator.class
+com\example\view\HeatmapView$HeatmapCellVariant.class
 com\example\view\TimelineView$1.class
 module-info.class
 com\example\databaseutil\Connectdatabase.class
@@ -34,6 +35,7 @@ com\example\view\ScheduleStatusInteractionModel$ReleaseDecision.class
 com\example\MainApp.class
 com\example\view\ScheduleCardStyleSupport.class
 com\example\view\ScheduleListView$ScheduleCardNode.class
+com\example\view\HeatmapView$PanelLayoutMode.class
 com\example\view\ScheduleStatusInteractionModel$VisualState.class
 com\example\view\ScheduleListView$GroupHeader.class
 com\example\view\View.class

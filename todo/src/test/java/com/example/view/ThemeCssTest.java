@@ -30,11 +30,20 @@ class ThemeCssTest {
         
         assertAll("theme files heatmap specific styles",
             () -> assertTrue(baseContent.contains(".heatmap-cell-selected {")),
+            () -> assertTrue(baseContent.contains(".heatmap-toolbar-button {")),
+            () -> assertTrue(baseContent.contains(".heatmap-layout-button {")),
+            () -> assertTrue(baseContent.contains(".heatmap-meta-bar {")),
+            () -> assertTrue(baseContent.contains(".heatmap-year-grid {")),
+            () -> assertTrue(baseContent.contains(".heatmap-year-card {")),
+            () -> assertTrue(baseContent.contains(".heatmap-cell-shell {")),
+            () -> assertTrue(baseContent.contains(".heatmap-cell-fill.level-4 {")),
             () -> assertTrue(baseContent.contains(".heatmap-day-panel {")),
             () -> assertTrue(baseContent.contains(".heatmap-day-title {")),
+            () -> assertTrue(baseContent.contains(".heatmap-day-count {")),
             () -> assertTrue(baseContent.contains(".heatmap-day-scroll {")),
             () -> assertTrue(baseContent.contains(".heatmap-completed-zone {")),
-            () -> assertTrue(baseContent.contains(".heatmap-completed-zone-label {"))
+            () -> assertTrue(baseContent.contains(".heatmap-completed-zone-label {")),
+            () -> assertTrue(baseContent.contains(".schedule-card-surface.heatmap-day-card-surface.schedule-card-style-classic"))
         );
     }
 
