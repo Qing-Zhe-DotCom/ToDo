@@ -117,6 +117,20 @@ class ThemeCssTest {
         );
     }
 
+    @Test
+    void baseCssContainsInfoPanelSelectors() throws IOException {
+        String baseContent = readCss("/styles/base.css");
+
+        assertAll(
+            () -> assertTrue(baseContent.contains(".info-panel-header {")),
+            () -> assertTrue(baseContent.contains(".info-panel-toolbar-button {")),
+            () -> assertTrue(baseContent.contains(".info-panel-status-pill {")),
+            () -> assertTrue(baseContent.contains(".info-panel-chip {")),
+            () -> assertTrue(baseContent.contains(".info-panel-description-card {")),
+            () -> assertTrue(baseContent.contains(".info-panel-primary-button {"))
+        );
+    }
+
     private String readCss(String resourcePath) throws IOException {
         try (InputStream inputStream = getClass().getResourceAsStream(resourcePath)) {
             assertNotNull(inputStream);
