@@ -36,6 +36,7 @@ com\example\view\ScheduleListView$ScheduleCardNode.class
 com\example\view\ScheduleStatusInteractionModel$VisualState.class
 com\example\view\ScheduleListView$GroupHeader.class
 com\example\view\View.class
+com\example\view\TimelineView$2.class
 com\example\controller\ScheduleCompletionCoordinator.class
 com\example\view\ScheduleListView.class
 com\example\view\ScheduleCompletionParticipant.class

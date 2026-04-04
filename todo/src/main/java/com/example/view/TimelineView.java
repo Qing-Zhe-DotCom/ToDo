@@ -40,6 +40,7 @@ import javafx.animation.TranslateTransition;
 import javafx.animation.ParallelTransition;
 import javafx.util.Duration;
 import javafx.scene.input.ScrollEvent;
+import javafx.util.StringConverter;
 
 public class TimelineView implements View, ScheduleCompletionParticipant {
 
@@ -55,6 +56,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     private static final double BOTTOM_PADDING = 48;
     private static final double MIN_INLINE_TITLE_WIDTH = 60;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MM/dd");
+    private static final DateTimeFormatter RANGE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final MainController controller;
     private final ScheduleDAO scheduleDAO;
@@ -143,8 +145,9 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     }
 
     private HBox createHeader() {
-        HBox header = new HBox(15);
+        HBox header = new HBox(18);
         header.setAlignment(Pos.CENTER_LEFT);
+        header.getStyleClass().add("timeline-header");
 
         Label titleLabel = new Label("日程时间轴");
         titleLabel.getStyleClass().add("label-title");
@@ -152,9 +155,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        startDatePicker = new DatePicker();
-        startDatePicker.setPromptText("开始日期");
-        startDatePicker.setPrefWidth(120);
+        startDatePicker = createRangeDatePicker("开始日期");
         startDatePicker.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null && endDatePicker.getValue() != null && newVal.isAfter(endDatePicker.getValue())) {
                 endDatePicker.setValue(newVal.plusDays(7));
@@ -162,9 +163,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             refresh();
         });
 
-        endDatePicker = new DatePicker();
-        endDatePicker.setPromptText("结束日期");
-        endDatePicker.setPrefWidth(120);
+        endDatePicker = createRangeDatePicker("结束日期");
         endDatePicker.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null && startDatePicker.getValue() != null && newVal.isBefore(startDatePicker.getValue())) {
                 startDatePicker.setValue(newVal.minusDays(7));
@@ -172,25 +171,76 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             refresh();
         });
 
+        StackPane rangeLabelBox = new StackPane();
+        rangeLabelBox.getStyleClass().add("timeline-range-label-box");
+
+        Label rangeLabel = new Label("日期\n范围:");
+        rangeLabel.getStyleClass().add("timeline-range-label");
+        rangeLabel.setWrapText(true);
+        rangeLabelBox.getChildren().add(rangeLabel);
+
+        StackPane rangeIconBox = new StackPane(controller.createSvgIcon("/icons/macaron_calendar-date_icon.svg", null, 18));
+        rangeIconBox.getStyleClass().add("timeline-range-icon-wrap");
+
+        Label rangeConnector = new Label("→");
+        rangeConnector.getStyleClass().add("timeline-range-connector");
+
+        HBox rangePill = new HBox(10, rangeIconBox, startDatePicker, rangeConnector, endDatePicker);
+        rangePill.setAlignment(Pos.CENTER_LEFT);
+        rangePill.getStyleClass().add("timeline-range-pill");
+        HBox.setHgrow(startDatePicker, Priority.ALWAYS);
+        HBox.setHgrow(endDatePicker, Priority.ALWAYS);
+
         Button resetBtn = new Button("重置视角");
-        resetBtn.getStyleClass().add("button-secondary");
+        resetBtn.getStyleClass().addAll("button-secondary", "timeline-range-reset");
         resetBtn.setOnAction(e -> {
             startDatePicker.setValue(null);
             endDatePicker.setValue(null);
             refresh();
         });
 
-        header.getChildren().addAll(
-            titleLabel,
-            spacer,
-            new Label("日期范围:"),
-            startDatePicker,
-            new Label("至"),
-            endDatePicker,
-            resetBtn
-        );
+        HBox rangeGroup = new HBox(12, rangeLabelBox, rangePill, resetBtn);
+        rangeGroup.setAlignment(Pos.CENTER_RIGHT);
+        rangeGroup.getStyleClass().add("timeline-range-group");
+
+        header.getChildren().addAll(titleLabel, spacer, rangeGroup);
 
         return header;
+    }
+
+    private DatePicker createRangeDatePicker(String promptText) {
+        DatePicker picker = new DatePicker();
+        picker.setPromptText(promptText);
+        picker.setPrefWidth(166);
+        picker.setMaxWidth(Double.MAX_VALUE);
+        picker.setConverter(createRangeDateConverter());
+        picker.getStyleClass().add("timeline-range-picker");
+        return picker;
+    }
+
+    private StringConverter<LocalDate> createRangeDateConverter() {
+        return new StringConverter<LocalDate>() {
+            @Override
+            public String toString(LocalDate value) {
+                return formatRangeDate(value);
+            }
+
+            @Override
+            public LocalDate fromString(String text) {
+                return parseRangeDate(text);
+            }
+        };
+    }
+
+    static String formatRangeDate(LocalDate value) {
+        return value == null ? "" : RANGE_DATE_FORMATTER.format(value);
+    }
+
+    static LocalDate parseRangeDate(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            return null;
+        }
+        return LocalDate.parse(text.trim(), RANGE_DATE_FORMATTER);
     }
 
     @Override

@@ -105,6 +105,18 @@ class ThemeCssTest {
         );
     }
 
+    @Test
+    void baseCssContainsTimelineRangeCapsuleSelectors() throws IOException {
+        String baseContent = readCss("/styles/base.css");
+
+        assertAll(
+            () -> assertTrue(baseContent.contains(".timeline-range-group {")),
+            () -> assertTrue(baseContent.contains(".timeline-range-pill {")),
+            () -> assertTrue(baseContent.contains(".timeline-range-picker {")),
+            () -> assertTrue(baseContent.contains(".timeline-range-reset {"))
+        );
+    }
+
     private String readCss(String resourcePath) throws IOException {
         try (InputStream inputStream = getClass().getResourceAsStream(resourcePath)) {
             assertNotNull(inputStream);
