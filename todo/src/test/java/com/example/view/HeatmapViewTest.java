@@ -76,4 +76,80 @@ class HeatmapViewTest {
         assertEquals(1, stats.get(LocalDate.of(2026, 4, 4)));
         assertEquals(2, stats.values().stream().mapToInt(Integer::intValue).sum());
     }
+
+    @Test
+    void layoutSignatureIgnoresTinySizeNoise() {
+        String signatureA = HeatmapView.buildLayoutSignature(
+            "month",
+            LocalDate.of(2026, 4, 1),
+            false,
+            812.2,
+            503.2
+        );
+        String signatureB = HeatmapView.buildLayoutSignature(
+            "month",
+            LocalDate.of(2026, 4, 1),
+            false,
+            812.4,
+            503.4
+        );
+
+        assertEquals(signatureA, signatureB);
+    }
+
+    @Test
+    void viewportMustBeRenderableBeforeHeatmapUsesIt() {
+        assertFalse(HeatmapView.hasRenderableViewport(0, 420));
+        assertFalse(HeatmapView.hasRenderableViewport(640, 0));
+        assertTrue(HeatmapView.hasRenderableViewport(640, 420));
+    }
+
+    @Test
+    void monthCellSizingFitsWithinViewportWidth() {
+        double cellSize = HeatmapView.calculateCalendarCellSize(
+            900,
+            620,
+            20,
+            20,
+            28,
+            7,
+            6,
+            3,
+            4,
+            2,
+            18,
+            90
+        );
+
+        double footprintWidth = HeatmapView.calculateCalendarFootprintWidth(
+            cellSize,
+            20,
+            7,
+            3,
+            4,
+            2
+        );
+
+        assertTrue(footprintWidth <= 900);
+    }
+
+    @Test
+    void sidebarWidthMatchesCollapsedAndExpandedStates() {
+        assertEquals(40, HeatmapView.resolveSidebarWidth(true));
+        assertEquals(280, HeatmapView.resolveSidebarWidth(false));
+    }
+
+    @Test
+    void yearMonthGridUsesFourByThreeLayoutOrder() {
+        assertEquals(0, HeatmapView.resolveYearMonthColumn(1));
+        assertEquals(0, HeatmapView.resolveYearMonthRow(1));
+        assertEquals(3, HeatmapView.resolveYearMonthColumn(4));
+        assertEquals(0, HeatmapView.resolveYearMonthRow(4));
+        assertEquals(0, HeatmapView.resolveYearMonthColumn(5));
+        assertEquals(1, HeatmapView.resolveYearMonthRow(5));
+        assertEquals(3, HeatmapView.resolveYearMonthColumn(12));
+        assertEquals(2, HeatmapView.resolveYearMonthRow(12));
+        assertEquals("1月", HeatmapView.buildYearMonthTitle(LocalDate.of(2026, 1, 1)));
+        assertEquals("12月", HeatmapView.buildYearMonthTitle(LocalDate.of(2026, 12, 1)));
+    }
 }
