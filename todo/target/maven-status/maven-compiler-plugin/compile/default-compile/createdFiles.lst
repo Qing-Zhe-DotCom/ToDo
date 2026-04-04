@@ -10,6 +10,7 @@ com\example\view\TimelineView$TimelineEntry.class
 com\example\databaseutil\ScheduleDAO.class
 com\example\controller\ScheduleCompletionCoordinator$ErrorReporter.class
 com\example\view\ScheduleStatusControl$SizePreset.class
+com\example\view\DatePickerArrowSupport.class
 com\example\view\ScheduleCardMotionSupport.class
 com\example\controller\ScheduleCompletionMutation.class
 com\example\controller\ScheduleCompletionCoordinator$PendingCompletion.class

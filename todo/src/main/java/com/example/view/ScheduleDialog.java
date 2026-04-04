@@ -16,7 +16,6 @@ import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
-import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -37,14 +36,10 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.Node;
 import javafx.scene.image.Image;
-import javafx.stage.PopupWindow;
 import javafx.stage.Stage;
-import javafx.stage.Window;
 
 public class ScheduleDialog extends Dialog<Schedule> {
     private static final String APP_ICON_RESOURCE = "/icons/macaron_todo_icon.png";
-    private static final String CALENDAR_LEFT_ICON_RESOURCE = "/icons/macaron_arrow-left_icon.svg";
-    private static final String CALENDAR_RIGHT_ICON_RESOURCE = "/icons/macaron_arrow-right_icon.svg";
 
     private MainController controller;
     private Schedule schedule;
@@ -156,7 +151,7 @@ public class ScheduleDialog extends Dialog<Schedule> {
         startDatePicker = new DatePicker(LocalDate.now());
         startDatePicker.setMaxWidth(Double.MAX_VALUE);
         startDatePicker.getStyleClass().add("modern-input");
-        setupDatePickerArrowReplacement(startDatePicker);
+        DatePickerArrowSupport.install(startDatePicker, controller);
         startBox.getChildren().addAll(startLabel, startDatePicker);
         
         VBox dueBox = new VBox(8);
@@ -166,7 +161,7 @@ public class ScheduleDialog extends Dialog<Schedule> {
         dueDatePicker = new DatePicker(LocalDate.now().plusDays(7));
         dueDatePicker.setMaxWidth(Double.MAX_VALUE);
         dueDatePicker.getStyleClass().add("modern-input");
-        setupDatePickerArrowReplacement(dueDatePicker);
+        DatePickerArrowSupport.install(dueDatePicker, controller);
         dateErrorLabel = new Label("截止日期无效");
         dateErrorLabel.getStyleClass().add("error-label");
         dateErrorLabel.setVisible(false);
@@ -285,7 +280,7 @@ public class ScheduleDialog extends Dialog<Schedule> {
         reminderDatePicker = new DatePicker(LocalDate.now());
         reminderDatePicker.setMaxWidth(Double.MAX_VALUE);
         reminderDatePicker.getStyleClass().add("modern-input");
-        setupDatePickerArrowReplacement(reminderDatePicker);
+        DatePickerArrowSupport.install(reminderDatePicker, controller);
         HBox.setHgrow(reminderDatePicker, Priority.ALWAYS);
         
         reminderTimeCombo = new ComboBox<>();
@@ -380,61 +375,6 @@ public class ScheduleDialog extends Dialog<Schedule> {
                 event.consume();
             }
         });
-    }
-
-    private void setupDatePickerArrowReplacement(DatePicker datePicker) {
-        if (datePicker == null) {
-            return;
-        }
-        datePicker.setOnShown(event -> Platform.runLater(() -> {
-            applyCustomDatePickerArrows();
-            Platform.runLater(this::applyCustomDatePickerArrows);
-        }));
-    }
-
-    private void applyCustomDatePickerArrows() {
-        for (Window window : Window.getWindows()) {
-            if (!(window instanceof PopupWindow)) {
-                continue;
-            }
-            if (window.getScene() == null || !(window.getScene().getRoot() instanceof Parent)) {
-                continue;
-            }
-            Parent root = (Parent) window.getScene().getRoot();
-            if (root.lookup(".month-year-pane") == null) {
-                continue;
-            }
-            for (Node node : root.lookupAll(".left-button")) {
-                if (node instanceof Button) {
-                    applyCalendarArrowButton((Button) node, CALENDAR_LEFT_ICON_RESOURCE, ".left-arrow");
-                }
-            }
-            for (Node node : root.lookupAll(".right-button")) {
-                if (node instanceof Button) {
-                    applyCalendarArrowButton((Button) node, CALENDAR_RIGHT_ICON_RESOURCE, ".right-arrow");
-                }
-            }
-        }
-    }
-
-    private void applyCalendarArrowButton(Button button, String iconPath, String arrowSelector) {
-        if (Boolean.TRUE.equals(button.getProperties().get("calendar-arrow-customized"))) {
-            return;
-        }
-        button.getProperties().put("calendar-arrow-customized", Boolean.TRUE);
-        button.getStyleClass().add("calendar-arrow-button");
-        button.setGraphic(controller.createSvgIcon(iconPath, null, 18));
-        button.setText("");
-        button.setContentDisplay(javafx.scene.control.ContentDisplay.GRAPHIC_ONLY);
-        button.setStyle("-fx-background-color: transparent; -fx-background-insets: 0; -fx-padding: 0; -fx-effect: null; -fx-border-color: transparent;");
-        button.setMinSize(26, 26);
-        button.setPrefSize(26, 26);
-        button.setMaxSize(26, 26);
-        Node arrowNode = button.lookup(arrowSelector);
-        if (arrowNode != null) {
-            arrowNode.setVisible(false);
-            arrowNode.setManaged(false);
-        }
     }
 
     private boolean validateDates() {

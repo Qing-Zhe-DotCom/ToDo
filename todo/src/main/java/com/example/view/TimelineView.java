@@ -173,10 +173,13 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
 
         StackPane rangeLabelBox = new StackPane();
         rangeLabelBox.getStyleClass().add("timeline-range-label-box");
+        rangeLabelBox.setMinWidth(Region.USE_PREF_SIZE);
 
         Label rangeLabel = new Label("日期\n范围:");
         rangeLabel.getStyleClass().add("timeline-range-label");
-        rangeLabel.setWrapText(true);
+        rangeLabel.setWrapText(false);
+        rangeLabel.setTextOverrun(OverrunStyle.CLIP);
+        rangeLabel.setMinWidth(Region.USE_PREF_SIZE);
         rangeLabelBox.getChildren().add(rangeLabel);
 
         StackPane rangeIconBox = new StackPane(controller.createSvgIcon("/icons/macaron_calendar-date_icon.svg", null, 18));
@@ -215,6 +218,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         picker.setMaxWidth(Double.MAX_VALUE);
         picker.setConverter(createRangeDateConverter());
         picker.getStyleClass().add("timeline-range-picker");
+        DatePickerArrowSupport.install(picker, controller);
         return picker;
     }
 
