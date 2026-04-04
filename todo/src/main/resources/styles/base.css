@@ -1409,6 +1409,8 @@
 
     -fx-alignment: center-right;
 
+    -fx-spacing: 10;
+
 }
 
 
@@ -1417,7 +1419,7 @@
 
     -fx-alignment: center-left;
 
-    -fx-padding: 0 2 0 0;
+    -fx-padding: 0 1 0 0;
 
 }
 
@@ -1441,9 +1443,9 @@
 
     -fx-alignment: center-left;
 
-    -fx-spacing: 10;
+    -fx-spacing: 8;
 
-    -fx-padding: 6 12 6 10;
+    -fx-padding: 5 10 5 8;
 
     -fx-background-color: -color-bg-panel;
 
@@ -1473,11 +1475,11 @@
 
     -fx-alignment: center;
 
-    -fx-min-width: 28;
+    -fx-min-width: 24;
 
-    -fx-pref-width: 28;
+    -fx-pref-width: 24;
 
-    -fx-max-width: 28;
+    -fx-max-width: 24;
 
 }
 
@@ -1499,7 +1501,7 @@
 
     -fx-font-weight: 600;
 
-    -fx-padding: 0 2;
+    -fx-padding: 0 1;
 
 }
 
@@ -1535,7 +1537,7 @@
 
     -fx-border-radius: 0;
 
-    -fx-padding: 8 6;
+    -fx-padding: 8 4;
 
     -fx-font-size: 13px;
 
@@ -1575,7 +1577,7 @@
 
     -fx-border-insets: 0;
 
-    -fx-padding: 0 6 0 2;
+    -fx-padding: 0 4 0 1;
 
 }
 
@@ -1607,11 +1609,11 @@
 
 .timeline-range-reset {
 
-    -fx-min-height: 48;
+    -fx-min-height: 44;
 
-    -fx-pref-height: 48;
+    -fx-pref-height: 44;
 
-    -fx-padding: 0 22;
+    -fx-padding: 0 18;
 
     -fx-font-size: 13px;
 

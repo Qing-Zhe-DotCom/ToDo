@@ -55,6 +55,8 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     private static final double CARD_INSET_X = 8;
     private static final double BOTTOM_PADDING = 48;
     private static final double MIN_INLINE_TITLE_WIDTH = 60;
+    private static final double RANGE_PICKER_WIDTH = 150;
+    private static final double RANGE_PICKER_MIN_WIDTH = 142;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MM/dd");
     private static final DateTimeFormatter RANGE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -145,12 +147,14 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     }
 
     private HBox createHeader() {
-        HBox header = new HBox(18);
+        HBox header = new HBox(14);
         header.setAlignment(Pos.CENTER_LEFT);
         header.getStyleClass().add("timeline-header");
 
         Label titleLabel = new Label("日程时间轴");
         titleLabel.getStyleClass().add("label-title");
+        titleLabel.setMinWidth(Region.USE_PREF_SIZE);
+        titleLabel.setTextOverrun(OverrunStyle.CLIP);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -173,10 +177,13 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
 
         StackPane rangeLabelBox = new StackPane();
         rangeLabelBox.getStyleClass().add("timeline-range-label-box");
+        rangeLabelBox.setMinWidth(Region.USE_PREF_SIZE);
 
         Label rangeLabel = new Label("日期\n范围:");
         rangeLabel.getStyleClass().add("timeline-range-label");
         rangeLabel.setWrapText(true);
+        rangeLabel.setMinWidth(Region.USE_PREF_SIZE);
+        rangeLabel.setTextOverrun(OverrunStyle.CLIP);
         rangeLabelBox.getChildren().add(rangeLabel);
 
         StackPane rangeIconBox = new StackPane(controller.createSvgIcon("/icons/macaron_calendar-date_icon.svg", null, 18));
@@ -185,7 +192,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         Label rangeConnector = new Label("→");
         rangeConnector.getStyleClass().add("timeline-range-connector");
 
-        HBox rangePill = new HBox(10, rangeIconBox, startDatePicker, rangeConnector, endDatePicker);
+        HBox rangePill = new HBox(8, rangeIconBox, startDatePicker, rangeConnector, endDatePicker);
         rangePill.setAlignment(Pos.CENTER_LEFT);
         rangePill.getStyleClass().add("timeline-range-pill");
         HBox.setHgrow(startDatePicker, Priority.ALWAYS);
@@ -193,15 +200,17 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
 
         Button resetBtn = new Button("重置视角");
         resetBtn.getStyleClass().addAll("button-secondary", "timeline-range-reset");
+        resetBtn.setMinWidth(Region.USE_PREF_SIZE);
         resetBtn.setOnAction(e -> {
             startDatePicker.setValue(null);
             endDatePicker.setValue(null);
             refresh();
         });
 
-        HBox rangeGroup = new HBox(12, rangeLabelBox, rangePill, resetBtn);
+        HBox rangeGroup = new HBox(10, rangeLabelBox, rangePill, resetBtn);
         rangeGroup.setAlignment(Pos.CENTER_RIGHT);
         rangeGroup.getStyleClass().add("timeline-range-group");
+        rangeGroup.setMinWidth(Region.USE_PREF_SIZE);
 
         header.getChildren().addAll(titleLabel, spacer, rangeGroup);
 
@@ -211,10 +220,12 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     private DatePicker createRangeDatePicker(String promptText) {
         DatePicker picker = new DatePicker();
         picker.setPromptText(promptText);
-        picker.setPrefWidth(166);
-        picker.setMaxWidth(Double.MAX_VALUE);
+        picker.setPrefWidth(RANGE_PICKER_WIDTH);
+        picker.setMinWidth(RANGE_PICKER_MIN_WIDTH);
+        picker.setMaxWidth(RANGE_PICKER_WIDTH);
         picker.setConverter(createRangeDateConverter());
         picker.getStyleClass().add("timeline-range-picker");
+        DatePickerPopupArrowSupport.install(picker, controller);
         return picker;
     }
 

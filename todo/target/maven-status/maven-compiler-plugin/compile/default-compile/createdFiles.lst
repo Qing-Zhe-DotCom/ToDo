@@ -34,6 +34,7 @@ com\example\view\ScheduleStatusInteractionModel$ReleaseDecision.class
 com\example\MainApp.class
 com\example\view\ScheduleCardStyleSupport.class
 com\example\view\ScheduleListView$ScheduleCardNode.class
+com\example\view\DatePickerPopupArrowSupport.class
 com\example\view\ScheduleStatusInteractionModel$VisualState.class
 com\example\view\ScheduleListView$GroupHeader.class
 com\example\view\View.class
