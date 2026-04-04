@@ -68,7 +68,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         private final Label arrowLabel;
 
         private GroupHeader(String title, Runnable toggleAction) {
-            arrowLabel = new Label("鈻?");
+            arrowLabel = new Label("\u25b6");
             arrowLabel.getStyleClass().add("schedule-group-arrow");
 
             Label textLabel = new Label(title);
@@ -217,7 +217,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             if (schedule.getDueDate() != null) {
                 dateText = schedule.getDueDate().format(formatter);
                 if (schedule.isOverdue() && !schedule.isCompleted()) {
-                    dateText += " (宸茶繃鏈?)";
+                    dateText += " (\u5df2\u8fc7\u671f)";
                 }
             }
             dateLabel.setText(dateText);
@@ -260,11 +260,11 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
         HBox toolbar = createToolbar();
 
-        pendingHeader = new GroupHeader("寰呭姙", () -> {
+        pendingHeader = new GroupHeader("待办", () -> {
             pendingCollapsed = !pendingCollapsed;
             renderSchedules();
         });
-        completedHeader = new GroupHeader("宸插畬鎴?", () -> {
+        completedHeader = new GroupHeader("已完成", () -> {
             completedCollapsed = !completedCollapsed;
             renderSchedules();
         });
@@ -292,7 +292,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         listScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         VBox.setVgrow(listScrollPane, Priority.ALWAYS);
 
-        Button newScheduleBtn = new Button("鏂板缓鏃ョ▼");
+        Button newScheduleBtn = new Button("新建日程");
         newScheduleBtn.setGraphic(controller.createSvgIcon("/icons/macaron-logo-new-schedule.svg", null, 20));
         newScheduleBtn.getStyleClass().add("fab-button");
         newScheduleBtn.setOnAction(event -> controller.openNewScheduleDialog());
@@ -308,10 +308,10 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         HBox toolbar = new HBox(15);
         toolbar.setAlignment(Pos.CENTER_LEFT);
 
-        Label titleLabel = new Label("鏃ョ▼绠＄悊");
+        Label titleLabel = new Label("日程管理");
         titleLabel.getStyleClass().add("label-title");
 
-        showPastCheckbox = new CheckBox("鏄剧ず杩囧幓鏃ョ▼");
+        showPastCheckbox = new CheckBox("显示过去日程");
         showPastCheckbox.getStyleClass().add("check-box");
         showPastCheckbox.setOnAction(event -> {
             if (!showingSearchResults) {
@@ -320,8 +320,8 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         });
 
         sortComboBox = new ComboBox<>();
-        sortComboBox.getItems().addAll("鎸夋棩鏈熸帓搴?", "鎸変紭鍏堢骇鎺掑簭", "鎸夊垎绫绘帓搴?");
-        sortComboBox.setValue("鎸夋棩鏈熸帓搴?");
+        sortComboBox.getItems().addAll("按日期排序", "按优先级排序", "按分类排序");
+        sortComboBox.setValue("按日期排序");
         sortComboBox.setOnAction(event -> {
             if (!showingSearchResults) {
                 renderSchedules();
@@ -329,8 +329,8 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         });
 
         filterComboBox = new ComboBox<>();
-        filterComboBox.getItems().addAll("鍏ㄩ儴", "鏈畬鎴?", "宸插畬鎴?", "楂樹紭鍏堢骇", "鍗冲皢鍒版湡");
-        filterComboBox.setValue("鍏ㄩ儴");
+        filterComboBox.getItems().addAll("全部", "未完成", "已完成", "高优先级", "即将到期");
+        filterComboBox.setValue("全部");
         filterComboBox.setOnAction(event -> {
             if (!showingSearchResults) {
                 renderSchedules();
@@ -362,7 +362,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             List<Schedule> schedules = controller.applyPendingCompletionMutations(scheduleDAO.getAllSchedules());
             setLoadedSchedules(schedules);
         } catch (SQLException e) {
-            controller.showError("鍔犺浇鏃ョ▼澶辫触", e.getMessage());
+            controller.showError("加载日程失败", e.getMessage());
         }
     }
 
@@ -371,7 +371,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             List<Schedule> schedules = controller.applyPendingCompletionMutations(scheduleDAO.searchSchedules(keyword));
             setLoadedSchedules(schedules);
         } catch (SQLException e) {
-            controller.showError("鎼滅储澶辫触", e.getMessage());
+            controller.showError("搜索失败", e.getMessage());
         }
     }
 
@@ -483,19 +483,19 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
         String filter = filterComboBox.getValue();
         if (filter == null) {
-            filter = "鍏ㄩ儴";
+            filter = "全部";
         }
 
-        if ("鏈畬鎴?".equals(filter)) {
+        if ("未完成".equals(filter)) {
             return !schedule.isCompleted();
         }
-        if ("宸插畬鎴?".equals(filter)) {
+        if ("已完成".equals(filter)) {
             return schedule.isCompleted();
         }
-        if ("楂樹紭鍏堢骇".equals(filter)) {
-            return "楂?".equals(schedule.getPriority());
+        if ("高优先级".equals(filter)) {
+            return "高".equals(schedule.getPriority());
         }
-        if ("鍗冲皢鍒版湡".equals(filter)) {
+        if ("即将到期".equals(filter)) {
             return schedule.isUpcoming();
         }
         return true;
@@ -684,10 +684,10 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     }
 
     private String getPriorityClass(String priority) {
-        if ("楂?".equals(priority)) {
+        if ("高".equals(priority)) {
             return "high";
         }
-        if ("浣?".equals(priority)) {
+        if ("低".equals(priority)) {
             return "low";
         }
         return "medium";
