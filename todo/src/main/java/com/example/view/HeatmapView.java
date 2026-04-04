@@ -17,6 +17,7 @@ import com.example.databaseutil.ScheduleDAO;
 import com.example.model.Schedule;
 
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -39,12 +40,16 @@ import javafx.scene.shape.Rectangle;
 
 public class HeatmapView implements View, ScheduleCompletionParticipant {
     private static final double GRID_GAP = 3;
+    private static final double CELL_CHROME = 4;
+    private static final double CALENDAR_LAYOUT_SAFETY = 2;
+    private static final double MONTH_HEADER_HEIGHT = 28;
+    private static final double WEEK_EXTRA_HEIGHT = 58;
     private static final int YEAR_MONTH_COLUMNS = 4;
     private static final int YEAR_MONTH_ROWS = 3;
     private static final int YEAR_MONTH_WEEKS = 6;
     private static final double YEAR_CARD_GAP = 16;
     private static final double SIDEBAR_EXPANDED_WIDTH = 280;
-    private static final double SIDEBAR_COLLAPSED_WIDTH = 56;
+    private static final double SIDEBAR_COLLAPSED_WIDTH = 40;
     private static final String COMPLETED_PROXY_STYLE = "heatmap-completed-proxy";
     private static final String COMPLETED_PROXY_HOST_STYLE = "heatmap-completed-proxy-host";
 
@@ -73,6 +78,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private final List<Schedule> loadedSchedules = new ArrayList<>();
     private Map<LocalDate, List<Schedule>> schedulesByDate = new LinkedHashMap<>();
     private boolean redrawQueued;
+    private boolean layoutRefreshQueued;
     private boolean sidebarCollapsed;
     private String lastLayoutSignature;
     private LocalDate visibleStartDate;
@@ -80,6 +86,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private ScheduleCollapsePopAnimator.MotionHandle completedProxyHandle;
     private StackPane completedProxyHost;
     private StackPane completedProxyShell;
+    private ChangeListener<Bounds> viewportReadyListener;
 
     private String currentViewMode = "month"; // week, month, year
     private LocalDate currentDate = LocalDate.now();
@@ -112,6 +119,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
         scrollPane.setPannable(true);
+        configureScrollPoliciesForCurrentView();
 
         heatmapGrid = new GridPane();
         heatmapGrid.getStyleClass().add("heatmap-grid");
@@ -342,21 +350,10 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         dayScheduleScrollPane.setContent(dayScheduleCardsBox);
         daySchedulePanel.getChildren().addAll(panelHeader, dayScheduleScrollPane, completedDropZone);
 
-        dayScheduleRail = new VBox(10);
+        dayScheduleRail = new VBox(0);
         dayScheduleRail.getStyleClass().add("heatmap-day-rail");
         dayScheduleRail.setAlignment(Pos.TOP_CENTER);
-
-        dayScheduleRailDateLabel = new Label("--/--");
-        dayScheduleRailDateLabel.getStyleClass().add("heatmap-day-rail-date");
-
-        dayScheduleRailCountLabel = new Label("0");
-        dayScheduleRailCountLabel.getStyleClass().add("heatmap-day-rail-badge");
-
-        dayScheduleRail.getChildren().addAll(
-            createSidebarToggleButton(false),
-            dayScheduleRailDateLabel,
-            dayScheduleRailCountLabel
-        );
+        dayScheduleRail.getChildren().add(createSidebarToggleButton(false));
 
         shell.getChildren().addAll(daySchedulePanel, dayScheduleRail);
         VBox.setVgrow(daySchedulePanel, Priority.ALWAYS);
@@ -395,7 +392,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         dayScheduleRail.setManaged(sidebarCollapsed);
         dayScheduleRail.setVisible(sidebarCollapsed);
 
-        double width = sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
+        double width = resolveSidebarWidth(sidebarCollapsed);
         sidebarShell.setMinWidth(width);
         sidebarShell.setPrefWidth(width);
         sidebarShell.setMaxWidth(width);
@@ -427,20 +424,35 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     }
 
     private void queueLayoutRefresh() {
-        String signature = buildCurrentLayoutSignature();
-        if (signature == null || signature.equals(lastLayoutSignature)) {
+        if (layoutRefreshQueued) {
             return;
         }
-        queueRefresh();
+        layoutRefreshQueued = true;
+        Platform.runLater(() -> {
+            layoutRefreshQueued = false;
+            String signature = buildCurrentLayoutSignature();
+            if (signature == null || signature.equals(lastLayoutSignature)) {
+                return;
+            }
+            queueRefresh();
+        });
     }
 
     private void queueRefresh() {
+        configureScrollPoliciesForCurrentView();
+        if (!ensureViewportReady()) {
+            return;
+        }
         if (redrawQueued) {
             return;
         }
         redrawQueued = true;
         Platform.runLater(() -> {
             redrawQueued = false;
+            configureScrollPoliciesForCurrentView();
+            if (!ensureViewportReady()) {
+                return;
+            }
             try {
                 drawHeatmap();
             } catch (SQLException e) {
@@ -653,7 +665,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
 
             LocalDate date = monthStart.withDayOfMonth(dayOfMonth);
             int count = stats.getOrDefault(date, 0);
-            monthGrid.add(createHeatmapCell(date, count, cellSize, true), column, row);
+            monthGrid.add(createHeatmapCell(date, count, cellSize, true, true), column, row);
         }
 
         monthCard.getChildren().addAll(monthTitle, monthGrid);
@@ -663,7 +675,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private Region createHeatmapPlaceholder(double cellSize) {
         Region placeholder = new Region();
         placeholder.getStyleClass().add("heatmap-cell-placeholder");
-        double size = cellSize + 4;
+        double size = cellSize + CELL_CHROME;
         placeholder.setMinSize(size, size);
         placeholder.setPrefSize(size, size);
         placeholder.setMaxSize(size, size);
@@ -671,8 +683,21 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     }
 
     private StackPane createHeatmapCell(LocalDate date, int count, double cellSize, boolean activeInCurrentPeriod) {
+        return createHeatmapCell(date, count, cellSize, activeInCurrentPeriod, false);
+    }
+
+    private StackPane createHeatmapCell(
+        LocalDate date,
+        int count,
+        double cellSize,
+        boolean activeInCurrentPeriod,
+        boolean yearCell
+    ) {
         Rectangle rect = new Rectangle(cellSize, cellSize);
         rect.getStyleClass().add("heatmap-cell");
+        if (yearCell) {
+            rect.getStyleClass().add("heatmap-year-cell");
+        }
         updateHeatmapCellColor(rect, getLevelForCount(count));
 
         StackPane cell = new StackPane(rect);
@@ -788,12 +813,6 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         List<Schedule> schedules = schedulesByDate.getOrDefault(selectedDate, List.of());
         if (dayScheduleCountLabel != null) {
             dayScheduleCountLabel.setText(buildScheduleCountText(schedules.size()));
-        }
-        if (dayScheduleRailDateLabel != null) {
-            dayScheduleRailDateLabel.setText(selectedDate.format(DateTimeFormatter.ofPattern("MM/dd")));
-        }
-        if (dayScheduleRailCountLabel != null) {
-            dayScheduleRailCountLabel.setText(String.valueOf(schedules.size()));
         }
         if (schedules.isEmpty()) {
             Label emptyLabel = new Label("该日期暂无日程");
@@ -1104,9 +1123,77 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             currentViewMode,
             currentDate,
             sidebarCollapsed,
-            resolveHeatmapPaneWidth(),
-            resolveHeatmapPaneHeight()
+            resolveLayoutContentWidth(),
+            resolveLayoutContentHeight()
         );
+    }
+
+    private void configureScrollPoliciesForCurrentView() {
+        if (scrollPane == null) {
+            return;
+        }
+        ScrollPane.ScrollBarPolicy policy = "year".equals(currentViewMode)
+            ? ScrollPane.ScrollBarPolicy.AS_NEEDED
+            : ScrollPane.ScrollBarPolicy.NEVER;
+        scrollPane.setHbarPolicy(policy);
+        scrollPane.setVbarPolicy(policy);
+    }
+
+    private boolean ensureViewportReady() {
+        if (hasRenderableViewport(resolveViewportWidth(), resolveViewportHeight())) {
+            clearViewportReadyListener();
+            return true;
+        }
+        registerViewportReadyListener();
+        return false;
+    }
+
+    private void registerViewportReadyListener() {
+        if (scrollPane == null || viewportReadyListener != null) {
+            return;
+        }
+        viewportReadyListener = (obs, oldBounds, newBounds) -> {
+            if (!hasRenderableViewport(newBounds)) {
+                return;
+            }
+            clearViewportReadyListener();
+            queueRefresh();
+        };
+        scrollPane.viewportBoundsProperty().addListener(viewportReadyListener);
+        if (hasRenderableViewport(scrollPane.getViewportBounds())) {
+            clearViewportReadyListener();
+            queueRefresh();
+        }
+    }
+
+    private void clearViewportReadyListener() {
+        if (scrollPane == null || viewportReadyListener == null) {
+            return;
+        }
+        scrollPane.viewportBoundsProperty().removeListener(viewportReadyListener);
+        viewportReadyListener = null;
+    }
+
+    private double resolveLayoutContentWidth() {
+        if ("year".equals(currentViewMode)) {
+            return resolveHeatmapPaneWidth();
+        }
+        return resolveViewportWidth();
+    }
+
+    private double resolveLayoutContentHeight() {
+        if ("year".equals(currentViewMode)) {
+            return resolveHeatmapPaneHeight();
+        }
+        return resolveViewportHeight();
+    }
+
+    private double resolveViewportWidth() {
+        return scrollPane != null ? scrollPane.getViewportBounds().getWidth() : 0;
+    }
+
+    private double resolveViewportHeight() {
+        return scrollPane != null ? scrollPane.getViewportBounds().getHeight() : 0;
     }
 
     private double resolveHeatmapPaneWidth() {
@@ -1130,20 +1217,27 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             return calculateYearCellSize();
         }
 
-        double viewportWidth = resolveHeatmapPaneWidth();
-        double viewportHeight = resolveHeatmapPaneHeight();
+        double viewportWidth = resolveViewportWidth();
+        double viewportHeight = resolveViewportHeight();
+        double horizontalPadding = heatmapGrid.getPadding().getLeft() + heatmapGrid.getPadding().getRight();
+        double verticalPadding = heatmapGrid.getPadding().getTop() + heatmapGrid.getPadding().getBottom();
+        double reservedHeaderHeight = "week".equals(currentViewMode) ? WEEK_EXTRA_HEIGHT : MONTH_HEADER_HEIGHT;
+        double minimumSize = "week".equals(currentViewMode) ? 28 : 18;
 
-        double availableWidth = Math.max(viewportWidth - getReservedWidth(), 120);
-        double availableHeight = Math.max(viewportHeight - getReservedHeight(), 120);
-
-        double widthBasedSize = (availableWidth - Math.max(0, cols - 1) * GRID_GAP) / cols;
-        double heightBasedSize = (availableHeight - Math.max(0, rows - 1) * GRID_GAP) / rows;
-        double cellSize = Math.min(widthBasedSize, heightBasedSize);
-
-        if ("week".equals(currentViewMode)) {
-            return clamp(cellSize, 28, 90);
-        }
-        return clamp(cellSize, 18, 90);
+        return calculateCalendarCellSize(
+            viewportWidth,
+            viewportHeight,
+            horizontalPadding,
+            verticalPadding,
+            reservedHeaderHeight,
+            cols,
+            rows,
+            GRID_GAP,
+            CELL_CHROME,
+            CALENDAR_LAYOUT_SAFETY,
+            minimumSize,
+            90
+        );
     }
 
     private double calculateYearCellSize() {
@@ -1177,7 +1271,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     }
 
     private double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
+        return clampValue(value, min, max);
     }
 
     static String buildLayoutSignature(
@@ -1203,6 +1297,76 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             return 0;
         }
         return (int) Math.round(size);
+    }
+
+    static boolean hasRenderableViewport(Bounds bounds) {
+        if (bounds == null) {
+            return false;
+        }
+        return hasRenderableViewport(bounds.getWidth(), bounds.getHeight());
+    }
+
+    static boolean hasRenderableViewport(double width, double height) {
+        return width >= 1 && height >= 1;
+    }
+
+    static double calculateCalendarCellSize(
+        double viewportWidth,
+        double viewportHeight,
+        double horizontalPadding,
+        double verticalPadding,
+        double reservedHeaderHeight,
+        int columns,
+        int rows,
+        double gridGap,
+        double cellChrome,
+        double safetyBuffer,
+        double minSize,
+        double maxSize
+    ) {
+        if (!hasRenderableViewport(viewportWidth, viewportHeight) || columns <= 0 || rows <= 0) {
+            return minSize;
+        }
+
+        double usableWidth = viewportWidth
+            - horizontalPadding
+            - safetyBuffer
+            - Math.max(0, columns - 1) * gridGap
+            - columns * cellChrome;
+        double usableHeight = viewportHeight
+            - verticalPadding
+            - safetyBuffer
+            - reservedHeaderHeight
+            - Math.max(0, rows - 1) * gridGap
+            - rows * cellChrome;
+
+        double rawSize = Math.floor(Math.min(usableWidth / columns, usableHeight / rows));
+        return clampValue(rawSize, minSize, maxSize);
+    }
+
+    static double calculateCalendarFootprintWidth(
+        double cellSize,
+        double horizontalPadding,
+        int columns,
+        double gridGap,
+        double cellChrome,
+        double safetyBuffer
+    ) {
+        return horizontalPadding
+            + safetyBuffer
+            + columns * (cellSize + cellChrome)
+            + Math.max(0, columns - 1) * gridGap;
+    }
+
+    static double resolveSidebarWidth(boolean collapsed) {
+        return collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
+    }
+
+    private static double clampValue(double value, double min, double max) {
+        if (Double.isNaN(value) || Double.isInfinite(value)) {
+            return min;
+        }
+        return Math.max(min, Math.min(max, value));
     }
 
     static Map<LocalDate, List<Schedule>> buildSchedulesByDate(List<Schedule> schedules, LocalDate startDate, LocalDate endDate) {

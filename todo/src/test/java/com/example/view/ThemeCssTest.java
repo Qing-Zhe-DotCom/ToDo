@@ -30,6 +30,9 @@ class ThemeCssTest {
         String sidebarBlock = extractCssBlock(baseContent, ".heatmap-sidebar");
         String collapsedSidebarBlock = extractCssBlock(baseContent, ".heatmap-sidebar-collapsed");
         String expandedSidebarBlock = extractCssBlock(baseContent, ".heatmap-sidebar-expanded");
+        String dayRailBlock = extractCssBlock(baseContent, ".heatmap-day-rail");
+        String yearCardBlock = extractCssBlock(baseContent, ".heatmap-year-card");
+        String yearCellBlock = extractCssBlock(baseContent, ".heatmap-year-cell");
         
         assertAll("theme files heatmap specific styles",
             () -> assertTrue(baseContent.contains(".heatmap-cell-selected {")),
@@ -47,17 +50,22 @@ class ThemeCssTest {
             () -> assertTrue(baseContent.contains(".heatmap-year-card {")),
             () -> assertTrue(baseContent.contains(".heatmap-year-title {")),
             () -> assertTrue(baseContent.contains(".heatmap-year-month-grid {")),
+            () -> assertTrue(baseContent.contains(".heatmap-year-cell {")),
             () -> assertTrue(baseContent.contains(".heatmap-completed-zone {")),
             () -> assertTrue(baseContent.contains(".heatmap-completed-zone-label {")),
             () -> assertTrue(sidebarBlock != null && !sidebarBlock.contains("-fx-pref-width")),
             () -> assertTrue(sidebarBlock != null && !sidebarBlock.contains("-fx-min-width")),
             () -> assertTrue(sidebarBlock != null && !sidebarBlock.contains("-fx-max-width")),
-            () -> assertTrue(collapsedSidebarBlock != null && collapsedSidebarBlock.contains("-fx-pref-width: 56px")),
-            () -> assertTrue(collapsedSidebarBlock != null && collapsedSidebarBlock.contains("-fx-min-width: 56px")),
-            () -> assertTrue(collapsedSidebarBlock != null && collapsedSidebarBlock.contains("-fx-max-width: 56px")),
+            () -> assertTrue(collapsedSidebarBlock != null && collapsedSidebarBlock.contains("-fx-pref-width: 40px")),
+            () -> assertTrue(collapsedSidebarBlock != null && collapsedSidebarBlock.contains("-fx-min-width: 40px")),
+            () -> assertTrue(collapsedSidebarBlock != null && collapsedSidebarBlock.contains("-fx-max-width: 40px")),
             () -> assertTrue(expandedSidebarBlock != null && expandedSidebarBlock.contains("-fx-pref-width: 280px")),
             () -> assertTrue(expandedSidebarBlock != null && expandedSidebarBlock.contains("-fx-min-width: 280px")),
-            () -> assertTrue(expandedSidebarBlock != null && expandedSidebarBlock.contains("-fx-max-width: 280px"))
+            () -> assertTrue(expandedSidebarBlock != null && expandedSidebarBlock.contains("-fx-max-width: 280px")),
+            () -> assertTrue(dayRailBlock != null && dayRailBlock.contains("-fx-spacing: 0")),
+            () -> assertTrue(yearCardBlock != null && yearCardBlock.contains("-fx-border-color: -color-border-dark")),
+            () -> assertTrue(yearCardBlock != null && yearCardBlock.contains("-fx-effect: dropshadow")),
+            () -> assertTrue(yearCellBlock != null && yearCellBlock.contains("-fx-stroke-width: 0.75"))
         );
     }
 

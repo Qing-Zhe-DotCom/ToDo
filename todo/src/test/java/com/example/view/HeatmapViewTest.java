@@ -98,6 +98,48 @@ class HeatmapViewTest {
     }
 
     @Test
+    void viewportMustBeRenderableBeforeHeatmapUsesIt() {
+        assertFalse(HeatmapView.hasRenderableViewport(0, 420));
+        assertFalse(HeatmapView.hasRenderableViewport(640, 0));
+        assertTrue(HeatmapView.hasRenderableViewport(640, 420));
+    }
+
+    @Test
+    void monthCellSizingFitsWithinViewportWidth() {
+        double cellSize = HeatmapView.calculateCalendarCellSize(
+            900,
+            620,
+            20,
+            20,
+            28,
+            7,
+            6,
+            3,
+            4,
+            2,
+            18,
+            90
+        );
+
+        double footprintWidth = HeatmapView.calculateCalendarFootprintWidth(
+            cellSize,
+            20,
+            7,
+            3,
+            4,
+            2
+        );
+
+        assertTrue(footprintWidth <= 900);
+    }
+
+    @Test
+    void sidebarWidthMatchesCollapsedAndExpandedStates() {
+        assertEquals(40, HeatmapView.resolveSidebarWidth(true));
+        assertEquals(280, HeatmapView.resolveSidebarWidth(false));
+    }
+
+    @Test
     void yearMonthGridUsesFourByThreeLayoutOrder() {
         assertEquals(0, HeatmapView.resolveYearMonthColumn(1));
         assertEquals(0, HeatmapView.resolveYearMonthRow(1));
