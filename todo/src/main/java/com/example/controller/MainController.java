@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,7 +28,6 @@ import com.example.view.HeatmapView;
 import com.example.view.InfoPanelView;
 import com.example.view.ScheduleCardStyleSupport;
 import com.example.view.ScheduleCompletionParticipant;
-import com.example.view.ScheduleDialog;
 import com.example.view.ScheduleListView;
 import com.example.view.TimelineView;
 import com.example.view.View;
@@ -261,7 +262,6 @@ public class MainController {
         functionTitle = new Label("侧边功能栏");
         functionTitle.getStyleClass().addAll("label-hint", "sidebar-function-title");
 
-        Button newScheduleButton = createActionButton("/icons/macaron-logo-new-schedule.svg", "新建日程", this::openNewScheduleDialog);
         Button loginButton = createActionButton("/icons/macaron-logo-user.svg", "登录", this::showLoginDialog);
         Button settingsButton = createActionButton("/icons/macaron-logo-settings.svg", "设置", this::showSettingsDialog);
         Button exitButton = createActionButton("/icons/macaron-logo-logout.svg", "退出", Platform::exit);
@@ -270,7 +270,6 @@ public class MainController {
         bottomActions.getStyleClass().add("sidebar-bottom-actions");
         bottomActions.getChildren().addAll(
             functionTitle,
-            newScheduleButton,
             loginButton,
             settingsButton,
             exitButton
@@ -711,9 +710,17 @@ public class MainController {
     }
     
     public void showScheduleDetails(Schedule schedule) {
+        if (schedule == null) {
+            return;
+        }
         navigationService.setSelectedSchedule(schedule);
         infoPanelView.setSchedule(schedule);
         infoPanelView.showWithAnimation();
+    }
+
+    public void showScheduleDetailsAndFocusTitle(Schedule schedule) {
+        showScheduleDetails(schedule);
+        infoPanelView.focusTitleEditor();
     }
 
     public void closeScheduleDetails() {
@@ -774,8 +781,52 @@ public class MainController {
         updatePendingCountBadge();
     }
 
+    public void refreshCurrentViewAndPendingCount() {
+        if (currentView != null) {
+            currentView.refresh();
+        }
+        updatePendingCountBadge();
+    }
+
+    public void refreshDataViews() {
+        if (scheduleListView != null) {
+            scheduleListView.refresh();
+        }
+        if (timelineView != null) {
+            timelineView.refresh();
+        }
+        if (heatmapView != null) {
+            heatmapView.refresh();
+        }
+        if (currentView != null && currentView != scheduleListView && currentView != timelineView && currentView != heatmapView) {
+            currentView.refresh();
+        }
+        updatePendingCountBadge();
+    }
+
     public int createSchedule(Schedule schedule) throws SQLException {
         return scheduleService.addSchedule(schedule);
+    }
+
+    public Schedule quickCreateSchedule(String rawTitle) throws SQLException {
+        String title = rawTitle == null ? "" : rawTitle.strip();
+        if (title.isEmpty()) {
+            return null;
+        }
+
+        Schedule schedule = new Schedule();
+        schedule.setName(title);
+        schedule.setDescription("");
+        schedule.setStartAt(null);
+        schedule.setDueAt(LocalDate.now().atTime(23, 59));
+        schedule.setCompleted(false);
+        schedule.setPriority(Schedule.DEFAULT_PRIORITY);
+        schedule.setCategory(Schedule.DEFAULT_CATEGORY);
+        schedule.setTags("");
+        schedule.setReminderTime(null);
+        createSchedule(schedule);
+        refreshAllViews();
+        return schedule;
     }
 
     public boolean saveSchedule(Schedule schedule) throws SQLException {
@@ -796,6 +847,13 @@ public class MainController {
 
     public List<Schedule> searchSchedules(String keyword) throws SQLException {
         return scheduleService.searchSchedules(keyword);
+    }
+
+    public void focusScheduleQuickAdd() {
+        showView(scheduleListView);
+        if (scheduleListView != null) {
+            scheduleListView.focusQuickAddInput();
+        }
     }
 
     public List<Schedule> applyPendingCompletionMutations(List<Schedule> schedules) {
@@ -1069,31 +1127,11 @@ public class MainController {
     }
     
     public void openNewScheduleDialog() {
-        ScheduleDialog dialog = new ScheduleDialog(null, this);
-        Optional<Schedule> result = dialog.showAndWait();
-        
-        result.ifPresent(schedule -> {
-            try {
-                scheduleListView.addSchedule(schedule);
-                refreshAllViews();
-            } catch (SQLException e) {
-                showError("添加日程失败", e.getMessage());
-            }
-        });
+        focusScheduleQuickAdd();
     }
     
     public void openEditScheduleDialog(Schedule schedule) {
-        ScheduleDialog dialog = new ScheduleDialog(schedule, this);
-        Optional<Schedule> result = dialog.showAndWait();
-        
-        result.ifPresent(updatedSchedule -> {
-            try {
-                scheduleListView.updateSchedule(updatedSchedule);
-                refreshAllViews();
-            } catch (SQLException e) {
-                showError("更新日程失败", e.getMessage());
-            }
-        });
+        showScheduleDetailsAndFocusTitle(schedule);
     }
     
     private void showLoginDialog() {

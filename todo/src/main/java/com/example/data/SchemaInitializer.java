@@ -27,9 +27,11 @@ public final class SchemaInitializer {
                         "description TEXT, " +
                         "start_date DATE, " +
                         "due_date DATE, " +
+                        "start_at DATETIME, " +
+                        "due_at DATETIME, " +
                         "completed BOOLEAN DEFAULT FALSE, " +
-                        "priority VARCHAR(10) DEFAULT '中', " +
-                        "category VARCHAR(50) DEFAULT '默认', " +
+                        "priority VARCHAR(10) DEFAULT '\u4e2d', " +
+                        "category VARCHAR(50) DEFAULT '\u672a\u5206\u7c7b', " +
                         "tags VARCHAR(255), " +
                         "reminder_time DATETIME, " +
                         "color VARCHAR(20) DEFAULT '#2196F3', " +
@@ -40,11 +42,22 @@ public final class SchemaInitializer {
             }
 
             ensureColumn(connection, "start_date", "ALTER TABLE schedules ADD COLUMN start_date DATE AFTER description");
-            ensureColumn(connection, "priority", "ALTER TABLE schedules ADD COLUMN priority VARCHAR(10) DEFAULT '中' AFTER completed");
-            ensureColumn(connection, "category", "ALTER TABLE schedules ADD COLUMN category VARCHAR(50) DEFAULT '默认' AFTER priority");
+            ensureColumn(connection, "due_date", "ALTER TABLE schedules ADD COLUMN due_date DATE AFTER start_date");
+            ensureColumn(connection, "start_at", "ALTER TABLE schedules ADD COLUMN start_at DATETIME AFTER due_date");
+            ensureColumn(connection, "due_at", "ALTER TABLE schedules ADD COLUMN due_at DATETIME AFTER start_at");
+            ensureColumn(connection, "priority", "ALTER TABLE schedules ADD COLUMN priority VARCHAR(10) DEFAULT '\u4e2d' AFTER completed");
+            ensureColumn(connection, "category", "ALTER TABLE schedules ADD COLUMN category VARCHAR(50) DEFAULT '\u672a\u5206\u7c7b' AFTER priority");
             ensureColumn(connection, "tags", "ALTER TABLE schedules ADD COLUMN tags VARCHAR(255) AFTER category");
             ensureColumn(connection, "reminder_time", "ALTER TABLE schedules ADD COLUMN reminder_time DATETIME AFTER tags");
             ensureColumn(connection, "color", "ALTER TABLE schedules ADD COLUMN color VARCHAR(20) DEFAULT '#2196F3' AFTER reminder_time");
+
+            try (Statement statement = connection.createStatement()) {
+                statement.executeUpdate(
+                    "UPDATE schedules SET " +
+                        "start_at = COALESCE(start_at, CASE WHEN start_date IS NOT NULL THEN TIMESTAMP(start_date, '00:00:00') END), " +
+                        "due_at = COALESCE(due_at, CASE WHEN due_date IS NOT NULL THEN TIMESTAMP(due_date, '23:59:00') END)"
+                );
+            }
 
             schemaInitialized = true;
         }

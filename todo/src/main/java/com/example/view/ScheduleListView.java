@@ -18,16 +18,18 @@ import com.example.controller.ScheduleCompletionCoordinator;
 import com.example.controller.ScheduleCompletionMutation;
 import com.example.model.Schedule;
 
+import javafx.application.Platform;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.InputMethodEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -60,6 +62,8 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     private GroupHeader completedHeader;
 
     private ComboBox<String> filterComboBox;
+    private TextField quickAddField;
+    private boolean quickAddComposing;
 
     private boolean showingSearchResults = false;
     private String currentSearchKeyword = "";
@@ -98,7 +102,6 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     }
 
     private final class ScheduleCardNode {
-        private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-dd");
         private final VBox container;
         private final StackPane cardMotionHost;
         private final StackPane cardShell;
@@ -175,7 +178,11 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
                     event.consume();
                     return;
                 }
-                controller.showScheduleDetails(this.schedule);
+                if (event.getClickCount() == 2) {
+                    controller.showScheduleDetailsAndFocusTitle(this.schedule);
+                } else {
+                    controller.showScheduleDetails(this.schedule);
+                }
                 refreshSelectionState();
                 event.consume();
             });
@@ -217,12 +224,9 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
                 titleLabel.getStyleClass().add("title-completed");
             }
 
-            String dateText = "";
-            if (schedule.getDueDate() != null) {
-                dateText = schedule.getDueDate().format(formatter);
-                if (schedule.isOverdue() && !schedule.isCompleted()) {
-                    dateText += " (\u5df2\u8fc7\u671f)";
-                }
+            String dateText = buildScheduleDateText(schedule);
+            if (!dateText.isEmpty() && schedule.isOverdue() && !schedule.isCompleted()) {
+                dateText += " (\u5df2\u8fc7\u671f)";
             }
             dateLabel.setText(dateText);
             categoryLabel.setText(schedule.getCategory());
@@ -295,16 +299,8 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         listScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         VBox.setVgrow(listScrollPane, Priority.ALWAYS);
 
-        Button newScheduleBtn = new Button("新建日程");
-        newScheduleBtn.setGraphic(controller.createSvgIcon("/icons/macaron-logo-new-schedule.svg", null, 20));
-        newScheduleBtn.getStyleClass().add("fab-button");
-        newScheduleBtn.setOnAction(event -> controller.openNewScheduleDialog());
-
-        HBox buttonBox = new HBox(newScheduleBtn);
-        buttonBox.setAlignment(Pos.CENTER_RIGHT);
-        buttonBox.setPadding(new Insets(10, 0, 0, 0));
-
-        root.getChildren().addAll(toolbar, listScrollPane, buttonBox);
+        VBox quickAddBar = buildQuickAddBar();
+        root.getChildren().addAll(toolbar, listScrollPane, quickAddBar);
     }
 
     private HBox createToolbar() {
@@ -337,9 +333,97 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         return toolbar;
     }
 
+    private VBox buildQuickAddBar() {
+        Label quickAddTitle = new Label("新建日程");
+        quickAddTitle.getStyleClass().add("quick-add-title");
+
+        Node quickAddIcon = controller.createSvgIcon("/icons/macaron-logo-simple-plus-blue.svg", null, 20);
+        quickAddIcon.setMouseTransparent(true);
+        StackPane quickAddBadge = new StackPane(quickAddIcon);
+        quickAddBadge.getStyleClass().add("quick-add-badge");
+        quickAddBadge.setMouseTransparent(true);
+
+        quickAddField = new TextField();
+        quickAddField.getStyleClass().add("quick-add-input");
+        HBox.setHgrow(quickAddField, Priority.ALWAYS);
+        quickAddField.setPromptText("\u8f93\u5165\u65e5\u7a0b\u6807\u9898...");
+        /*
+        quickAddField.setPromptText("杈撳叆鏃ョ▼鏍囬锛屽洖杞﹀氨鑳藉垱寤?);
+        */
+        quickAddField.setOnAction(event -> {
+            if (!quickAddComposing) {
+                submitQuickAdd();
+            }
+        });
+        quickAddField.addEventHandler(InputMethodEvent.INPUT_METHOD_TEXT_CHANGED, event -> {
+            quickAddComposing = !event.getComposed().isEmpty();
+        });
+        quickAddField.focusedProperty().addListener((obs, oldFocused, focused) -> {
+            if (!focused) {
+                quickAddComposing = false;
+            }
+        });
+
+        /*
+
+        quickAddButton = new Button("新建日程");
+        quickAddButton.getStyleClass().add("quick-add-action");
+        quickAddButton.setGraphic(controller.createSvgIcon("/icons/macaron-logo-simple-plus-blue.svg", null, 18));
+        quickAddButton.setGraphicTextGap(10);
+        quickAddButton.setFocusTraversable(false);
+        quickAddButton.setOnAction(event -> submitQuickAdd());
+
+        */
+        HBox quickAddBar = new HBox(16, quickAddBadge, quickAddField);
+        quickAddBar.setAlignment(Pos.CENTER_LEFT);
+        quickAddBar.getStyleClass().add("quick-add-shell");
+        quickAddBar.hoverProperty().addListener((obs, oldHover, hovered) ->
+            toggleStyleClass(quickAddBar, "quick-add-shell-hover", hovered)
+        );
+        quickAddBar.setOnMouseClicked(event -> quickAddField.requestFocus());
+        quickAddField.focusedProperty().addListener((obs, oldFocused, focused) -> {
+            if (!focused) {
+                quickAddComposing = false;
+            }
+            toggleStyleClass(quickAddBar, "quick-add-shell-focused", focused);
+        });
+
+        VBox quickAddSection = new VBox(8, quickAddTitle, quickAddBar);
+        quickAddSection.setPadding(new Insets(14, 0, 0, 0));
+        quickAddSection.getStyleClass().add("quick-add-section");
+        return quickAddSection;
+    }
+
+    private void submitQuickAdd() {
+        if (quickAddField == null) {
+            return;
+        }
+
+        String title = quickAddField.getText() == null ? "" : quickAddField.getText().strip();
+        if (title.isEmpty()) {
+            quickAddField.requestFocus();
+            return;
+        }
+
+        try {
+            controller.quickCreateSchedule(title);
+            quickAddField.clear();
+            quickAddField.requestFocus();
+        } catch (SQLException exception) {
+            controller.showError("创建日程失败", exception.getMessage());
+        }
+    }
+
     @Override
     public Node getView() {
         return root;
+    }
+
+    public void focusQuickAddInput() {
+        if (quickAddField == null) {
+            return;
+        }
+        Platform.runLater(quickAddField::requestFocus);
     }
 
     @Override
@@ -486,11 +570,13 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     }
 
     static boolean isOverdueOn(Schedule schedule, LocalDate referenceDate) {
-        return schedule != null
-            && referenceDate != null
-            && !schedule.isCompleted()
-            && schedule.getEffectiveEndDate() != null
-            && schedule.getEffectiveEndDate().isBefore(referenceDate);
+        if (schedule == null || schedule.isCompleted() || schedule.getEffectiveEndAt() == null) {
+            return false;
+        }
+        if (referenceDate != null && LocalDate.now().equals(referenceDate)) {
+            return schedule.isOverdue();
+        }
+        return referenceDate != null && schedule.getEffectiveEndDate() != null && schedule.getEffectiveEndDate().isBefore(referenceDate);
     }
 
     static boolean isUpcomingOn(Schedule schedule, LocalDate referenceDate) {
@@ -543,7 +629,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
     private static Comparator<Schedule> buildPendingComparator() {
         return Comparator
-            .comparing(Schedule::getDueDate, Comparator.nullsLast(Comparator.naturalOrder()))
+            .comparing(Schedule::getDueAt, Comparator.nullsLast(Comparator.naturalOrder()))
             .thenComparing(Schedule::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
             .thenComparing(Schedule::getId);
     }
@@ -685,6 +771,16 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         return false;
     }
 
+    private void toggleStyleClass(Node node, String styleClass, boolean enabled) {
+        if (enabled) {
+            if (!node.getStyleClass().contains(styleClass)) {
+                node.getStyleClass().add(styleClass);
+            }
+            return;
+        }
+        node.getStyleClass().remove(styleClass);
+    }
+
     private String getPriorityClass(String priority) {
         if ("高".equals(priority)) {
             return "high";
@@ -693,6 +789,29 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             return "low";
         }
         return "medium";
+    }
+
+    static String buildScheduleDateText(Schedule schedule) {
+        if (schedule == null) {
+            return "";
+        }
+
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("MM-dd HH:mm");
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+
+        if (schedule.getStartAt() != null && schedule.getDueAt() != null) {
+            if (schedule.getStartAt().toLocalDate().equals(schedule.getDueAt().toLocalDate())) {
+                return schedule.getStartAt().format(dateTimeFormatter) + " - " + schedule.getDueAt().format(timeFormatter);
+            }
+            return schedule.getStartAt().format(dateTimeFormatter) + " - " + schedule.getDueAt().format(dateTimeFormatter);
+        }
+        if (schedule.getDueAt() != null) {
+            return "截止 " + schedule.getDueAt().format(dateTimeFormatter);
+        }
+        if (schedule.getStartAt() != null) {
+            return "开始 " + schedule.getStartAt().format(dateTimeFormatter);
+        }
+        return "";
     }
 
     private ListCell<String> createFilterButtonCell() {

@@ -1,175 +1,367 @@
 package com.example.model;
 
-import javafx.beans.property.*;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 
 public class Schedule {
+    public static final String PRIORITY_HIGH = "\u9ad8";
+    public static final String PRIORITY_MEDIUM = "\u4e2d";
+    public static final String PRIORITY_LOW = "\u4f4e";
+    public static final String DEFAULT_PRIORITY = PRIORITY_MEDIUM;
+    public static final String DEFAULT_CATEGORY = "\u672a\u5206\u7c7b";
+    public static final String LEGACY_DEFAULT_CATEGORY = "\u9ed8\u8ba4";
+
+    private static final LocalTime START_OF_DAY_TIME = LocalTime.MIDNIGHT;
+    private static final LocalTime END_OF_DAY_TIME = LocalTime.of(23, 59);
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     private final IntegerProperty id = new SimpleIntegerProperty();
     private final StringProperty name = new SimpleStringProperty();
-    private final StringProperty description = new SimpleStringProperty();
-    private final ObjectProperty<LocalDate> startDate = new SimpleObjectProperty<>();
-    private final ObjectProperty<LocalDate> dueDate = new SimpleObjectProperty<>();
+    private final StringProperty description = new SimpleStringProperty("");
+    private final ObjectProperty<LocalDateTime> startAt = new SimpleObjectProperty<>();
+    private final ObjectProperty<LocalDateTime> dueAt = new SimpleObjectProperty<>();
+    private final ObjectProperty<LocalDate> startDateProjection = new SimpleObjectProperty<>();
+    private final ObjectProperty<LocalDate> dueDateProjection = new SimpleObjectProperty<>();
     private final BooleanProperty completed = new SimpleBooleanProperty();
-    private final StringProperty priority = new SimpleStringProperty("中");
-    private final StringProperty category = new SimpleStringProperty("默认");
-    private final StringProperty tags = new SimpleStringProperty();
+    private final StringProperty priority = new SimpleStringProperty(DEFAULT_PRIORITY);
+    private final StringProperty category = new SimpleStringProperty(DEFAULT_CATEGORY);
+    private final StringProperty tags = new SimpleStringProperty("");
     private final ObjectProperty<LocalDateTime> reminderTime = new SimpleObjectProperty<>();
     private final StringProperty color = new SimpleStringProperty("#2196F3");
     private final ObjectProperty<LocalDateTime> createdAt = new SimpleObjectProperty<>();
     private final ObjectProperty<LocalDateTime> updatedAt = new SimpleObjectProperty<>();
-    
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    private boolean syncingDateProjection;
 
     public Schedule() {
-        this.createdAt.set(LocalDateTime.now());
-        this.updatedAt.set(LocalDateTime.now());
+        configureDateProjectionSync();
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        this.createdAt.set(now);
+        this.updatedAt.set(now);
     }
 
-    public Schedule(String name, String description, LocalDate startDate, LocalDate dueDate, 
-                    boolean completed, String priority, String category) {
+    public Schedule(
+        String name,
+        String description,
+        LocalDate startDate,
+        LocalDate dueDate,
+        boolean completed,
+        String priority,
+        String category
+    ) {
         this();
-        this.name.set(name);
-        this.description.set(description);
-        this.startDate.set(startDate);
-        this.dueDate.set(dueDate);
+        setName(name);
+        setDescription(description);
+        setStartDate(startDate);
+        setDueDate(dueDate);
+        setCompleted(completed);
+        setPriority(priority);
+        setCategory(category);
+    }
+
+    public int getId() {
+        return id.get();
+    }
+
+    public void setId(int id) {
+        this.id.set(id);
+    }
+
+    public IntegerProperty idProperty() {
+        return id;
+    }
+
+    public String getName() {
+        return name.get();
+    }
+
+    public void setName(String name) {
+        this.name.set(name == null ? "" : name.strip());
+    }
+
+    public StringProperty nameProperty() {
+        return name;
+    }
+
+    public String getDescription() {
+        return description.get();
+    }
+
+    public void setDescription(String description) {
+        this.description.set(description == null ? "" : description);
+    }
+
+    public StringProperty descriptionProperty() {
+        return description;
+    }
+
+    public LocalDateTime getStartAt() {
+        return startAt.get();
+    }
+
+    public void setStartAt(LocalDateTime startAt) {
+        this.startAt.set(truncateToMinutes(startAt));
+    }
+
+    public ObjectProperty<LocalDateTime> startAtProperty() {
+        return startAt;
+    }
+
+    public LocalDateTime getDueAt() {
+        return dueAt.get();
+    }
+
+    public void setDueAt(LocalDateTime dueAt) {
+        this.dueAt.set(truncateToMinutes(dueAt));
+    }
+
+    public ObjectProperty<LocalDateTime> dueAtProperty() {
+        return dueAt;
+    }
+
+    public LocalDate getStartDate() {
+        return startDateProjection.get();
+    }
+
+    public void setStartDate(LocalDate startDate) {
+        setStartAt(startDate == null ? null : startDate.atTime(START_OF_DAY_TIME));
+    }
+
+    public ObjectProperty<LocalDate> startDateProperty() {
+        return startDateProjection;
+    }
+
+    public LocalDate getDueDate() {
+        return dueDateProjection.get();
+    }
+
+    public void setDueDate(LocalDate dueDate) {
+        setDueAt(dueDate == null ? null : dueDate.atTime(END_OF_DAY_TIME));
+    }
+
+    public ObjectProperty<LocalDate> dueDateProperty() {
+        return dueDateProjection;
+    }
+
+    public boolean isCompleted() {
+        return completed.get();
+    }
+
+    public void setCompleted(boolean completed) {
         this.completed.set(completed);
-        this.priority.set(priority);
-        this.category.set(category);
     }
 
-    // ID属性
-    public int getId() { return id.get(); }
-    public void setId(int id) { this.id.set(id); }
-    public IntegerProperty idProperty() { return id; }
+    public BooleanProperty completedProperty() {
+        return completed;
+    }
 
-    // 名称属性
-    public String getName() { return name.get(); }
-    public void setName(String name) { this.name.set(name); }
-    public StringProperty nameProperty() { return name; }
+    public String getPriority() {
+        return priority.get();
+    }
 
-    // 描述属性
-    public String getDescription() { return description.get(); }
-    public void setDescription(String description) { this.description.set(description); }
-    public StringProperty descriptionProperty() { return description; }
+    public void setPriority(String priority) {
+        this.priority.set(normalizePriority(priority));
+    }
 
-    // 开始日期属性
-    public LocalDate getStartDate() { return startDate.get(); }
-    public void setStartDate(LocalDate startDate) { this.startDate.set(startDate); }
-    public ObjectProperty<LocalDate> startDateProperty() { return startDate; }
+    public StringProperty priorityProperty() {
+        return priority;
+    }
 
-    // 截止日期属性
-    public LocalDate getDueDate() { return dueDate.get(); }
-    public void setDueDate(LocalDate dueDate) { this.dueDate.set(dueDate); }
-    public ObjectProperty<LocalDate> dueDateProperty() { return dueDate; }
+    public String getCategory() {
+        return category.get();
+    }
 
-    // 完成状态属性
-    public boolean isCompleted() { return completed.get(); }
-    public void setCompleted(boolean completed) { this.completed.set(completed); }
-    public BooleanProperty completedProperty() { return completed; }
+    public void setCategory(String category) {
+        this.category.set(normalizeCategory(category));
+    }
 
-    // 优先级属性
-    public String getPriority() { return priority.get(); }
-    public void setPriority(String priority) { this.priority.set(priority); }
-    public StringProperty priorityProperty() { return priority; }
+    public StringProperty categoryProperty() {
+        return category;
+    }
 
-    // 分类属性
-    public String getCategory() { return category.get(); }
-    public void setCategory(String category) { this.category.set(category); }
-    public StringProperty categoryProperty() { return category; }
+    public String getTags() {
+        return tags.get();
+    }
 
-    // 标签属性
-    public String getTags() { return tags.get(); }
-    public void setTags(String tags) { this.tags.set(tags); }
-    public StringProperty tagsProperty() { return tags; }
+    public void setTags(String tags) {
+        this.tags.set(normalizeTags(tags));
+    }
 
-    // 提醒时间属性
-    public LocalDateTime getReminderTime() { return reminderTime.get(); }
-    public void setReminderTime(LocalDateTime reminderTime) { this.reminderTime.set(reminderTime); }
-    public ObjectProperty<LocalDateTime> reminderTimeProperty() { return reminderTime; }
+    public StringProperty tagsProperty() {
+        return tags;
+    }
 
-    // 颜色属性
-    public String getColor() { return color.get(); }
-    public void setColor(String color) { this.color.set(color); }
-    public StringProperty colorProperty() { return color; }
+    public LocalDateTime getReminderTime() {
+        return reminderTime.get();
+    }
 
-    // 创建时间属性
-    public LocalDateTime getCreatedAt() { return createdAt.get(); }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt.set(createdAt); }
-    public ObjectProperty<LocalDateTime> createdAtProperty() { return createdAt; }
+    public void setReminderTime(LocalDateTime reminderTime) {
+        this.reminderTime.set(truncateToMinutes(reminderTime));
+    }
 
-    // 更新时间属性
-    public LocalDateTime getUpdatedAt() { return updatedAt.get(); }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt.set(updatedAt); }
-    public ObjectProperty<LocalDateTime> updatedAtProperty() { return updatedAt; }
+    public ObjectProperty<LocalDateTime> reminderTimeProperty() {
+        return reminderTime;
+    }
 
-    // 兼容旧版数据库格式的getter/setter
+    public String getColor() {
+        return color.get();
+    }
+
+    public void setColor(String color) {
+        this.color.set(color == null || color.isBlank() ? "#2196F3" : color);
+    }
+
+    public StringProperty colorProperty() {
+        return color;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt.get();
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt.set(createdAt == null ? null : createdAt.truncatedTo(ChronoUnit.SECONDS));
+    }
+
+    public ObjectProperty<LocalDateTime> createdAtProperty() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt.get();
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt.set(updatedAt == null ? null : updatedAt.truncatedTo(ChronoUnit.SECONDS));
+    }
+
+    public ObjectProperty<LocalDateTime> updatedAtProperty() {
+        return updatedAt;
+    }
+
     public String getDueDateString() {
-        return dueDate.get() != null ? dueDate.get().format(DATE_FORMATTER) : "";
+        return getDueDate() != null ? getDueDate().format(DATE_FORMATTER) : "";
     }
-    
+
     public void setDueDateString(String dateStr) {
-        if (dateStr != null && !dateStr.isEmpty()) {
-            this.dueDate.set(LocalDate.parse(dateStr, DATE_FORMATTER));
+        if (dateStr == null || dateStr.isBlank()) {
+            setDueDate(null);
+            return;
         }
+        setDueDate(LocalDate.parse(dateStr, DATE_FORMATTER));
     }
 
     public String getStartDateString() {
-        return startDate.get() != null ? startDate.get().format(DATE_FORMATTER) : "";
+        return getStartDate() != null ? getStartDate().format(DATE_FORMATTER) : "";
     }
-    
+
     public void setStartDateString(String dateStr) {
-        if (dateStr != null && !dateStr.isEmpty()) {
-            this.startDate.set(LocalDate.parse(dateStr, DATE_FORMATTER));
+        if (dateStr == null || dateStr.isBlank()) {
+            setStartDate(null);
+            return;
         }
+        setStartDate(LocalDate.parse(dateStr, DATE_FORMATTER));
+    }
+
+    public String getStartAtString() {
+        return getStartAt() != null ? getStartAt().format(DATETIME_FORMATTER) : "";
+    }
+
+    public void setStartAtString(String dateTimeStr) {
+        if (dateTimeStr == null || dateTimeStr.isBlank()) {
+            setStartAt(null);
+            return;
+        }
+        setStartAt(LocalDateTime.parse(dateTimeStr, DATETIME_FORMATTER));
+    }
+
+    public String getDueAtString() {
+        return getDueAt() != null ? getDueAt().format(DATETIME_FORMATTER) : "";
+    }
+
+    public void setDueAtString(String dateTimeStr) {
+        if (dateTimeStr == null || dateTimeStr.isBlank()) {
+            setDueAt(null);
+            return;
+        }
+        setDueAt(LocalDateTime.parse(dateTimeStr, DATETIME_FORMATTER));
     }
 
     public String getCreatedAtString() {
-        return createdAt.get() != null ? createdAt.get().format(DATETIME_FORMATTER) : "";
+        return getCreatedAt() != null ? getCreatedAt().format(DATETIME_FORMATTER) : "";
     }
-    
+
     public void setCreatedAtString(String dateTimeStr) {
-        if (dateTimeStr != null && !dateTimeStr.isEmpty()) {
-            this.createdAt.set(LocalDateTime.parse(dateTimeStr, DATETIME_FORMATTER));
+        if (dateTimeStr == null || dateTimeStr.isBlank()) {
+            setCreatedAt(null);
+            return;
         }
+        setCreatedAt(LocalDateTime.parse(dateTimeStr, DATETIME_FORMATTER));
     }
 
     public String getUpdatedAtString() {
-        return updatedAt.get() != null ? updatedAt.get().format(DATETIME_FORMATTER) : "";
+        return getUpdatedAt() != null ? getUpdatedAt().format(DATETIME_FORMATTER) : "";
     }
-    
+
     public void setUpdatedAtString(String dateTimeStr) {
-        if (dateTimeStr != null && !dateTimeStr.isEmpty()) {
-            this.updatedAt.set(LocalDateTime.parse(dateTimeStr, DATETIME_FORMATTER));
+        if (dateTimeStr == null || dateTimeStr.isBlank()) {
+            setUpdatedAt(null);
+            return;
         }
+        setUpdatedAt(LocalDateTime.parse(dateTimeStr, DATETIME_FORMATTER));
     }
 
     public String getReminderTimeString() {
-        return reminderTime.get() != null ? reminderTime.get().format(DATETIME_FORMATTER) : null;
+        return getReminderTime() != null ? getReminderTime().format(DATETIME_FORMATTER) : null;
     }
-    
+
     public void setReminderTimeString(String dateTimeStr) {
-        if (dateTimeStr != null && !dateTimeStr.isEmpty()) {
-            this.reminderTime.set(LocalDateTime.parse(dateTimeStr, DATETIME_FORMATTER));
+        if (dateTimeStr == null || dateTimeStr.isBlank()) {
+            setReminderTime(null);
+            return;
         }
+        setReminderTime(LocalDateTime.parse(dateTimeStr, DATETIME_FORMATTER));
     }
 
-    // 检查是否过期
     public boolean isOverdue() {
-        return !completed.get() && dueDate.get() != null && dueDate.get().isBefore(LocalDate.now());
+        LocalDateTime deadline = getEffectiveEndAt();
+        return !completed.get() && deadline != null && deadline.isBefore(LocalDateTime.now());
     }
 
-    public LocalDate getEffectiveStartDate() {
-        LocalDate[] normalizedRange = getNormalizedEffectiveDateRange();
+    public LocalDateTime getEffectiveStartAt() {
+        LocalDateTime[] normalizedRange = getNormalizedEffectiveDateTimeRange();
         return normalizedRange != null ? normalizedRange[0] : null;
     }
 
-    public LocalDate getEffectiveEndDate() {
-        LocalDate[] normalizedRange = getNormalizedEffectiveDateRange();
+    public LocalDateTime getEffectiveEndAt() {
+        LocalDateTime[] normalizedRange = getNormalizedEffectiveDateTimeRange();
         return normalizedRange != null ? normalizedRange[1] : null;
+    }
+
+    public LocalDate getEffectiveStartDate() {
+        LocalDateTime effectiveStartAt = getEffectiveStartAt();
+        return effectiveStartAt != null ? effectiveStartAt.toLocalDate() : null;
+    }
+
+    public LocalDate getEffectiveEndDate() {
+        LocalDateTime effectiveEndAt = getEffectiveEndAt();
+        return effectiveEndAt != null ? effectiveEndAt.toLocalDate() : null;
     }
 
     public long getEffectiveDurationDays() {
@@ -193,18 +385,17 @@ public class Schedule {
         return !date.isBefore(effectiveStartDate) && !date.isAfter(effectiveEndDate);
     }
 
-    // 检查是否即将到期（按时长分级）
     public boolean isUpcoming() {
         if (completed.get()) {
             return false;
         }
 
-        LocalDate effectiveDeadline = getEffectiveDeadlineDate();
-        if (effectiveDeadline == null) {
+        LocalDateTime effectiveDeadline = getEffectiveEndAt();
+        if (effectiveDeadline == null || effectiveDeadline.isBefore(LocalDateTime.now())) {
             return false;
         }
 
-        long daysUntilDeadline = ChronoUnit.DAYS.between(LocalDate.now(), effectiveDeadline);
+        long daysUntilDeadline = ChronoUnit.DAYS.between(LocalDate.now(), effectiveDeadline.toLocalDate());
         if (daysUntilDeadline < 0) {
             return false;
         }
@@ -223,12 +414,17 @@ public class Schedule {
         return daysUntilDeadline <= 7;
     }
 
-    // 获取优先级数值（用于排序）
     public int getPriorityValue() {
-        String p = priority.get();
-        if ("高".equals(p)) return 3;
-        if ("中".equals(p)) return 2;
-        if ("低".equals(p)) return 1;
+        String currentPriority = priority.get();
+        if (PRIORITY_HIGH.equals(currentPriority)) {
+            return 3;
+        }
+        if (PRIORITY_MEDIUM.equals(currentPriority)) {
+            return 2;
+        }
+        if (PRIORITY_LOW.equals(currentPriority)) {
+            return 1;
+        }
         return 0;
     }
 
@@ -237,24 +433,91 @@ public class Schedule {
         return name.get();
     }
 
-    private LocalDate getEffectiveDeadlineDate() {
-        if (dueDate.get() == null) {
-            return null;
+    public static String normalizePriority(String priority) {
+        String normalized = normalizeText(priority);
+        if (normalized.isEmpty()) {
+            return DEFAULT_PRIORITY;
         }
-        return getEffectiveEndDate();
+        return normalized;
     }
 
-    private LocalDate[] getNormalizedEffectiveDateRange() {
-        LocalDate effectiveStartDate = startDate.get() != null ? startDate.get() : dueDate.get();
-        LocalDate effectiveEndDate = dueDate.get() != null ? dueDate.get() : startDate.get();
-        if (effectiveStartDate == null || effectiveEndDate == null) {
+    public static String normalizeCategory(String category) {
+        String normalized = normalizeText(category);
+        if (normalized.isEmpty() || LEGACY_DEFAULT_CATEGORY.equals(normalized)) {
+            return DEFAULT_CATEGORY;
+        }
+        return normalized;
+    }
+
+    public static boolean isDefaultCategory(String category) {
+        return DEFAULT_CATEGORY.equals(normalizeCategory(category));
+    }
+
+    public static List<String> splitTags(String rawTags) {
+        if (rawTags == null || rawTags.isBlank()) {
+            return List.of();
+        }
+
+        LinkedHashSet<String> uniqueTags = new LinkedHashSet<>();
+        for (String piece : rawTags.split("[,\uFF0C]")) {
+            String normalized = normalizeText(piece);
+            if (!normalized.isEmpty()) {
+                uniqueTags.add(normalized);
+            }
+        }
+        return new ArrayList<>(uniqueTags);
+    }
+
+    public static String normalizeTags(String rawTags) {
+        List<String> normalizedTags = splitTags(rawTags);
+        return normalizedTags.isEmpty() ? "" : String.join(", ", normalizedTags);
+    }
+
+    private void configureDateProjectionSync() {
+        startAt.addListener((obs, oldValue, newValue) -> syncDateProjections());
+        dueAt.addListener((obs, oldValue, newValue) -> syncDateProjections());
+        startDateProjection.addListener((obs, oldValue, newValue) -> {
+            if (!syncingDateProjection) {
+                setStartDate(newValue);
+            }
+        });
+        dueDateProjection.addListener((obs, oldValue, newValue) -> {
+            if (!syncingDateProjection) {
+                setDueDate(newValue);
+            }
+        });
+        syncDateProjections();
+    }
+
+    private void syncDateProjections() {
+        syncingDateProjection = true;
+        try {
+            startDateProjection.set(startAt.get() != null ? startAt.get().toLocalDate() : null);
+            dueDateProjection.set(dueAt.get() != null ? dueAt.get().toLocalDate() : null);
+        } finally {
+            syncingDateProjection = false;
+        }
+    }
+
+    private LocalDateTime[] getNormalizedEffectiveDateTimeRange() {
+        LocalDateTime effectiveStartAt = startAt.get() != null ? startAt.get() : dueAt.get();
+        LocalDateTime effectiveEndAt = dueAt.get() != null ? dueAt.get() : startAt.get();
+        if (effectiveStartAt == null || effectiveEndAt == null) {
             return null;
         }
-        if (effectiveStartDate.isAfter(effectiveEndDate)) {
-            LocalDate temp = effectiveStartDate;
-            effectiveStartDate = effectiveEndDate;
-            effectiveEndDate = temp;
+        if (effectiveStartAt.isAfter(effectiveEndAt)) {
+            LocalDateTime temp = effectiveStartAt;
+            effectiveStartAt = effectiveEndAt;
+            effectiveEndAt = temp;
         }
-        return new LocalDate[] { effectiveStartDate, effectiveEndDate };
+        return new LocalDateTime[] { effectiveStartAt, effectiveEndAt };
+    }
+
+    private static String normalizeText(String value) {
+        return value == null ? "" : value.strip();
+    }
+
+    private static LocalDateTime truncateToMinutes(LocalDateTime value) {
+        return value == null ? null : value.truncatedTo(ChronoUnit.MINUTES);
     }
 }

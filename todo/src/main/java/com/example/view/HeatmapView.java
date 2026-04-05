@@ -3,6 +3,7 @@ package com.example.view;
 import java.sql.SQLException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -937,11 +938,12 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         card.getChildren().addAll(header, metaLine);
 
         card.setOnMouseClicked(e -> {
-            controller.showScheduleDetails(schedule);
-            updateDaySchedulePanel();
             if (e.getClickCount() == 2) {
-                controller.openEditScheduleDialog(schedule);
+                controller.showScheduleDetailsAndFocusTitle(schedule);
+            } else {
+                controller.showScheduleDetails(schedule);
             }
+            updateDaySchedulePanel();
         });
 
         return cardMotionHost;
@@ -1458,23 +1460,24 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     }
 
     private String getScheduleDateText(Schedule schedule) {
-        LocalDate startDate = schedule.getStartDate();
-        LocalDate endDate = schedule.getDueDate();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd");
+        LocalDateTime startAt = schedule.getStartAt();
+        LocalDateTime endAt = schedule.getDueAt();
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("MM/dd HH:mm");
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
 
-        if (startDate != null && endDate != null) {
-            if (startDate.equals(endDate)) {
-                return startDate.format(formatter);
+        if (startAt != null && endAt != null) {
+            if (startAt.toLocalDate().equals(endAt.toLocalDate())) {
+                return startAt.format(dateTimeFormatter) + " - " + endAt.format(timeFormatter);
             }
-            return startDate.format(formatter) + " - " + endDate.format(formatter);
+            return startAt.format(dateTimeFormatter) + " - " + endAt.format(dateTimeFormatter);
         }
-        if (startDate != null) {
-            return "开始于 " + startDate.format(formatter);
+        if (startAt != null) {
+            return "开始于 " + startAt.format(dateTimeFormatter);
         }
-        if (endDate != null) {
-            return "截止于 " + endDate.format(formatter);
+        if (endAt != null) {
+            return "截止于 " + endAt.format(dateTimeFormatter);
         }
-        return "未设置日期";
+        return "未设置时间";
     }
 
     private String getScheduleDescriptionText(Schedule schedule) {

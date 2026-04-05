@@ -466,16 +466,16 @@ public class ScheduleDialog extends Dialog<Schedule> {
     static String resolveCategoryValue(String input, boolean isEditMode) {
         String normalized = input != null ? input.trim() : "";
         if (!normalized.isEmpty()) {
-            return normalized;
+            return Schedule.normalizeCategory(normalized);
         }
-        return isEditMode ? "" : "默认";
+        return isEditMode ? "" : Schedule.DEFAULT_CATEGORY;
     }
 
     static String resolveTagsValue(String input, boolean isEditMode) {
         String normalized = input != null ? input.trim() : "";
         if (!normalized.isEmpty()) {
-            return normalized;
+            return Schedule.normalizeTags(normalized);
         }
-        return isEditMode ? "" : "无";
+        return isEditMode ? "" : "";
     }
 }

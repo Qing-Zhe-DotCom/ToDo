@@ -34,10 +34,12 @@ class SqliteMigrationRunnerTest {
         try (Connection connection = connectionFactory.getConnection()) {
             new SqliteMigrationRunner().ensureSchema(connection);
 
-            assertEquals(2, countSchemaVersions(connection));
+            assertEquals(3, countSchemaVersions(connection));
             assertTrue(loadColumns(connection).contains("deleted_at"));
             assertTrue(loadColumns(connection).contains("sync_status"));
             assertTrue(loadColumns(connection).contains("metadata_json"));
+            assertTrue(loadColumns(connection).contains("start_at"));
+            assertTrue(loadColumns(connection).contains("due_at"));
         }
     }
 

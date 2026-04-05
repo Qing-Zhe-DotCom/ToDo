@@ -3,6 +3,7 @@ package com.example.view;
 import com.example.controller.ScheduleCompletionMutation;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -129,16 +130,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
 
         timelineContainer.getChildren().addAll(scrollPane, timelineStateLabel);
 
-        Button newScheduleBtn = new Button("新建日程");
-        newScheduleBtn.setGraphic(controller.createSvgIcon("/icons/macaron-logo-new-schedule.svg", null, 20));
-        newScheduleBtn.getStyleClass().add("fab-button");
-        newScheduleBtn.setOnAction(e -> controller.openNewScheduleDialog());
-
-        HBox buttonBox = new HBox(newScheduleBtn);
-        buttonBox.setAlignment(Pos.CENTER_RIGHT);
-        buttonBox.setPadding(new Insets(10, 0, 0, 0));
-
-        root.getChildren().addAll(header, timelineContainer, buttonBox);
+        root.getChildren().addAll(header, timelineContainer);
     }
 
     private HBox createHeader() {
@@ -608,11 +600,12 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         });
 
         scheduleCard.setOnMouseClicked(e -> {
-            controller.showScheduleDetails(schedule);
-            highlightSelectedScheduleCard(scheduleCard);
             if (e.getClickCount() == 2) {
-                controller.openEditScheduleDialog(schedule);
+                controller.showScheduleDetailsAndFocusTitle(schedule);
+            } else {
+                controller.showScheduleDetails(schedule);
             }
+            highlightSelectedScheduleCard(scheduleCard);
         });
 
         Tooltip.install(scheduleCard, new Tooltip(buildTooltipText(schedule, entryStart, entryEnd)));
@@ -784,10 +777,13 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     }
 
     private String buildTooltipText(Schedule schedule, LocalDate startDate, LocalDate endDate) {
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        LocalDateTime startAt = schedule.getStartAt();
+        LocalDateTime dueAt = schedule.getDueAt();
         long duration = ChronoUnit.DAYS.between(startDate, endDate) + 1;
         return schedule.getName() + "\n"
-            + "开始: " + startDate + "\n"
-            + "截止: " + endDate + "\n"
+            + "开始: " + (startAt != null ? startAt.format(dateTimeFormatter) : "未设置") + "\n"
+            + "截止: " + (dueAt != null ? dueAt.format(dateTimeFormatter) : "未设置") + "\n"
             + "时长: " + duration + " 天\n"
             + "优先级: " + schedule.getPriority() + "\n"
             + "状态: " + (schedule.isCompleted() ? "已完成" : "未完成");

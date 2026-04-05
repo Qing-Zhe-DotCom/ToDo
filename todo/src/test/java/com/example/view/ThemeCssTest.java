@@ -157,8 +157,30 @@ class ThemeCssTest {
             () -> assertTrue(baseContent.contains(".info-panel-toolbar-button {")),
             () -> assertTrue(baseContent.contains(".info-panel-status-pill {")),
             () -> assertTrue(baseContent.contains(".info-panel-chip {")),
-            () -> assertTrue(baseContent.contains(".info-panel-description-card {")),
-            () -> assertTrue(baseContent.contains(".info-panel-primary-button {"))
+            () -> assertTrue(baseContent.contains(".info-panel-title-input {")),
+            () -> assertTrue(baseContent.contains(".info-panel-complete-toggle {")),
+            () -> assertTrue(baseContent.contains(".info-panel-inline-row {")),
+            () -> assertTrue(baseContent.contains(".info-panel-inline-editor {")),
+            () -> assertTrue(baseContent.contains(".info-panel-inline-editor-hover {")),
+            () -> assertTrue(baseContent.contains(".info-panel-inline-editor-active {")),
+            () -> assertTrue(baseContent.contains(".info-panel-borderless-field")),
+            () -> assertTrue(baseContent.contains(".info-panel-borderless-area")),
+            () -> assertTrue(baseContent.contains(".info-panel-delete-button {"))
+        );
+    }
+
+    @Test
+    void baseCssContainsQuickAddSelectors() throws IOException {
+        String baseContent = readCss("/styles/base.css");
+
+        assertAll(
+            () -> assertTrue(baseContent.contains(".quick-add-section {")),
+            () -> assertTrue(baseContent.contains(".quick-add-title {")),
+            () -> assertTrue(baseContent.contains(".quick-add-shell {")),
+            () -> assertTrue(baseContent.contains(".quick-add-shell-hover {")),
+            () -> assertTrue(baseContent.contains(".quick-add-shell-focused {")),
+            () -> assertTrue(baseContent.contains(".quick-add-badge {")),
+            () -> assertTrue(baseContent.contains(".quick-add-input {"))
         );
     }
 

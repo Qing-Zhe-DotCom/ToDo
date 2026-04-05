@@ -4,23 +4,25 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
+import com.example.model.Schedule;
+
 class ScheduleDialogDefaultsTest {
 
     @Test
-    void newSchedulesFallBackToDefaultCategoryAndTag() {
-        assertEquals("默认", ScheduleDialog.resolveCategoryValue("   ", false));
-        assertEquals("无", ScheduleDialog.resolveTagsValue("   ", false));
+    void newSchedulesFallBackToUnclassifiedAndEmptyTags() {
+        assertEquals(Schedule.DEFAULT_CATEGORY, ScheduleDialog.resolveCategoryValue("   ", false));
+        assertEquals("", ScheduleDialog.resolveTagsValue("   ", false));
     }
 
     @Test
-    void editModePreservesIntentionalClears() {
+    void editModeStillPreservesIntentionalClears() {
         assertEquals("", ScheduleDialog.resolveCategoryValue("   ", true));
         assertEquals("", ScheduleDialog.resolveTagsValue("   ", true));
     }
 
     @Test
-    void explicitValuesAreTrimmedAndKept() {
+    void explicitValuesAreNormalizedAndKept() {
         assertEquals("工作", ScheduleDialog.resolveCategoryValue(" 工作 ", false));
-        assertEquals("项目A,项目B", ScheduleDialog.resolveTagsValue(" 项目A,项目B ", true));
+        assertEquals("项目A, 项目B", ScheduleDialog.resolveTagsValue(" 项目A,项目B ", true));
     }
 }

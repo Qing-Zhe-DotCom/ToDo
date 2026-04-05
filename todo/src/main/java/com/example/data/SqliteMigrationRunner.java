@@ -18,7 +18,8 @@ import java.util.Set;
 public final class SqliteMigrationRunner {
     private static final List<Migration> MIGRATIONS = List.of(
         new Migration(1, "/db/sqlite/V001__create_schedules.sql"),
-        new Migration(2, "/db/sqlite/V002__add_local_sync_columns.sql")
+        new Migration(2, "/db/sqlite/V002__add_local_sync_columns.sql"),
+        new Migration(3, "/db/sqlite/V003__add_minute_precision_schedule_times.sql")
     );
 
     private volatile boolean schemaInitialized;

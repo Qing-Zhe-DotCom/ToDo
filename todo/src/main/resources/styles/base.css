@@ -1058,6 +1058,77 @@
     -fx-background-radius: 50%;
 }
 
+.quick-add-section {
+    -fx-spacing: 6;
+}
+
+.quick-add-title {
+    -fx-text-fill: -color-text-sub;
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+}
+
+.quick-add-shell {
+    -fx-alignment: center-left;
+    -fx-spacing: 12;
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-effect: none;
+}
+
+.quick-add-shell-hover {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.quick-add-shell-focused {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-effect: none;
+}
+
+.quick-add-badge {
+    -fx-alignment: center;
+    -fx-min-width: 32px;
+    -fx-min-height: 32px;
+    -fx-pref-width: 32px;
+    -fx-pref-height: 32px;
+    -fx-max-width: 32px;
+    -fx-max-height: 32px;
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-effect: none;
+}
+
+.quick-add-badge .sidebar-svg-icon {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-effect: none;
+}
+
+.quick-add-input {
+    -fx-background-color: -color-bg-panel;
+    -fx-text-fill: -color-text-main;
+    -fx-font-size: 15px;
+    -fx-font-weight: 600;
+    -fx-padding: 10 16;
+    -fx-pref-height: 42px;
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-border-color: derive(-color-primary, 35%);
+    -fx-border-width: 1;
+    -fx-background-insets: 0;
+    -fx-prompt-text-fill: -color-text-hint;
+}
+
+.quick-add-input:focused {
+    -fx-background-color: -color-bg-panel;
+    -fx-border-color: -color-primary;
+    -fx-effect: dropshadow(gaussian, rgba(59, 130, 246, 0.12), 10, 0.12, 0, 0);
+}
+
 .icon-button {
     -fx-background-color: transparent !important;
     -fx-border-color: transparent !important;
@@ -3306,5 +3377,153 @@
     -fx-text-fill: -color-text-muted;
     -fx-effect: none;
     -fx-cursor: default;
+}
+
+.info-panel-complete-toggle {
+    -fx-background-color: -color-bg-active;
+    -fx-text-fill: -color-text-main;
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-padding: 8 14;
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+    -fx-border-color: transparent;
+}
+
+.info-panel-complete-toggle:hover {
+    -fx-background-color: -color-bg-hover;
+}
+
+.info-panel-title-input {
+    -fx-background-color: transparent;
+    -fx-text-fill: -color-text-main;
+    -fx-font-size: 24px;
+    -fx-font-weight: 800;
+    -fx-padding: 0;
+    -fx-border-color: transparent transparent -color-border transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-background-insets: 0;
+}
+
+.info-panel-title-input:focused {
+    -fx-border-color: transparent transparent -color-primary transparent;
+}
+
+.info-panel-editor-section {
+    -fx-spacing: 10;
+}
+
+.info-panel-inline-row {
+    -fx-alignment: center-left;
+    -fx-spacing: 8;
+}
+
+.info-panel-editor-toggle {
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-sub;
+    -fx-padding: 0 6 0 0;
+}
+
+.info-panel-date-picker,
+.info-panel-time-input,
+.info-panel-combo {
+    -fx-background-color: -color-bg-hover;
+    -fx-text-fill: -color-text-main;
+    -fx-font-size: 13px;
+    -fx-padding: 10 12;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-border-color: -color-border;
+}
+
+.info-panel-date-picker:focused,
+.info-panel-time-input:focused,
+.info-panel-combo:focused {
+    -fx-border-color: -color-primary;
+}
+
+.info-panel-time-input {
+    -fx-pref-width: 88px;
+}
+
+.info-panel-inline-editor {
+    -fx-spacing: 8;
+    -fx-padding: 10 12;
+    -fx-background-color: transparent;
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-border-color: transparent;
+    -fx-border-width: 1;
+}
+
+.info-panel-inline-editor-hover {
+    -fx-background-color: -color-bg-hover;
+}
+
+.info-panel-inline-editor-active {
+    -fx-background-color: derive(-color-bg-hover, 8%);
+    -fx-border-color: -color-border;
+}
+
+.info-panel-borderless-field,
+.info-panel-borderless-area,
+.info-panel-text-input,
+.info-panel-notes-input {
+    -fx-background-color: transparent;
+    -fx-text-fill: -color-text-main;
+    -fx-font-size: 13px;
+    -fx-padding: 0;
+    -fx-border-color: transparent;
+    -fx-background-insets: 0;
+    -fx-prompt-text-fill: -color-text-hint;
+}
+
+.info-panel-borderless-field:focused,
+.info-panel-borderless-area:focused,
+.info-panel-text-input:focused,
+.info-panel-notes-input:focused {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-effect: none;
+}
+
+.info-panel-notes-input {
+    -fx-pref-height: 140px;
+}
+
+.info-panel-borderless-area,
+.info-panel-notes-input {
+    -fx-padding: 0;
+}
+
+.info-panel-borderless-area .content,
+.info-panel-borderless-area .viewport,
+.info-panel-notes-input .content,
+.info-panel-notes-input .viewport {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.info-panel-inline-editor .info-panel-chip-pane {
+    -fx-padding: 2 0 0 0;
+}
+
+.info-panel-delete-button {
+    -fx-background-color: rgba(220, 38, 38, 0.08);
+    -fx-text-fill: #dc2626;
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-padding: 10 14;
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-border-color: rgba(220, 38, 38, 0.18);
+    -fx-cursor: hand;
+}
+
+.info-panel-delete-button:hover {
+    -fx-background-color: rgba(220, 38, 38, 0.12);
+    -fx-border-color: rgba(220, 38, 38, 0.3);
 }
 
