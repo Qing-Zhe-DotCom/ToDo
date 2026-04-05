@@ -44,6 +44,8 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private static final double CALENDAR_LAYOUT_SAFETY = 2;
     private static final double MONTH_HEADER_HEIGHT = 28;
     private static final double WEEK_EXTRA_HEIGHT = 58;
+    private static final int MONTH_VIEW_COLUMNS = 7;
+    private static final int MONTH_VIEW_ROWS = 6;
     private static final int YEAR_MONTH_COLUMNS = 4;
     private static final int YEAR_MONTH_ROWS = 3;
     private static final int YEAR_MONTH_WEEKS = 6;
@@ -76,6 +78,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private HBox completedDropZone;
     private final List<Schedule> loadedSchedules = new ArrayList<>();
     private Map<LocalDate, List<Schedule>> schedulesByDate = new LinkedHashMap<>();
+    private final Map<LocalDate, StackPane> renderedHeatmapCells = new LinkedHashMap<>();
     private boolean redrawQueued;
     private boolean layoutRefreshQueued;
     private boolean sidebarCollapsed;
@@ -479,8 +482,8 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         } else {
             startDate = currentDate.withDayOfMonth(1);
             endDate = startDate.plusMonths(1).minusDays(1);
-            rows = 6;
-            cols = 7;
+            rows = MONTH_VIEW_ROWS;
+            cols = MONTH_VIEW_COLUMNS;
         }
 
         visibleStartDate = startDate;
@@ -523,6 +526,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         }
 
         heatmapGrid.getChildren().clear();
+        renderedHeatmapCells.clear();
         configureGridForCurrentView();
         updateNavigationButtons();
         updateLegend();
@@ -552,6 +556,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             drawMonthView(visibleStartDate, visibleEndDate, stats, cellSize);
         }
 
+        updateSelectedCellStyles();
         updateDaySchedulePanel();
         lastLayoutSignature = buildCurrentLayoutSignature();
     }
@@ -594,7 +599,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private void drawMonthView(LocalDate startDate, LocalDate endDate, Map<LocalDate, Integer> stats, double cellSize) {
         // 添加星期标题
         String[] dayNames = {"日", "一", "二", "三", "四", "五", "六"};
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < MONTH_VIEW_COLUMNS; i++) {
             Label label = new Label(dayNames[i]);
             label.getStyleClass().add("label-hint");
             heatmapGrid.add(label, i, 0);
@@ -604,10 +609,8 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         int firstDayOfWeek = startDate.getDayOfWeek().getValue() % 7;
 
         LocalDate current = startDate.minusDays(firstDayOfWeek);
-        int row = 1;
-
-        while (current.isBefore(endDate.plusDays(7))) {
-            for (int col = 0; col < 7; col++) {
+        for (int row = 1; row <= MONTH_VIEW_ROWS; row++) {
+            for (int col = 0; col < MONTH_VIEW_COLUMNS; col++) {
                 int count = 0;
                 if (!current.isBefore(startDate) && !current.isAfter(endDate)) {
                     count = stats.getOrDefault(current, 0);
@@ -619,7 +622,6 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
                 heatmapGrid.add(cell, col, row);
                 current = current.plusDays(1);
             }
-            row++;
         }
     }
 
@@ -673,7 +675,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private Region createHeatmapPlaceholder(double cellSize) {
         Region placeholder = new Region();
         placeholder.getStyleClass().add("heatmap-cell-placeholder");
-        double size = cellSize + CELL_CHROME;
+        double size = calculateCellFootprintSize(cellSize, CELL_CHROME);
         placeholder.setMinSize(size, size);
         placeholder.setPrefSize(size, size);
         placeholder.setMaxSize(size, size);
@@ -691,6 +693,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         boolean activeInCurrentPeriod,
         boolean yearCell
     ) {
+        double size = calculateCellFootprintSize(cellSize, CELL_CHROME);
         Rectangle rect = new Rectangle(cellSize, cellSize);
         rect.getStyleClass().add("heatmap-cell");
         if (yearCell) {
@@ -700,6 +703,9 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
 
         StackPane cell = new StackPane(rect);
         cell.setPadding(new Insets(2));
+        cell.setMinSize(size, size);
+        cell.setPrefSize(size, size);
+        cell.setMaxSize(size, size);
         if (!activeInCurrentPeriod) {
             cell.getStyleClass().add("heatmap-cell-inactive");
         }
@@ -708,9 +714,12 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         }
         if (activeInCurrentPeriod) {
             cell.setOnMouseClicked(e -> {
+                if (date.equals(selectedDate)) {
+                    return;
+                }
                 selectedDate = date;
+                updateSelectedCellStyles();
                 updateDaySchedulePanel();
-                queueRefresh();
             });
         }
 
@@ -718,6 +727,9 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         String tooltipText = buildTooltipText(date, count, schedules);
         Tooltip tooltip = new Tooltip(tooltipText);
         Tooltip.install(cell, tooltip);
+        if (date != null) {
+            renderedHeatmapCells.put(date, cell);
+        }
 
         return cell;
     }
@@ -1127,6 +1139,20 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         );
     }
 
+    private void updateSelectedCellStyles() {
+        for (Map.Entry<LocalDate, StackPane> entry : renderedHeatmapCells.entrySet()) {
+            StackPane cell = entry.getValue();
+            boolean selected = entry.getKey().equals(selectedDate);
+            if (selected) {
+                if (!cell.getStyleClass().contains("heatmap-cell-selected")) {
+                    cell.getStyleClass().add("heatmap-cell-selected");
+                }
+                continue;
+            }
+            cell.getStyleClass().remove("heatmap-cell-selected");
+        }
+    }
+
     private void configureScrollPoliciesForCurrentView() {
         if (scrollPane == null) {
             return;
@@ -1357,8 +1383,32 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             + Math.max(0, columns - 1) * gridGap;
     }
 
+    static double calculateCalendarFootprintHeight(
+        double cellSize,
+        double verticalPadding,
+        double reservedHeaderHeight,
+        int rows,
+        double gridGap,
+        double cellChrome,
+        double safetyBuffer
+    ) {
+        return verticalPadding
+            + reservedHeaderHeight
+            + safetyBuffer
+            + rows * (cellSize + cellChrome)
+            + Math.max(0, rows - 1) * gridGap;
+    }
+
+    static double calculateCellFootprintSize(double cellSize, double cellChrome) {
+        return cellSize + cellChrome;
+    }
+
     static double resolveSidebarWidth(boolean collapsed) {
         return collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
+    }
+
+    static int resolveMonthGridRows() {
+        return MONTH_VIEW_ROWS;
     }
 
     private static double clampValue(double value, double min, double max) {
@@ -1613,13 +1663,13 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         if ("year".equals(currentViewMode)) {
             return YEAR_MONTH_ROWS;
         }
-        return 6;
+        return MONTH_VIEW_ROWS;
     }
 
     private int resolveCurrentColumns() {
         if ("year".equals(currentViewMode)) {
             return YEAR_MONTH_COLUMNS;
         }
-        return 7;
+        return MONTH_VIEW_COLUMNS;
     }
 }

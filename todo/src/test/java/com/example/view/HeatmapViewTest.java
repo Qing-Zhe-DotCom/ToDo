@@ -134,6 +134,42 @@ class HeatmapViewTest {
     }
 
     @Test
+    void monthCellSizingFitsWithinViewportHeight() {
+        double cellSize = HeatmapView.calculateCalendarCellSize(
+            900,
+            620,
+            20,
+            20,
+            28,
+            7,
+            HeatmapView.resolveMonthGridRows(),
+            3,
+            4,
+            2,
+            18,
+            90
+        );
+
+        double footprintHeight = HeatmapView.calculateCalendarFootprintHeight(
+            cellSize,
+            20,
+            28,
+            HeatmapView.resolveMonthGridRows(),
+            3,
+            4,
+            2
+        );
+
+        assertTrue(footprintHeight <= 620);
+    }
+
+    @Test
+    void monthGridUsesFixedSixRowsForStableLayout() {
+        assertEquals(6, HeatmapView.resolveMonthGridRows());
+        assertEquals(22, HeatmapView.calculateCellFootprintSize(18, 4));
+    }
+
+    @Test
     void sidebarWidthMatchesCollapsedAndExpandedStates() {
         assertEquals(40, HeatmapView.resolveSidebarWidth(true));
         assertEquals(280, HeatmapView.resolveSidebarWidth(false));
