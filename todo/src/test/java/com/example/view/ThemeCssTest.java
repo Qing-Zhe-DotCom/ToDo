@@ -63,8 +63,10 @@ class ThemeCssTest {
             () -> assertTrue(expandedSidebarBlock != null && expandedSidebarBlock.contains("-fx-min-width: 280px")),
             () -> assertTrue(expandedSidebarBlock != null && expandedSidebarBlock.contains("-fx-max-width: 280px")),
             () -> assertTrue(dayRailBlock != null && dayRailBlock.contains("-fx-spacing: 0")),
-            () -> assertTrue(yearCardBlock != null && yearCardBlock.contains("-fx-border-color: -color-border-dark")),
-            () -> assertTrue(yearCardBlock != null && yearCardBlock.contains("-fx-effect: dropshadow")),
+            () -> assertTrue(yearCardBlock != null && yearCardBlock.contains("-fx-background-color: transparent")),
+            () -> assertTrue(yearCardBlock != null && yearCardBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(yearCardBlock != null && yearCardBlock.contains("-fx-border-width: 0")),
+            () -> assertTrue(yearCardBlock != null && yearCardBlock.contains("-fx-effect: none")),
             () -> assertTrue(yearCellBlock != null && yearCellBlock.contains("-fx-stroke-width: 0.75"))
         );
     }
