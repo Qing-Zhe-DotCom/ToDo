@@ -18,17 +18,28 @@ public final class ConfigurationLoader {
         Properties properties = loadMergedProperties();
         return new AppProperties(
             resolve(properties, "todo.app.default-theme", "TODO_APP_DEFAULT_THEME", "light"),
-            resolve(properties, "todo.app.default-schedule-card-style", "TODO_APP_DEFAULT_SCHEDULE_CARD_STYLE", "Classic")
+            resolve(properties, "todo.app.default-schedule-card-style", "TODO_APP_DEFAULT_SCHEDULE_CARD_STYLE", "Classic"),
+            resolveNullable(properties, "todo.app.data-dir", "TODO_APP_DATA_DIR")
         );
     }
 
     public static DatabaseProperties loadDatabaseProperties() {
         Properties properties = loadMergedProperties();
+        String mode = resolve(properties, "todo.db.mode", "TODO_DB_MODE", "sqlite");
+        String driverFallback = "sqlite".equalsIgnoreCase(mode)
+            ? "org.sqlite.JDBC"
+            : "com.mysql.cj.jdbc.Driver";
+        String urlFallback = "sqlite".equalsIgnoreCase(mode)
+            ? ""
+            : "jdbc:mysql://localhost:3306/todo_db";
+        String userFallback = "sqlite".equalsIgnoreCase(mode) ? "" : "root";
         return new DatabaseProperties(
-            resolve(properties, "todo.db.driver", "TODO_DB_DRIVER", "com.mysql.cj.jdbc.Driver"),
-            resolve(properties, "todo.db.url", "TODO_DB_URL", "jdbc:mysql://localhost:3306/todo_db"),
-            resolve(properties, "todo.db.user", "TODO_DB_USER", "root"),
-            resolve(properties, "todo.db.password", "TODO_DB_PASSWORD", "")
+            mode,
+            resolve(properties, "todo.db.driver", "TODO_DB_DRIVER", driverFallback),
+            resolve(properties, "todo.db.url", "TODO_DB_URL", urlFallback),
+            resolve(properties, "todo.db.user", "TODO_DB_USER", userFallback),
+            resolve(properties, "todo.db.password", "TODO_DB_PASSWORD", ""),
+            resolveNullable(properties, "todo.db.sqlite.path", "TODO_DB_SQLITE_PATH")
         );
     }
 
@@ -93,5 +104,18 @@ public final class ConfigurationLoader {
             return propertyValue.trim();
         }
         return fallback;
+    }
+
+    private static String resolveNullable(Properties properties, String propertyKey, String envKey) {
+        Map<String, String> env = System.getenv();
+        String envValue = env.get(envKey);
+        if (envValue != null && !envValue.isBlank()) {
+            return envValue.trim();
+        }
+        String propertyValue = properties.getProperty(propertyKey);
+        if (propertyValue != null && !propertyValue.isBlank()) {
+            return propertyValue.trim();
+        }
+        return null;
     }
 }

@@ -6,6 +6,7 @@ module com.example {
     requires java.prefs;
     requires java.xml;
     requires java.desktop;
+    requires org.xerial.sqlitejdbc;
     
     exports com.example;
     exports com.example.controller;

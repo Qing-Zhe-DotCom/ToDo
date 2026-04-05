@@ -10,7 +10,7 @@ import com.example.data.JdbcConnectionFactory;
 import com.example.data.SchemaInitializer;
 
 public class Connectdatabase {
-    private static final DatabaseProperties DATABASE_PROPERTIES = ConfigurationLoader.loadDatabaseProperties();
+    private static final DatabaseProperties DATABASE_PROPERTIES = resolveLegacyMySqlProperties();
     private static final ConnectionFactory CONNECTION_FACTORY = new JdbcConnectionFactory(DATABASE_PROPERTIES);
     private static final SchemaInitializer SCHEMA_INITIALIZER = new SchemaInitializer();
 
@@ -28,5 +28,23 @@ public class Connectdatabase {
                 System.err.println("Error closing connection: " + e.getMessage());
             }
         }
+    }
+
+    private static DatabaseProperties resolveLegacyMySqlProperties() {
+        DatabaseProperties properties = ConfigurationLoader.loadDatabaseProperties();
+        if (properties.isMysqlMode()) {
+            return properties;
+        }
+
+        String url = properties.getUrl();
+        String username = properties.getUsername();
+        return new DatabaseProperties(
+            "mysql",
+            "com.mysql.cj.jdbc.Driver",
+            url == null || url.isBlank() ? "jdbc:mysql://localhost:3306/todo_db" : url,
+            username == null || username.isBlank() ? "root" : username,
+            properties.getPassword(),
+            null
+        );
     }
 }
