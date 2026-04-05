@@ -13,7 +13,6 @@ import java.util.Map;
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionCoordinator;
 import com.example.controller.ScheduleCompletionMutation;
-import com.example.databaseutil.ScheduleDAO;
 import com.example.model.Schedule;
 
 import javafx.application.Platform;
@@ -54,7 +53,6 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private static final String COMPLETED_PROXY_HOST_STYLE = "heatmap-completed-proxy-host";
 
     private MainController controller;
-    private ScheduleDAO scheduleDAO;
 
     private VBox root;
     private HBox metaBar;
@@ -94,7 +92,6 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
 
     public HeatmapView(MainController controller) {
         this.controller = controller;
-        this.scheduleDAO = new ScheduleDAO();
 
         initializeUI();
     }
@@ -488,7 +485,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         visibleStartDate = startDate;
         visibleEndDate = endDate;
         loadedSchedules.clear();
-        loadedSchedules.addAll(controller.applyPendingCompletionMutations(scheduleDAO.getAllSchedules()));
+        loadedSchedules.addAll(controller.applyPendingCompletionMutations(controller.loadAllSchedules()));
         renderHeatmapFromLoadedSchedules(rows, cols);
         return;
     }

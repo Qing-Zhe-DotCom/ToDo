@@ -3,6 +3,7 @@ package com.example.view;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -15,7 +16,6 @@ import java.util.stream.Collectors;
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionCoordinator;
 import com.example.controller.ScheduleCompletionMutation;
-import com.example.databaseutil.ScheduleDAO;
 import com.example.model.Schedule;
 
 import javafx.geometry.Bounds;
@@ -46,7 +46,6 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     static final String UPCOMING_TOOLTIP_TEXT = "短期日程：今天到期；中期日程：3天内到期；长期日程：7天内到期。";
 
     private final MainController controller;
-    private final ScheduleDAO scheduleDAO;
     private final List<Schedule> loadedSchedules = new ArrayList<>();
     private final Map<Integer, ScheduleCardNode> cardNodesById = new LinkedHashMap<>();
 
@@ -254,7 +253,6 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
     public ScheduleListView(MainController controller) {
         this.controller = controller;
-        this.scheduleDAO = new ScheduleDAO();
         initializeUI();
     }
 
@@ -355,7 +353,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
     private void loadSchedules() {
         try {
-            List<Schedule> schedules = controller.applyPendingCompletionMutations(scheduleDAO.getAllSchedules());
+            List<Schedule> schedules = controller.applyPendingCompletionMutations(controller.loadAllSchedules());
             setLoadedSchedules(schedules);
         } catch (SQLException e) {
             controller.showError("加载日程失败", e.getMessage());
@@ -364,7 +362,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
     private void loadSearchResults(String keyword) {
         try {
-            List<Schedule> schedules = controller.applyPendingCompletionMutations(scheduleDAO.searchSchedules(keyword));
+            List<Schedule> schedules = controller.applyPendingCompletionMutations(controller.searchSchedules(keyword));
             setLoadedSchedules(schedules);
         } catch (SQLException e) {
             controller.showError("搜索失败", e.getMessage());
@@ -476,15 +474,52 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             return schedule.includesDate(referenceDate);
         }
         if (FILTER_OVERDUE.equals(normalizedFilter)) {
-            return schedule.isOverdue();
+            return isOverdueOn(schedule, referenceDate);
         }
         if (FILTER_HIGH_PRIORITY.equals(normalizedFilter)) {
             return "高".equals(schedule.getPriority());
         }
         if (FILTER_UPCOMING.equals(normalizedFilter)) {
-            return schedule.isUpcoming();
+            return isUpcomingOn(schedule, referenceDate);
         }
         return true;
+    }
+
+    static boolean isOverdueOn(Schedule schedule, LocalDate referenceDate) {
+        return schedule != null
+            && referenceDate != null
+            && !schedule.isCompleted()
+            && schedule.getEffectiveEndDate() != null
+            && schedule.getEffectiveEndDate().isBefore(referenceDate);
+    }
+
+    static boolean isUpcomingOn(Schedule schedule, LocalDate referenceDate) {
+        if (schedule == null || referenceDate == null || schedule.isCompleted()) {
+            return false;
+        }
+
+        LocalDate effectiveDeadline = schedule.getEffectiveEndDate();
+        if (effectiveDeadline == null) {
+            return false;
+        }
+
+        long daysUntilDeadline = ChronoUnit.DAYS.between(referenceDate, effectiveDeadline);
+        if (daysUntilDeadline < 0) {
+            return false;
+        }
+
+        long durationDays = schedule.getEffectiveDurationDays();
+        if (durationDays <= 0) {
+            return false;
+        }
+
+        if (durationDays < 7) {
+            return daysUntilDeadline == 0;
+        }
+        if (durationDays <= 35) {
+            return daysUntilDeadline <= 3;
+        }
+        return daysUntilDeadline <= 7;
     }
 
     static Comparator<Schedule> buildDisplayComparator() {
@@ -514,17 +549,17 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     }
 
     public void addSchedule(Schedule schedule) throws SQLException {
-        scheduleDAO.addSchedule(schedule);
+        controller.createSchedule(schedule);
         refresh();
     }
 
     public void updateSchedule(Schedule schedule) throws SQLException {
-        scheduleDAO.updateSchedule(schedule);
+        controller.saveSchedule(schedule);
         refresh();
     }
 
     public void deleteSchedule(Schedule schedule) throws SQLException {
-        scheduleDAO.deleteSchedule(schedule.getId());
+        controller.removeSchedule(schedule.getId());
         refresh();
     }
 

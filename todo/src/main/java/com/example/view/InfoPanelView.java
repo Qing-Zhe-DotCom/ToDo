@@ -2,7 +2,6 @@ package com.example.view;
 
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionMutation;
-import com.example.databaseutil.ScheduleDAO;
 import com.example.model.Schedule;
 import javafx.animation.FadeTransition;
 import javafx.animation.ParallelTransition;
@@ -57,7 +56,6 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     private static final DateTimeFormatter REMINDER_FORMATTER = DateTimeFormatter.ofPattern("yyyy年M月d日 HH:mm");
 
     private final MainController controller;
-    private final ScheduleDAO scheduleDAO;
 
     private VBox root;
     private Schedule currentSchedule;
@@ -86,7 +84,6 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
 
     public InfoPanelView(MainController controller) {
         this.controller = controller;
-        this.scheduleDAO = new ScheduleDAO();
         initializeUI();
     }
 
@@ -462,7 +459,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
             }
 
             try {
-                scheduleDAO.deleteSchedule(currentSchedule.getId());
+                controller.removeSchedule(currentSchedule.getId());
                 currentSchedule = null;
                 applyEmptyState();
                 controller.refreshAllViews();
@@ -478,7 +475,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         }
 
         try {
-            Schedule updated = scheduleDAO.getScheduleById(currentSchedule.getId());
+            Schedule updated = controller.findScheduleById(currentSchedule.getId());
             if (updated != null) {
                 setSchedule(updated);
             } else {

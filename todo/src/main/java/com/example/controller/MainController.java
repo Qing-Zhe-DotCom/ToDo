@@ -3,18 +3,23 @@ package com.example.controller;
 import java.sql.SQLException;
 import java.io.File;
 import java.io.InputStream;
+import java.net.URI;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.prefs.Preferences;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.IntConsumer;
 
-import com.example.databaseutil.ScheduleDAO;
+import com.example.application.ApplicationContext;
+import com.example.application.MainViewModel;
+import com.example.application.NavigationService;
+import com.example.application.ScheduleService;
+import com.example.application.ThemeService;
 import com.example.model.Schedule;
 import com.example.view.FlowchartView;
 import com.example.view.HeatmapView;
@@ -30,6 +35,7 @@ import javafx.application.Platform;
 import javafx.animation.FadeTransition;
 import javafx.animation.ParallelTransition;
 import javafx.animation.TranslateTransition;
+import javafx.fxml.FXML;
 import javafx.scene.Scene;
 import javafx.scene.Node;
 import javafx.geometry.Insets;
@@ -90,7 +96,13 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
 public class MainController {
-    
+    private final ApplicationContext applicationContext;
+    private final MainViewModel mainViewModel;
+    private final ScheduleService scheduleService;
+    private final NavigationService navigationService;
+    private final ThemeService themeService;
+
+    @FXML
     private BorderPane root;
     private Scene scene;
     
@@ -103,7 +115,6 @@ public class MainController {
     
     // 当前选中的视图
     private View currentView;
-    private Schedule selectedSchedule;
 
     private VBox sidebar;
     private VBox bottomActions;
@@ -118,17 +129,12 @@ public class MainController {
     private Pane themeIcon;
     private boolean sidebarCollapsed = false;
     private boolean featurePanelExpanded = false;
+    private boolean uiInitialized = false;
     private final Map<Labeled, String[]> collapsibleLabels = new LinkedHashMap<>();
     private String importedThemeStylesheet;
-    private final Map<String, String> builtinThemes = createBuiltinThemeMap();
-    private final List<String> scheduleCardStyles = ScheduleCardStyleSupport.getStyleNames();
-    private final Preferences preferences = Preferences.userNodeForPackage(MainController.class);
-    private static final String PREF_THEME_KEY = "todo.theme";
-    private static final String PREF_IMPORTED_THEME_KEY = "todo.theme.imported.path";
-    private static final String PREF_SCHEDULE_CARD_STYLE_KEY = "todo.schedule.card.style";
-    private static final String PREF_TIMELINE_CARD_STYLE_KEY = "todo.timeline.card.style";
+    private final Map<String, String> builtinThemes;
+    private final List<String> scheduleCardStyles;
     private static final String DEFAULT_SCHEDULE_CARD_STYLE = ScheduleCardStyleSupport.getDefaultStyleName();
-    private final ScheduleDAO scheduleDAO = new ScheduleDAO();
     private final ExecutorService scheduleCompletionExecutor;
     private final ScheduleCompletionCoordinator scheduleCompletionCoordinator;
     private IntConsumer pendingCountListener;
@@ -139,9 +145,21 @@ public class MainController {
     private String currentScheduleCardStyle = DEFAULT_SCHEDULE_CARD_STYLE;
     
     public MainController() {
+        this(ApplicationContext.createDefault());
+    }
+
+    public MainController(ApplicationContext applicationContext) {
+        this.applicationContext = applicationContext;
+        this.mainViewModel = applicationContext.getMainViewModel();
+        this.scheduleService = applicationContext.getScheduleService();
+        this.navigationService = mainViewModel.getNavigationService();
+        this.themeService = mainViewModel.getThemeService();
+        this.builtinThemes = new LinkedHashMap<>(themeService.getBuiltinThemes());
+        this.scheduleCardStyles = List.copyOf(themeService.getScheduleCardStyles());
+        syncThemeState();
         scheduleCompletionExecutor = Executors.newSingleThreadExecutor(createCompletionThreadFactory());
         scheduleCompletionCoordinator = new ScheduleCompletionCoordinator(
-            scheduleDAO::updateScheduleStatus,
+            scheduleService::updateScheduleStatus,
             new ScheduleCompletionCoordinator.MutationApplier() {
                 @Override
                 public void applyOptimistic(ScheduleCompletionMutation mutation) {
@@ -162,14 +180,23 @@ public class MainController {
             scheduleCompletionExecutor,
             Platform::runLater
         );
-        loadThemePreference();
-        loadScheduleCardStylePreference();
+    }
+
+    @FXML
+    private void initialize() {
         initializeUI();
     }
     
     private void initializeUI() {
-        root = new BorderPane();
-        root.getStyleClass().add("root");
+        if (uiInitialized) {
+            return;
+        }
+        if (root == null) {
+            root = new BorderPane();
+        }
+        if (!root.getStyleClass().contains("root")) {
+            root.getStyleClass().add("root");
+        }
 
         // 创建左侧导航栏
         createSidebar();
@@ -186,6 +213,7 @@ public class MainController {
         
         // 默认显示日程列表视图
         showView(scheduleListView);
+        uiInitialized = true;
     }
 
     private void createSidebar() {
@@ -677,12 +705,13 @@ public class MainController {
     
     private void showView(View view) {
         currentView = view;
+        navigationService.setCurrentScreen(resolveScreen(view));
         root.setCenter(view.getView());
         view.refresh();
     }
     
     public void showScheduleDetails(Schedule schedule) {
-        this.selectedSchedule = schedule;
+        navigationService.setSelectedSchedule(schedule);
         infoPanelView.setSchedule(schedule);
         infoPanelView.showWithAnimation();
     }
@@ -692,6 +721,7 @@ public class MainController {
     }
 
     public boolean isScheduleSelected(Schedule schedule) {
+        Schedule selectedSchedule = navigationService.getSelectedSchedule();
         if (selectedSchedule == null || schedule == null) {
             return false;
         }
@@ -702,7 +732,7 @@ public class MainController {
     }
     
     public Schedule getSelectedSchedule() {
-        return selectedSchedule;
+        return navigationService.getSelectedSchedule();
     }
 
     public ScheduleCompletionCoordinator.PendingCompletion prepareScheduleCompletion(
@@ -744,6 +774,30 @@ public class MainController {
         updatePendingCountBadge();
     }
 
+    public int createSchedule(Schedule schedule) throws SQLException {
+        return scheduleService.addSchedule(schedule);
+    }
+
+    public boolean saveSchedule(Schedule schedule) throws SQLException {
+        return scheduleService.updateSchedule(schedule);
+    }
+
+    public boolean removeSchedule(int scheduleId) throws SQLException {
+        return scheduleService.deleteSchedule(scheduleId);
+    }
+
+    public Schedule findScheduleById(int scheduleId) throws SQLException {
+        return scheduleService.getScheduleById(scheduleId);
+    }
+
+    public List<Schedule> loadAllSchedules() throws SQLException {
+        return scheduleService.getAllSchedules();
+    }
+
+    public List<Schedule> searchSchedules(String keyword) throws SQLException {
+        return scheduleService.searchSchedules(keyword);
+    }
+
     public List<Schedule> applyPendingCompletionMutations(List<Schedule> schedules) {
         if (schedules == null || schedules.isEmpty()) {
             return schedules;
@@ -757,7 +811,7 @@ public class MainController {
     }
 
     private void applyCompletionMutationLocally(ScheduleCompletionMutation mutation) {
-        mutation.applyTo(selectedSchedule);
+        mutation.applyTo(navigationService.getSelectedSchedule());
         for (ScheduleCompletionParticipant participant : collectCompletionParticipants()) {
             participant.applyCompletionMutation(mutation);
         }
@@ -765,14 +819,14 @@ public class MainController {
     }
 
     private void confirmCompletionMutationLocally(ScheduleCompletionMutation mutation) {
-        mutation.applyTo(selectedSchedule);
+        mutation.applyTo(navigationService.getSelectedSchedule());
         for (ScheduleCompletionParticipant participant : collectCompletionParticipants()) {
             participant.confirmCompletionMutation(mutation);
         }
     }
 
     private void revertCompletionMutationLocally(ScheduleCompletionMutation mutation) {
-        mutation.revertOn(selectedSchedule);
+        mutation.revertOn(navigationService.getSelectedSchedule());
         for (ScheduleCompletionParticipant participant : collectCompletionParticipants()) {
             participant.revertCompletionMutation(mutation);
         }
@@ -838,6 +892,12 @@ public class MainController {
             thread.setDaemon(true);
             return thread;
         };
+    }
+
+    private void syncThemeState() {
+        currentTheme = themeService.getCurrentTheme();
+        importedThemeStylesheet = themeService.getImportedThemeStylesheet();
+        currentScheduleCardStyle = themeService.getCurrentScheduleCardStyle();
     }
     
     private void switchTheme(String theme) {
@@ -953,40 +1013,25 @@ public class MainController {
     }
 
     private void loadThemePreference() {
-        String savedTheme = preferences.get(PREF_THEME_KEY, "light");
-        String savedImported = preferences.get(PREF_IMPORTED_THEME_KEY, "");
-        importedThemeStylesheet = savedImported == null || savedImported.isBlank() ? null : savedImported;
-        if (builtinThemes.containsKey(savedTheme) || "imported".equals(savedTheme)) {
-            currentTheme = savedTheme;
-        } else {
-            currentTheme = "light";
-        }
+        syncThemeState();
     }
 
     private void loadScheduleCardStylePreference() {
-        String savedStyle = preferences.get(
-            PREF_SCHEDULE_CARD_STYLE_KEY,
-            preferences.get(PREF_TIMELINE_CARD_STYLE_KEY, DEFAULT_SCHEDULE_CARD_STYLE)
-        );
-        if (scheduleCardStyles.contains(savedStyle)) {
-            currentScheduleCardStyle = savedStyle;
-        } else {
-            currentScheduleCardStyle = DEFAULT_SCHEDULE_CARD_STYLE;
-        }
+        syncThemeState();
     }
 
     private void saveThemePreference() {
-        preferences.put(PREF_THEME_KEY, currentTheme);
-        if (importedThemeStylesheet == null || importedThemeStylesheet.isBlank()) {
-            preferences.remove(PREF_IMPORTED_THEME_KEY);
+        if ("imported".equals(currentTheme) && importedThemeStylesheet != null && !importedThemeStylesheet.isBlank()) {
+            themeService.importTheme(Path.of(URI.create(importedThemeStylesheet)));
         } else {
-            preferences.put(PREF_IMPORTED_THEME_KEY, importedThemeStylesheet);
+            themeService.selectBuiltinTheme(currentTheme);
         }
+        syncThemeState();
     }
 
     private void saveScheduleCardStylePreference() {
-        preferences.put(PREF_SCHEDULE_CARD_STYLE_KEY, currentScheduleCardStyle);
-        preferences.put(PREF_TIMELINE_CARD_STYLE_KEY, currentScheduleCardStyle);
+        themeService.setScheduleCardStyle(currentScheduleCardStyle);
+        syncThemeState();
     }
 
     private void applySavedThemeIfNeeded() {
@@ -1387,7 +1432,7 @@ public class MainController {
         return false;
     }
     
-    public void initialize() {
+    public void initializeApplication() {
         refreshAllViews();
     }
     
@@ -1400,12 +1445,24 @@ public class MainController {
             return;
         }
         try {
-            long pending = scheduleDAO.getAllSchedules().stream().filter(schedule -> !schedule.isCompleted()).count();
-            lastKnownPendingCount = (int) Math.min(Integer.MAX_VALUE, pending);
+            lastKnownPendingCount = scheduleService.getPendingCount();
             pendingCountListener.accept(lastKnownPendingCount);
         } catch (SQLException ignored) {
             lastKnownPendingCount = 0;
             pendingCountListener.accept(0);
         }
+    }
+
+    private NavigationService.Screen resolveScreen(View view) {
+        if (view instanceof TimelineView) {
+            return NavigationService.Screen.TIMELINE;
+        }
+        if (view instanceof HeatmapView) {
+            return NavigationService.Screen.HEATMAP;
+        }
+        if (view instanceof FlowchartView) {
+            return NavigationService.Screen.FLOWCHART;
+        }
+        return NavigationService.Screen.LIST;
     }
 }

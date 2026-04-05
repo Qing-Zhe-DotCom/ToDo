@@ -11,5 +11,7 @@ module com.example {
     exports com.example.controller;
     exports com.example.model;
     exports com.example.view;
-    exports com.example.databaseutil;
+    exports com.example.application;
+
+    opens com.example.controller to javafx.fxml;
 }

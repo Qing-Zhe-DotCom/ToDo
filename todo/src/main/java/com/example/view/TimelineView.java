@@ -10,7 +10,6 @@ import java.util.Comparator;
 import java.util.List;
 
 import com.example.controller.MainController;
-import com.example.databaseutil.ScheduleDAO;
 import com.example.model.Schedule;
 
 import javafx.animation.AnimationTimer;
@@ -59,7 +58,6 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     private static final DateTimeFormatter RANGE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final MainController controller;
-    private final ScheduleDAO scheduleDAO;
 
     private VBox root;
     private StackPane timelineContainer;
@@ -76,7 +74,6 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
 
     public TimelineView(MainController controller) {
         this.controller = controller;
-        this.scheduleDAO = new ScheduleDAO();
         initializeUI();
         startAutoScroll();
     }
@@ -266,7 +263,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     }
 
     private void drawTimeline() throws SQLException {
-        loadedSchedules = new ArrayList<>(controller.applyPendingCompletionMutations(scheduleDAO.getAllSchedules()));
+        loadedSchedules = new ArrayList<>(controller.applyPendingCompletionMutations(controller.loadAllSchedules()));
         renderTimeline(loadedSchedules);
     }
 

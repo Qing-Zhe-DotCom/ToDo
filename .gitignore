@@ -1,0 +1,10 @@
+/todo/target/
+/todo/.codex-runcheck/
+/todo/.jdks/
+/todo/.m2-repo/
+*.dump
+*.dumpstream
+*.log
+*.tmp
+hs_err_pid*
+replay_pid*

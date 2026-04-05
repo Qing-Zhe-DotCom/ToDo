@@ -1,5 +1,6 @@
 package com.example;
 
+import com.example.application.ApplicationContext;
 import com.example.controller.MainController;
 
 import java.awt.Taskbar;
@@ -9,6 +10,8 @@ import java.awt.image.BufferedImage;
 
 import javafx.application.Application;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
@@ -32,12 +35,25 @@ public class MainApp extends Application {
     @Override
     public void start(Stage primaryStage) {
         try {
-            mainController = new MainController();
+            ApplicationContext applicationContext = ApplicationContext.createDefault();
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/example/ui/main-shell.fxml"));
+            loader.setControllerFactory(type -> {
+                if (type == MainController.class) {
+                    return new MainController(applicationContext);
+                }
+                try {
+                    return type.getDeclaredConstructor().newInstance();
+                } catch (Exception exception) {
+                    throw new IllegalStateException("Unable to construct controller: " + type.getName(), exception);
+                }
+            });
+
+            Parent root = loader.load();
+            mainController = loader.getController();
             
-            Scene scene = new Scene(mainController.getRoot(), MIN_WIDTH, MIN_HEIGHT);
+            Scene scene = new Scene(root, MIN_WIDTH, MIN_HEIGHT);
             
             // 加载默认主题
-            scene.getStylesheets().add(getClass().getResource("/styles/light-theme.css").toExternalForm());
             
             // 将场景对象传递给控制器
             mainController.setScene(scene);
@@ -52,7 +68,7 @@ public class MainApp extends Application {
             
             primaryStage.show();
             
-            mainController.initialize();
+            mainController.initializeApplication();
             mainController.setPendingCountListener(pendingCount -> applyWindowBadge(primaryStage, pendingCount));
             
         } catch (Exception e) {
