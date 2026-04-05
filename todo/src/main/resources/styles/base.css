@@ -3134,6 +3134,19 @@
     -fx-text-overrun: clip;
 }
 
+.info-panel-time-row {
+    -fx-alignment: center-left;
+    -fx-hgap: 6;
+    -fx-vgap: 0;
+}
+
+.info-panel-time-toggle-slot {
+    -fx-alignment: center-left;
+    -fx-min-width: 96;
+    -fx-pref-width: 96;
+    -fx-max-width: 96;
+}
+
 .info-panel-time-trigger {
     -fx-background-color: -color-bg-hover;
     -fx-border-color: -color-border;
@@ -3145,6 +3158,9 @@
     -fx-cursor: hand;
     -fx-effect: none;
     -fx-graphic-text-gap: 0;
+    -fx-min-width: 148;
+    -fx-pref-width: 148;
+    -fx-max-width: 148;
     -fx-min-height: 54;
     -fx-pref-height: 54;
     -fx-max-height: 54;
@@ -3707,6 +3723,40 @@
 
 .info-panel-time-input {
     -fx-pref-width: 88px;
+}
+
+.info-panel-borderless-combo {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-padding: 0;
+    -fx-effect: none;
+}
+
+.info-panel-borderless-combo:focused,
+.info-panel-borderless-combo:showing {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-effect: none;
+}
+
+.info-panel-borderless-combo > .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -color-text-main;
+    -fx-padding: 0;
+    -fx-font-size: 13px;
+}
+
+.info-panel-borderless-combo > .arrow-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0 0 0 8;
+}
+
+.info-panel-borderless-combo > .arrow-button > .arrow {
+    -fx-background-color: -color-text-sub;
 }
 
 .info-panel-inline-editor {

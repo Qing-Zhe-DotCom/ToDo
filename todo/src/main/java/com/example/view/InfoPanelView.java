@@ -15,13 +15,16 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ComboBoxBase;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -37,6 +40,9 @@ import java.util.List;
 import java.util.Objects;
 
 public class InfoPanelView implements ScheduleCompletionParticipant {
+    private static final double TIME_TOGGLE_SLOT_WIDTH = 96.0;
+    private static final double TIME_TRIGGER_WIDTH = 148.0;
+    private static final double TIME_TRIGGER_HEIGHT = 54.0;
     private static final String TITLE_PROMPT = "输入日程标题";
     private static final String EMPTY_TITLE_TEXT = "请选择日程";
     private static final String EMPTY_TIME_TEXT = "未设置时间";
@@ -89,6 +95,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     private TextField categoryField;
     private TextField tagsField;
     private TextArea notesArea;
+    private VBox priorityEditor;
     private VBox categoryEditor;
     private VBox tagsEditor;
     private VBox notesEditor;
@@ -347,7 +354,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
 
         priorityBox = new ComboBox<>();
         priorityBox.getItems().setAll(Schedule.PRIORITY_HIGH, Schedule.PRIORITY_MEDIUM, Schedule.PRIORITY_LOW);
-        priorityBox.getStyleClass().add("info-panel-combo");
+        priorityBox.getStyleClass().addAll("info-panel-combo", "info-panel-borderless-combo");
         priorityBox.setMaxWidth(Double.MAX_VALUE);
 
         categoryField = textInput("未分类");
@@ -359,6 +366,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         notesArea.setWrapText(true);
         notesArea.setPromptText("补充备注、描述和上下文");
 
+        priorityEditor = inlineEditor(priorityBox);
         categoryEditor = inlineEditor(categoryField);
         tagsEditor = inlineEditor(tagsField);
         notesEditor = inlineEditor(notesArea);
@@ -371,7 +379,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
             summaryPrimary,
             summarySecondary,
             section("时间", timeRow(dueToggle, dueTrigger), timeRow(startToggle, startTrigger), timeRow(reminderToggle, reminderTrigger)),
-            section("优先级", priorityBox),
+            section("优先级", priorityEditor),
             section("任务", categoryEditor),
             section("标签", tagsEditor),
             section("备注", notesEditor)
@@ -815,12 +823,12 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         button.getStyleClass().add("info-panel-time-trigger");
         button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         button.setAlignment(Pos.CENTER_LEFT);
-        button.setMinWidth(Region.USE_COMPUTED_SIZE);
-        button.setPrefWidth(Region.USE_COMPUTED_SIZE);
-        button.setMaxWidth(Region.USE_PREF_SIZE);
-        button.setMinHeight(54);
-        button.setPrefHeight(54);
-        button.setMaxHeight(54);
+        button.setMinWidth(TIME_TRIGGER_WIDTH);
+        button.setPrefWidth(TIME_TRIGGER_WIDTH);
+        button.setMaxWidth(TIME_TRIGGER_WIDTH);
+        button.setMinHeight(TIME_TRIGGER_HEIGHT);
+        button.setPrefHeight(TIME_TRIGGER_HEIGHT);
+        button.setMaxHeight(TIME_TRIGGER_HEIGHT);
         return button;
     }
 
@@ -847,11 +855,32 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         return field;
     }
 
-    private HBox timeRow(CheckBox toggle, Button trigger) {
-        HBox row = new HBox(8, toggle, trigger);
+    private GridPane timeRow(CheckBox toggle, Button trigger) {
+        HBox toggleSlot = new HBox(toggle);
+        toggleSlot.setAlignment(Pos.CENTER_LEFT);
+        toggleSlot.setMinWidth(TIME_TOGGLE_SLOT_WIDTH);
+        toggleSlot.setPrefWidth(TIME_TOGGLE_SLOT_WIDTH);
+        toggleSlot.setMaxWidth(TIME_TOGGLE_SLOT_WIDTH);
+        toggleSlot.getStyleClass().add("info-panel-time-toggle-slot");
+
+        ColumnConstraints toggleColumn = new ColumnConstraints();
+        toggleColumn.setMinWidth(TIME_TOGGLE_SLOT_WIDTH);
+        toggleColumn.setPrefWidth(TIME_TOGGLE_SLOT_WIDTH);
+        toggleColumn.setMaxWidth(TIME_TOGGLE_SLOT_WIDTH);
+
+        ColumnConstraints triggerColumn = new ColumnConstraints();
+        triggerColumn.setMinWidth(TIME_TRIGGER_WIDTH);
+        triggerColumn.setPrefWidth(TIME_TRIGGER_WIDTH);
+        triggerColumn.setMaxWidth(TIME_TRIGGER_WIDTH);
+
+        GridPane row = new GridPane();
         row.setAlignment(Pos.CENTER_LEFT);
-        row.setFillHeight(false);
-        row.getStyleClass().add("info-panel-inline-row");
+        row.setHgap(6);
+        row.setVgap(0);
+        row.getStyleClass().add("info-panel-time-row");
+        row.getColumnConstraints().addAll(toggleColumn, triggerColumn);
+        row.add(toggleSlot, 0, 0);
+        row.add(trigger, 1, 0);
         return row;
     }
 
@@ -867,14 +896,17 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     private void installInlineEditorState(VBox wrapper, Node focusTarget) {
         Runnable refreshState = () -> {
             boolean interactive = !focusTarget.isDisabled();
-            boolean hovered = interactive && wrapper.isHover() && !focusTarget.isFocused();
-            boolean active = interactive && focusTarget.isFocused();
+            boolean active = interactive && isEditorActive(focusTarget);
+            boolean hovered = interactive && wrapper.isHover() && !active;
             toggleStyleClass(wrapper, "info-panel-inline-editor-hover", hovered);
             toggleStyleClass(wrapper, "info-panel-inline-editor-active", active);
         };
         wrapper.hoverProperty().addListener((obs, oldValue, newValue) -> refreshState.run());
         focusTarget.focusedProperty().addListener((obs, oldValue, newValue) -> refreshState.run());
         focusTarget.disableProperty().addListener((obs, oldValue, newValue) -> refreshState.run());
+        if (focusTarget instanceof ComboBoxBase<?> comboBoxBase) {
+            comboBoxBase.showingProperty().addListener((obs, oldValue, newValue) -> refreshState.run());
+        }
         wrapper.setOnMouseClicked(event -> {
             if (focusTarget.isDisabled()) {
                 return;
@@ -887,12 +919,21 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         refreshState.run();
     }
 
+    private boolean isEditorActive(Node editor) {
+        if (editor instanceof ComboBoxBase<?> comboBoxBase) {
+            return comboBoxBase.isFocused() || comboBoxBase.isShowing();
+        }
+        return editor.isFocused();
+    }
+
     private void requestEditorFocus(Node editor) {
         editor.requestFocus();
         if (editor instanceof TextField field) {
             field.positionCaret(field.getText().length());
         } else if (editor instanceof TextArea area) {
             area.positionCaret(area.getText().length());
+        } else if (editor instanceof ComboBoxBase<?> comboBoxBase && !comboBoxBase.isShowing()) {
+            comboBoxBase.show();
         }
     }
 

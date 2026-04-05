@@ -172,10 +172,13 @@ class ThemeCssTest {
             () -> assertTrue(baseContent.contains(".info-panel-inline-editor-active {")),
             () -> assertTrue(baseContent.contains(".info-panel-borderless-field")),
             () -> assertTrue(baseContent.contains(".info-panel-borderless-area")),
+            () -> assertTrue(baseContent.contains(".info-panel-time-row {")),
+            () -> assertTrue(baseContent.contains(".info-panel-time-toggle-slot {")),
             () -> assertTrue(baseContent.contains(".info-panel-time-trigger {")),
             () -> assertTrue(baseContent.contains(".info-panel-time-trigger-title {")),
             () -> assertTrue(baseContent.contains(".info-panel-time-trigger-subtitle {")),
             () -> assertTrue(baseContent.contains(".info-panel-time-trigger-unset")),
+            () -> assertTrue(baseContent.contains(".info-panel-borderless-combo {")),
             () -> assertTrue(baseContent.contains(".ios-wheel-popup {")),
             () -> assertTrue(baseContent.contains(".ios-wheel-header {")),
             () -> assertTrue(baseContent.contains(".ios-wheel-year-switch {")),
@@ -196,11 +199,12 @@ class ThemeCssTest {
 
         assertAll(
             () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-padding: 6 10")),
+            () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-min-width: 148")),
+            () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-pref-width: 148")),
+            () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-max-width: 148")),
             () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-min-height: 54")),
             () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-pref-height: 54")),
             () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-max-height: 54")),
-            () -> assertTrue(triggerBlock != null && !triggerBlock.contains("-fx-pref-width")),
-            () -> assertTrue(triggerBlock != null && !triggerBlock.contains("-fx-max-width")),
             () -> assertTrue(toggleBlock != null && toggleBlock.contains("-fx-text-overrun: clip"))
         );
     }
