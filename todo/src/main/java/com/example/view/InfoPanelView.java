@@ -16,8 +16,8 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -31,14 +31,16 @@ import javafx.util.Duration;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 public class InfoPanelView implements ScheduleCompletionParticipant {
+    private static final String TITLE_PROMPT = "输入日程标题";
     private static final String EMPTY_TITLE_TEXT = "请选择日程";
     private static final String EMPTY_TIME_TEXT = "未设置时间";
+    private static final String UNSET_TRIGGER_TEXT = "未设置";
     private static final List<String> STATUS_CLASSES = List.of(
         "info-panel-status-completed",
         "info-panel-status-overdue",
@@ -47,41 +49,45 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     );
     private static final DateTimeFormatter SUMMARY_FORMATTER = DateTimeFormatter.ofPattern("M月d日 HH:mm");
     private static final DateTimeFormatter YEAR_FORMATTER = DateTimeFormatter.ofPattern("yyyy年");
-    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
     private final MainController controller;
+    private final IosWheelDateTimePopup wheelPopup = new IosWheelDateTimePopup();
     private final PauseTransition titleDelay = new PauseTransition(Duration.millis(400));
     private final PauseTransition categoryDelay = new PauseTransition(Duration.millis(400));
     private final PauseTransition tagsDelay = new PauseTransition(Duration.millis(400));
     private final PauseTransition notesDelay = new PauseTransition(Duration.millis(400));
 
     private VBox root;
+    private ScrollPane scrollPane;
     private Schedule currentSchedule;
     private Schedule persistedSchedule;
     private ParallelTransition panelTransition;
     private boolean panelVisible;
     private boolean suspend;
 
-    private Button completeButton;
+    private ScheduleStatusControl completeControl;
     private Button closeButton;
     private Button deleteButton;
     private Label statusLabel;
+    private FlowPane chipPane;
     private Label summaryPrimary;
     private Label summarySecondary;
     private TextField titleField;
     private CheckBox dueToggle;
-    private DatePicker dueDate;
-    private TextField dueTime;
+    private Button dueTrigger;
+    private Label dueTriggerTitle;
+    private Label dueTriggerSubtitle;
     private CheckBox startToggle;
-    private DatePicker startDate;
-    private TextField startTime;
+    private Button startTrigger;
+    private Label startTriggerTitle;
+    private Label startTriggerSubtitle;
     private CheckBox reminderToggle;
-    private DatePicker reminderDate;
-    private TextField reminderTime;
+    private Button reminderTrigger;
+    private Label reminderTriggerTitle;
+    private Label reminderTriggerSubtitle;
     private ComboBox<String> priorityBox;
     private TextField categoryField;
     private TextField tagsField;
-    private FlowPane chipPane;
     private TextArea notesArea;
     private VBox categoryEditor;
     private VBox tagsEditor;
@@ -127,6 +133,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         if (!panelVisible && !root.isVisible()) {
             return;
         }
+        closeWheelPopup();
         stopTransition();
         FadeTransition fade = new FadeTransition(Duration.millis(300), root);
         fade.setFromValue(root.getOpacity());
@@ -140,6 +147,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     }
 
     public void hideImmediately() {
+        closeWheelPopup();
         stopTransition();
         panelVisible = false;
         root.setOpacity(0);
@@ -153,6 +161,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     }
 
     public void setSchedule(Schedule schedule) {
+        closeWheelPopup();
         if (schedule == null) {
             currentSchedule = null;
             persistedSchedule = null;
@@ -165,6 +174,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     }
 
     public void refresh() {
+        closeWheelPopup();
         if (currentSchedule == null) {
             return;
         }
@@ -235,6 +245,25 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         return new DatePresentation(primary, secondary);
     }
 
+    static TimeTriggerPresentation buildTimeTriggerPresentation(LocalDateTime value) {
+        if (value == null) {
+            return new TimeTriggerPresentation(UNSET_TRIGGER_TEXT, "", true);
+        }
+        return new TimeTriggerPresentation(SUMMARY_FORMATTER.format(value), YEAR_FORMATTER.format(value), false);
+    }
+
+    static LocalDateTime defaultDueValue(LocalDate date) {
+        return date.atTime(23, 59);
+    }
+
+    static LocalDateTime defaultStartValue(LocalDate date) {
+        return date.atTime(9, 0);
+    }
+
+    static LocalDateTime defaultReminderValue(LocalDate date, LocalDateTime dueAt) {
+        return dueAt != null ? dueAt : defaultStartValue(date);
+    }
+
     static List<String> splitTagChips(String rawTags) {
         if (rawTags == null || rawTags.isBlank()) {
             return Collections.emptyList();
@@ -253,40 +282,68 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         root.setMinWidth(340);
         root.setMaxWidth(420);
 
-        completeButton = new Button("完成");
-        completeButton.getStyleClass().add("info-panel-complete-toggle");
-        completeButton.setGraphic(controller.createSvgIcon("/icons/macaron_info-complete_icon.svg", null, 16));
-        completeButton.setGraphicTextGap(8);
-        completeButton.setContentDisplay(ContentDisplay.LEFT);
-        completeButton.setOnAction(event -> toggleComplete());
+        completeControl = new ScheduleStatusControl(
+            false,
+            ScheduleStatusControl.SizePreset.DETAIL,
+            "schedule-status-role-detail",
+            targetCompleted -> currentSchedule != null && controller.updateScheduleCompletion(currentSchedule, targetCompleted)
+        );
+        completeControl.getStyleClass().add("info-panel-complete-control");
 
-        statusLabel = new Label();
-        statusLabel.getStyleClass().add("info-panel-status-pill");
+        deleteButton = actionIconButton(
+            "/icons/macaron_info-delete_icon.svg",
+            "删除日程",
+            this::deleteSchedule,
+            "info-panel-icon-button-danger",
+            "info-panel-delete-button"
+        );
         closeButton = iconButton("/icons/macaron_info-close_icon.svg", "关闭详情", controller::closeScheduleDetails);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox header = new HBox(10, completeButton, statusLabel, spacer, closeButton);
+        HBox actionGroup = new HBox(10, completeControl, deleteButton);
+        actionGroup.setAlignment(Pos.CENTER_LEFT);
+        actionGroup.getStyleClass().add("info-panel-action-group");
+        HBox header = new HBox(10, actionGroup, spacer, closeButton);
         header.setAlignment(Pos.CENTER_LEFT);
-        header.getStyleClass().add("info-panel-header");
+        header.getStyleClass().addAll("info-panel-header", "info-panel-action-row");
+
+        statusLabel = new Label();
+        statusLabel.getStyleClass().add("info-panel-status-pill");
+
+        chipPane = new FlowPane();
+        chipPane.setHgap(8);
+        chipPane.setVgap(8);
+        chipPane.getStyleClass().addAll("info-panel-chip-pane", "info-panel-top-chip-pane");
+        chipPane.prefWrapLengthProperty().bind(root.widthProperty().subtract(56));
+        chipPane.setVisible(false);
+        chipPane.setManaged(false);
 
         titleField = new TextField();
         titleField.getStyleClass().add("info-panel-title-input");
-        titleField.setPromptText("输入日程标题");
-        summaryPrimary = new Label(EMPTY_TIME_TEXT);
-        summaryPrimary.getStyleClass().add("info-panel-date-primary");
-        summarySecondary = new Label();
-        summarySecondary.getStyleClass().add("info-panel-date-secondary");
+        titleField.setPromptText(TITLE_PROMPT);
+
+        summaryPrimary = summaryLabel("info-panel-date-primary");
+        summaryPrimary.setText(EMPTY_TIME_TEXT);
+        summarySecondary = summaryLabel("info-panel-date-secondary");
 
         dueToggle = rowToggle("截止时间");
-        dueDate = rowDatePicker();
-        dueTime = rowTimeField();
+        dueTrigger = timeTrigger();
+        dueTriggerTitle = triggerLabel("info-panel-time-trigger-title");
+        dueTriggerSubtitle = triggerLabel("info-panel-time-trigger-subtitle");
+        attachTriggerGraphic(dueTrigger, dueTriggerTitle, dueTriggerSubtitle);
+
         startToggle = rowToggle("开始时间");
-        startDate = rowDatePicker();
-        startTime = rowTimeField();
+        startTrigger = timeTrigger();
+        startTriggerTitle = triggerLabel("info-panel-time-trigger-title");
+        startTriggerSubtitle = triggerLabel("info-panel-time-trigger-subtitle");
+        attachTriggerGraphic(startTrigger, startTriggerTitle, startTriggerSubtitle);
+
         reminderToggle = rowToggle("提醒");
-        reminderDate = rowDatePicker();
-        reminderTime = rowTimeField();
+        reminderTrigger = timeTrigger();
+        reminderTriggerTitle = triggerLabel("info-panel-time-trigger-title");
+        reminderTriggerSubtitle = triggerLabel("info-panel-time-trigger-subtitle");
+        attachTriggerGraphic(reminderTrigger, reminderTriggerTitle, reminderTriggerSubtitle);
 
         priorityBox = new ComboBox<>();
         priorityBox.getItems().setAll(Schedule.PRIORITY_HIGH, Schedule.PRIORITY_MEDIUM, Schedule.PRIORITY_LOW);
@@ -295,54 +352,32 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
 
         categoryField = textInput("未分类");
         tagsField = textInput("用逗号拆解标签");
-        chipPane = new FlowPane();
-        chipPane.setHgap(8);
-        chipPane.setVgap(8);
-        chipPane.getStyleClass().add("info-panel-chip-pane");
-        chipPane.prefWrapLengthProperty().bind(root.widthProperty().subtract(56));
 
         notesArea = new TextArea();
         notesArea.getStyleClass().addAll("info-panel-notes-input", "info-panel-borderless-area");
         notesArea.setPrefRowCount(6);
         notesArea.setWrapText(true);
-        categoryEditor = inlineEditor(categoryField);
-        tagsEditor = inlineEditor(tagsField, chipPane);
-        notesEditor = inlineEditor(notesArea);
         notesArea.setPromptText("补充备注、描述和上下文");
 
-        deleteButton = new Button("删除日程");
-        deleteButton.getStyleClass().add("info-panel-delete-button");
-        deleteButton.setGraphic(controller.createSvgIcon("/icons/macaron_info-delete_icon.svg", null, 16));
-        deleteButton.setGraphicTextGap(8);
-        deleteButton.setContentDisplay(ContentDisplay.LEFT);
-        deleteButton.setOnAction(event -> deleteSchedule());
+        categoryEditor = inlineEditor(categoryField);
+        tagsEditor = inlineEditor(tagsField);
+        notesEditor = inlineEditor(notesArea);
 
-        VBox content = new VBox(
-            14,
-            titleField,
-            summaryPrimary,
-            summarySecondary,
-            section("时间", inlineRow(dueToggle, dueDate, dueTime), inlineRow(startToggle, startDate, startTime), inlineRow(reminderToggle, reminderDate, reminderTime)),
-            section("优先级", priorityBox),
-            section("任务", categoryField),
-            section("标签", tagsField, chipPane),
-            section("备注", notesArea),
-            deleteButton
-        );
+        VBox content = new VBox();
         content.getStyleClass().add("info-panel-content");
-        content.getChildren().setAll(
+        content.getChildren().addAll(
+            chipPane,
             titleField,
             summaryPrimary,
             summarySecondary,
-            section("\u65f6\u95f4", inlineRow(dueToggle, dueDate, dueTime), inlineRow(startToggle, startDate, startTime), inlineRow(reminderToggle, reminderDate, reminderTime)),
-            section("\u4f18\u5148\u7ea7", priorityBox),
-            section("\u4efb\u52a1", categoryEditor),
-            section("\u6807\u7b7e", tagsEditor),
-            section("\u5907\u6ce8", notesEditor),
-            deleteButton
+            section("时间", timeRow(dueToggle, dueTrigger), timeRow(startToggle, startTrigger), timeRow(reminderToggle, reminderTrigger)),
+            section("优先级", priorityBox),
+            section("任务", categoryEditor),
+            section("标签", tagsEditor),
+            section("备注", notesEditor)
         );
 
-        ScrollPane scrollPane = new ScrollPane(content);
+        scrollPane = new ScrollPane(content);
         scrollPane.setFitToWidth(true);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
@@ -356,42 +391,72 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         bindTextField(titleField, titleDelay, this::saveTitle);
         bindTextField(categoryField, categoryDelay, this::saveCategory);
         bindTextField(tagsField, tagsDelay, this::saveTags);
-        tagsField.textProperty().addListener((obs, oldValue, newValue) -> { if (!suspend) updateChips(categoryField.getText(), newValue); });
-        categoryField.textProperty().addListener((obs, oldValue, newValue) -> { if (!suspend) updateChips(newValue, tagsField.getText()); });
-        notesArea.textProperty().addListener((obs, oldValue, newValue) -> { if (!suspend) { notesDelay.stop(); notesDelay.setOnFinished(e -> saveNotes()); notesDelay.playFromStart(); }});
-        notesArea.focusedProperty().addListener((obs, oldValue, focused) -> { if (!focused && !suspend) saveNotes(); });
-
+        categoryField.textProperty().addListener((obs, oldValue, newValue) -> {
+            if (!suspend) {
+                updateChips(newValue, tagsField.getText());
+            }
+        });
+        tagsField.textProperty().addListener((obs, oldValue, newValue) -> {
+            if (!suspend) {
+                updateChips(categoryField.getText(), newValue);
+            }
+        });
+        notesArea.textProperty().addListener((obs, oldValue, newValue) -> {
+            if (suspend) {
+                return;
+            }
+            notesDelay.stop();
+            notesDelay.setOnFinished(event -> saveNotes());
+            notesDelay.playFromStart();
+        });
+        notesArea.focusedProperty().addListener((obs, oldValue, focused) -> {
+            if (!focused && !suspend) {
+                saveNotes();
+            }
+        });
         priorityBox.valueProperty().addListener((obs, oldValue, newValue) -> {
-            if (!suspend && newValue != null) save("保存优先级失败", draft -> draft.setPriority(newValue), false);
+            if (!suspend && newValue != null) {
+                save("保存优先级失败", draft -> draft.setPriority(newValue), false);
+            }
         });
 
-        dueToggle.selectedProperty().addListener((obs, oldValue, selected) -> { if (!suspend) handleDueToggle(selected); });
-        startToggle.selectedProperty().addListener((obs, oldValue, selected) -> { if (!suspend) handleStartToggle(selected); });
-        reminderToggle.selectedProperty().addListener((obs, oldValue, selected) -> { if (!suspend) handleReminderToggle(selected); });
+        dueToggle.selectedProperty().addListener((obs, oldValue, selected) -> {
+            if (!suspend) {
+                handleDueToggle(selected);
+            }
+        });
+        startToggle.selectedProperty().addListener((obs, oldValue, selected) -> {
+            if (!suspend) {
+                handleStartToggle(selected);
+            }
+        });
+        reminderToggle.selectedProperty().addListener((obs, oldValue, selected) -> {
+            if (!suspend) {
+                handleReminderToggle(selected);
+            }
+        });
 
-        dueDate.valueProperty().addListener((obs, oldValue, newValue) -> { if (!suspend && dueToggle.isSelected()) saveDue(); });
-        startDate.valueProperty().addListener((obs, oldValue, newValue) -> { if (!suspend && startToggle.isSelected()) saveStart(); });
-        reminderDate.valueProperty().addListener((obs, oldValue, newValue) -> { if (!suspend && reminderToggle.isSelected()) saveReminder(); });
-
-        bindTimeField(dueTime, this::saveDue);
-        bindTimeField(startTime, this::saveStart);
-        bindTimeField(reminderTime, this::saveReminder);
+        dueTrigger.setOnAction(event -> openDuePicker());
+        startTrigger.setOnAction(event -> openStartPicker());
+        reminderTrigger.setOnAction(event -> openReminderPicker());
+        scrollPane.vvalueProperty().addListener((obs, oldValue, newValue) -> closeWheelPopup());
     }
 
     private void bindTextField(TextField field, PauseTransition delay, Runnable saveAction) {
         field.textProperty().addListener((obs, oldValue, newValue) -> {
-            if (suspend) return;
+            if (suspend) {
+                return;
+            }
             delay.stop();
             delay.setOnFinished(event -> saveAction.run());
             delay.playFromStart();
         });
         field.setOnAction(event -> saveAction.run());
-        field.focusedProperty().addListener((obs, oldValue, focused) -> { if (!focused && !suspend) saveAction.run(); });
-    }
-
-    private void bindTimeField(TextField field, Runnable saveAction) {
-        field.setOnAction(event -> saveAction.run());
-        field.focusedProperty().addListener((obs, oldValue, focused) -> { if (!focused && !suspend) saveAction.run(); });
+        field.focusedProperty().addListener((obs, oldValue, focused) -> {
+            if (!focused && !suspend) {
+                saveAction.run();
+            }
+        });
     }
 
     private void saveTitle() {
@@ -401,102 +466,136 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
             restorePersisted();
             return;
         }
-        if (persistedSchedule != null && value.equals(persistedSchedule.getName())) return;
+        if (persistedSchedule != null && value.equals(persistedSchedule.getName())) {
+            return;
+        }
         save("保存标题失败", draft -> draft.setName(value), false);
     }
 
     private void saveCategory() {
         String value = categoryField.getText();
-        if (persistedSchedule != null && Schedule.normalizeCategory(value).equals(persistedSchedule.getCategory())) return;
+        if (persistedSchedule != null && Schedule.normalizeCategory(value).equals(persistedSchedule.getCategory())) {
+            return;
+        }
         save("保存任务失败", draft -> draft.setCategory(value), false);
     }
 
     private void saveTags() {
         String value = Schedule.normalizeTags(tagsField.getText());
-        if (persistedSchedule != null && value.equals(persistedSchedule.getTags())) return;
+        if (persistedSchedule != null && value.equals(persistedSchedule.getTags())) {
+            return;
+        }
         save("保存标签失败", draft -> draft.setTags(value), true);
     }
 
     private void saveNotes() {
         String value = notesArea.getText() == null ? "" : notesArea.getText();
-        if (persistedSchedule != null && value.equals(persistedSchedule.getDescription())) return;
+        if (persistedSchedule != null && value.equals(persistedSchedule.getDescription())) {
+            return;
+        }
         save("保存备注失败", draft -> draft.setDescription(value), false);
     }
 
     private void handleDueToggle(boolean selected) {
-        if (selected) {
-            LocalDateTime value = currentSchedule != null && currentSchedule.getDueAt() != null ? currentSchedule.getDueAt() : LocalDate.now().atTime(23, 59);
-            suspend = true;
-            dueDate.setValue(value.toLocalDate());
-            dueTime.setText(value.toLocalTime().format(TIME_FORMATTER));
-            suspend = false;
-            saveDue();
-            return;
-        }
-        save("保存截止时间失败", draft -> draft.setDueAt(null), true);
+        closeWheelPopup();
+        saveDue(selected ? (currentSchedule != null && currentSchedule.getDueAt() != null
+            ? currentSchedule.getDueAt()
+            : defaultDueValue(LocalDate.now())) : null);
     }
 
     private void handleStartToggle(boolean selected) {
-        if (selected) {
-            LocalDateTime value = currentSchedule != null && currentSchedule.getStartAt() != null ? currentSchedule.getStartAt() : LocalDate.now().atTime(9, 0);
-            suspend = true;
-            startDate.setValue(value.toLocalDate());
-            startTime.setText(value.toLocalTime().format(TIME_FORMATTER));
-            suspend = false;
-            saveStart();
-            return;
-        }
-        save("保存开始时间失败", draft -> draft.setStartAt(null), true);
+        closeWheelPopup();
+        saveStart(selected ? (currentSchedule != null && currentSchedule.getStartAt() != null
+            ? currentSchedule.getStartAt()
+            : defaultStartValue(LocalDate.now())) : null);
     }
 
     private void handleReminderToggle(boolean selected) {
-        if (selected) {
-            LocalDateTime value = currentSchedule != null && currentSchedule.getReminderTime() != null
-                ? currentSchedule.getReminderTime()
-                : (currentSchedule != null && currentSchedule.getDueAt() != null ? currentSchedule.getDueAt() : LocalDate.now().atTime(9, 0));
-            suspend = true;
-            reminderDate.setValue(value.toLocalDate());
-            reminderTime.setText(value.toLocalTime().format(TIME_FORMATTER));
-            suspend = false;
-            saveReminder();
+        closeWheelPopup();
+        saveReminder(selected ? (currentSchedule != null && currentSchedule.getReminderTime() != null
+            ? currentSchedule.getReminderTime()
+            : defaultReminderValue(LocalDate.now(), currentSchedule != null ? currentSchedule.getDueAt() : null)) : null);
+    }
+
+    private void openDuePicker() {
+        if (currentSchedule != null && dueToggle.isSelected()) {
+            openTimePicker("截止时间", dueTrigger, currentSchedule.getDueAt(), this::saveDue);
+        }
+    }
+
+    private void openStartPicker() {
+        if (currentSchedule != null && startToggle.isSelected()) {
+            openTimePicker("开始时间", startTrigger, currentSchedule.getStartAt(), this::saveStart);
+        }
+    }
+
+    private void openReminderPicker() {
+        if (currentSchedule != null && reminderToggle.isSelected()) {
+            openTimePicker("提醒", reminderTrigger, currentSchedule.getReminderTime(), this::saveReminder);
+        }
+    }
+
+    private void openTimePicker(String title, Button owner, LocalDateTime currentValue, java.util.function.Consumer<LocalDateTime> saveAction) {
+        LocalDateTime seed = currentValue != null ? currentValue : defaultStartValue(LocalDate.now());
+        wheelPopup.show(owner, title, seed, value -> {
+            closeWheelPopup();
+            saveAction.accept(value);
+        });
+    }
+
+    private void saveDue(LocalDateTime value) {
+        if (persistedSchedule != null && Objects.equals(value, persistedSchedule.getDueAt())) {
+            updateTimeTriggers();
             return;
         }
-        save("保存提醒失败", draft -> draft.setReminderTime(null), true);
+        save("保存截止时间失败", draft -> draft.setDueAt(value), true);
     }
 
-    private void saveDue() {
-        save("保存截止时间失败", draft -> draft.setDueAt(resolveDateTime(dueToggle, dueDate, dueTime, LocalTime.of(23, 59))), true);
+    private void saveStart(LocalDateTime value) {
+        if (persistedSchedule != null && Objects.equals(value, persistedSchedule.getStartAt())) {
+            updateTimeTriggers();
+            return;
+        }
+        save("保存开始时间失败", draft -> draft.setStartAt(value), true);
     }
 
-    private void saveStart() {
-        save("保存开始时间失败", draft -> draft.setStartAt(resolveDateTime(startToggle, startDate, startTime, LocalTime.MIDNIGHT)), true);
-    }
-
-    private void saveReminder() {
-        save("保存提醒失败", draft -> draft.setReminderTime(resolveDateTime(reminderToggle, reminderDate, reminderTime, LocalTime.of(9, 0))), true);
+    private void saveReminder(LocalDateTime value) {
+        if (persistedSchedule != null && Objects.equals(value, persistedSchedule.getReminderTime())) {
+            updateTimeTriggers();
+            return;
+        }
+        save("保存提醒失败", draft -> draft.setReminderTime(value), true);
     }
 
     private void save(String errorTitle, Change change, boolean rerender) {
-        if (currentSchedule == null || persistedSchedule == null) return;
+        if (currentSchedule == null || persistedSchedule == null) {
+            return;
+        }
         Schedule draft = copyOf(currentSchedule);
         try {
             change.apply(draft);
-            if (!controller.saveSchedule(draft)) throw new SQLException("日程变更未被持久化。");
+            if (!controller.saveSchedule(draft)) {
+                throw new SQLException("日程变更未被持久化。");
+            }
             currentSchedule = draft;
             persistedSchedule = copyOf(draft);
-            if (rerender) renderForm(); else updateDerivedState();
+            if (rerender) {
+                renderForm();
+            } else {
+                updateDerivedState();
+            }
             controller.refreshDataViews();
-        } catch (IllegalArgumentException exception) {
-            controller.showError(errorTitle, exception.getMessage());
-            restorePersisted();
-        } catch (SQLException exception) {
+        } catch (IllegalArgumentException | SQLException exception) {
             controller.showError(errorTitle, exception.getMessage());
             restorePersisted();
         }
     }
 
     private void restorePersisted() {
-        if (persistedSchedule == null) return;
+        closeWheelPopup();
+        if (persistedSchedule == null) {
+            return;
+        }
         currentSchedule = copyOf(persistedSchedule);
         renderForm();
     }
@@ -506,31 +605,28 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
             applyEmptyState();
             return;
         }
+        closeWheelPopup();
         titleDelay.stop();
         categoryDelay.stop();
         tagsDelay.stop();
         notesDelay.stop();
         suspend = true;
+        titleField.setPromptText(TITLE_PROMPT);
         titleField.setText(currentSchedule.getName());
         priorityBox.setValue(currentSchedule.getPriority());
         categoryField.setText(currentSchedule.getCategory());
         tagsField.setText(currentSchedule.getTags());
         notesArea.setText(currentSchedule.getDescription());
         dueToggle.setSelected(currentSchedule.getDueAt() != null);
-        dueDate.setValue(currentSchedule.getDueAt() != null ? currentSchedule.getDueAt().toLocalDate() : null);
-        dueTime.setText(currentSchedule.getDueAt() != null ? currentSchedule.getDueAt().toLocalTime().format(TIME_FORMATTER) : "");
         startToggle.setSelected(currentSchedule.getStartAt() != null);
-        startDate.setValue(currentSchedule.getStartAt() != null ? currentSchedule.getStartAt().toLocalDate() : null);
-        startTime.setText(currentSchedule.getStartAt() != null ? currentSchedule.getStartAt().toLocalTime().format(TIME_FORMATTER) : "");
         reminderToggle.setSelected(currentSchedule.getReminderTime() != null);
-        reminderDate.setValue(currentSchedule.getReminderTime() != null ? currentSchedule.getReminderTime().toLocalDate() : null);
-        reminderTime.setText(currentSchedule.getReminderTime() != null ? currentSchedule.getReminderTime().toLocalTime().format(TIME_FORMATTER) : "");
         suspend = false;
         updateEditorsEnabled();
         updateDerivedState();
     }
 
     private void applyEmptyState() {
+        closeWheelPopup();
         suspend = true;
         titleField.setText("");
         priorityBox.setValue(Schedule.DEFAULT_PRIORITY);
@@ -538,26 +634,26 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         tagsField.setText("");
         notesArea.setText("");
         dueToggle.setSelected(false);
-        dueDate.setValue(null);
-        dueTime.setText("");
         startToggle.setSelected(false);
-        startDate.setValue(null);
-        startTime.setText("");
         reminderToggle.setSelected(false);
-        reminderDate.setValue(null);
-        reminderTime.setText("");
         suspend = false;
+
         statusLabel.setText("");
         statusLabel.getStyleClass().removeAll(STATUS_CLASSES);
         statusLabel.setVisible(false);
         statusLabel.setManaged(false);
+        chipPane.getChildren().clear();
+        chipPane.setVisible(false);
+        chipPane.setManaged(false);
+
         summaryPrimary.setText(EMPTY_TIME_TEXT);
         summarySecondary.setText("");
-        chipPane.getChildren().clear();
-        completeButton.setText("完成");
-        completeButton.setDisable(true);
-        deleteButton.setDisable(true);
+        summarySecondary.setVisible(false);
+        summarySecondary.setManaged(false);
+
+        completeControl.syncCompleted(false);
         setDisabled(true);
+        updateTimeTriggers();
         titleField.setPromptText(EMPTY_TITLE_TEXT);
     }
 
@@ -582,36 +678,62 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         }
         statusLabel.setVisible(true);
         statusLabel.setManaged(true);
-        completeButton.setText(currentSchedule.isCompleted() ? "标记未完成" : "完成");
-        completeButton.setDisable(false);
-        deleteButton.setDisable(false);
+        completeControl.syncCompleted(currentSchedule.isCompleted());
+        setDisabled(false);
+
         DatePresentation presentation = buildDatePresentation(currentSchedule.getStartAt(), currentSchedule.getDueAt());
         summaryPrimary.setText(presentation.getPrimaryText());
         summarySecondary.setText(presentation.getSecondaryText());
         summarySecondary.setVisible(!presentation.getSecondaryText().isBlank());
         summarySecondary.setManaged(!presentation.getSecondaryText().isBlank());
+
+        updateTimeTriggers();
         updateChips(currentSchedule.getCategory(), currentSchedule.getTags());
     }
 
     private void updateChips(String category, String tags) {
         chipPane.getChildren().clear();
-        if (shouldShowCategoryChip(category)) chipPane.getChildren().add(chip(Schedule.normalizeCategory(category), "info-panel-chip-category"));
-        for (String tag : splitTagChips(tags)) chipPane.getChildren().add(chip(tag, "info-panel-chip-tag"));
-        chipPane.setVisible(!chipPane.getChildren().isEmpty());
-        chipPane.setManaged(!chipPane.getChildren().isEmpty());
+        if (statusLabel.isManaged() && !statusLabel.getText().isBlank()) {
+            chipPane.getChildren().add(statusLabel);
+        }
+        if (shouldShowCategoryChip(category)) {
+            chipPane.getChildren().add(chip(Schedule.normalizeCategory(category), "info-panel-chip-category"));
+        }
+        for (String tag : splitTagChips(tags)) {
+            chipPane.getChildren().add(chip(tag, "info-panel-chip-tag"));
+        }
+        boolean hasContent = !chipPane.getChildren().isEmpty();
+        chipPane.setVisible(hasContent);
+        chipPane.setManaged(hasContent);
     }
 
     private void updateEditorsEnabled() {
-        setDisabled(false);
-        dueDate.setDisable(!dueToggle.isSelected());
-        dueTime.setDisable(!dueToggle.isSelected());
-        startDate.setDisable(!startToggle.isSelected());
-        startTime.setDisable(!startToggle.isSelected());
-        reminderDate.setDisable(!reminderToggle.isSelected());
-        reminderTime.setDisable(!reminderToggle.isSelected());
+        boolean disabled = currentSchedule == null;
+        setDisabled(disabled);
+        dueTrigger.setDisable(disabled || !dueToggle.isSelected());
+        startTrigger.setDisable(disabled || !startToggle.isSelected());
+        reminderTrigger.setDisable(disabled || !reminderToggle.isSelected());
+    }
+
+    private void updateTimeTriggers() {
+        configureTimeTrigger(dueTrigger, dueTriggerTitle, dueTriggerSubtitle, currentSchedule != null && dueToggle.isSelected() ? currentSchedule.getDueAt() : null);
+        configureTimeTrigger(startTrigger, startTriggerTitle, startTriggerSubtitle, currentSchedule != null && startToggle.isSelected() ? currentSchedule.getStartAt() : null);
+        configureTimeTrigger(reminderTrigger, reminderTriggerTitle, reminderTriggerSubtitle, currentSchedule != null && reminderToggle.isSelected() ? currentSchedule.getReminderTime() : null);
+        updateEditorsEnabled();
+    }
+
+    private void configureTimeTrigger(Button trigger, Label titleLabel, Label subtitleLabel, LocalDateTime value) {
+        TimeTriggerPresentation presentation = buildTimeTriggerPresentation(value);
+        titleLabel.setText(presentation.getPrimaryText());
+        subtitleLabel.setText(presentation.getSecondaryText());
+        subtitleLabel.setVisible(!presentation.getSecondaryText().isBlank());
+        subtitleLabel.setManaged(!presentation.getSecondaryText().isBlank());
+        toggleStyleClass(trigger, "info-panel-time-trigger-unset", presentation.isUnset());
     }
 
     private void setDisabled(boolean disabled) {
+        completeControl.setDisable(disabled);
+        deleteButton.setDisable(disabled);
         titleField.setDisable(disabled);
         dueToggle.setDisable(disabled);
         startToggle.setDisable(disabled);
@@ -622,18 +744,19 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         notesArea.setDisable(disabled);
     }
 
-    private void toggleComplete() {
-        if (currentSchedule != null) controller.updateScheduleCompletion(currentSchedule, !currentSchedule.isCompleted());
-    }
-
     private void deleteSchedule() {
-        if (currentSchedule == null) return;
+        closeWheelPopup();
+        if (currentSchedule == null) {
+            return;
+        }
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("确认删除");
         alert.setHeaderText("删除日程");
         alert.setContentText("确定要删除日程 \"" + currentSchedule.getName() + "\" 吗？");
         alert.showAndWait().ifPresent(response -> {
-            if (response != ButtonType.OK) return;
+            if (response != ButtonType.OK) {
+                return;
+            }
             try {
                 controller.removeSchedule(currentSchedule.getId());
                 currentSchedule = null;
@@ -647,21 +770,17 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         });
     }
 
-    private LocalDateTime resolveDateTime(CheckBox toggle, DatePicker picker, TextField field, LocalTime fallback) {
-        if (!toggle.isSelected()) return null;
-        LocalDate date = picker.getValue();
-        if (date == null) throw new IllegalArgumentException("请先选择日期。");
-        String text = field.getText() == null ? "" : field.getText().strip();
-        LocalTime time = text.isEmpty() ? fallback : parseTime(text);
-        return LocalDateTime.of(date, time);
+    private void closeWheelPopup() {
+        wheelPopup.hide();
     }
 
-    private LocalTime parseTime(String value) {
-        try {
-            return LocalTime.parse(value, TIME_FORMATTER);
-        } catch (Exception exception) {
-            throw new IllegalArgumentException("时间请按 HH:mm 格式输入。");
-        }
+    private Label summaryLabel(String styleClass) {
+        Label label = new Label();
+        label.getStyleClass().add(styleClass);
+        label.setWrapText(true);
+        label.setTextOverrun(OverrunStyle.CLIP);
+        label.setMaxWidth(Double.MAX_VALUE);
+        return label;
     }
 
     private Button iconButton(String iconPath, String tooltipText, Runnable action) {
@@ -673,27 +792,52 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         return button;
     }
 
+    private Button actionIconButton(String iconPath, String tooltipText, Runnable action, String... styleClasses) {
+        Button button = new Button();
+        button.getStyleClass().add("info-panel-icon-button");
+        button.getStyleClass().addAll(styleClasses);
+        button.setGraphic(controller.createSvgIcon(iconPath, tooltipText, 16));
+        button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        button.setOnAction(event -> action.run());
+        return button;
+    }
+
     private CheckBox rowToggle(String text) {
         CheckBox box = new CheckBox(text);
         box.getStyleClass().add("info-panel-editor-toggle");
+        box.setMinWidth(Region.USE_PREF_SIZE);
+        box.setTextOverrun(OverrunStyle.CLIP);
         return box;
     }
 
-    private DatePicker rowDatePicker() {
-        DatePicker picker = new DatePicker();
-        picker.getStyleClass().add("info-panel-date-picker");
-        picker.setMaxWidth(Double.MAX_VALUE);
-        HBox.setHgrow(picker, Priority.ALWAYS);
-        DatePickerArrowSupport.install(picker, controller);
-        return picker;
+    private Button timeTrigger() {
+        Button button = new Button();
+        button.getStyleClass().add("info-panel-time-trigger");
+        button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        button.setAlignment(Pos.CENTER_LEFT);
+        button.setMinWidth(Region.USE_COMPUTED_SIZE);
+        button.setPrefWidth(Region.USE_COMPUTED_SIZE);
+        button.setMaxWidth(Region.USE_PREF_SIZE);
+        button.setMinHeight(54);
+        button.setPrefHeight(54);
+        button.setMaxHeight(54);
+        return button;
     }
 
-    private TextField rowTimeField() {
-        TextField field = new TextField();
-        field.getStyleClass().add("info-panel-time-input");
-        field.setPromptText("HH:mm");
-        field.setPrefColumnCount(5);
-        return field;
+    private void attachTriggerGraphic(Button trigger, Label titleLabel, Label subtitleLabel) {
+        VBox textBox = new VBox(2, titleLabel, subtitleLabel);
+        textBox.setAlignment(Pos.CENTER_LEFT);
+        textBox.setFillWidth(false);
+        textBox.setMouseTransparent(true);
+        trigger.setGraphic(textBox);
+    }
+
+    private Label triggerLabel(String styleClass) {
+        Label label = new Label();
+        label.getStyleClass().add(styleClass);
+        label.setWrapText(false);
+        label.setTextOverrun(OverrunStyle.CLIP);
+        return label;
     }
 
     private TextField textInput(String prompt) {
@@ -703,11 +847,11 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         return field;
     }
 
-    private HBox inlineRow(Node a, Node b, Node c) {
-        HBox row = new HBox(8, a, b, c);
+    private HBox timeRow(CheckBox toggle, Button trigger) {
+        HBox row = new HBox(8, toggle, trigger);
         row.setAlignment(Pos.CENTER_LEFT);
+        row.setFillHeight(false);
         row.getStyleClass().add("info-panel-inline-row");
-        HBox.setHgrow(b, Priority.ALWAYS);
         return row;
     }
 
@@ -815,16 +959,49 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     }
 
     @FunctionalInterface
-    private interface Change { void apply(Schedule schedule); }
+    private interface Change {
+        void apply(Schedule schedule);
+    }
 
     static final class DatePresentation {
         private final String primaryText;
         private final String secondaryText;
+
         DatePresentation(String primaryText, String secondaryText) {
             this.primaryText = primaryText;
             this.secondaryText = secondaryText;
         }
-        String getPrimaryText() { return primaryText; }
-        String getSecondaryText() { return secondaryText; }
+
+        String getPrimaryText() {
+            return primaryText;
+        }
+
+        String getSecondaryText() {
+            return secondaryText;
+        }
+    }
+
+    static final class TimeTriggerPresentation {
+        private final String primaryText;
+        private final String secondaryText;
+        private final boolean unset;
+
+        TimeTriggerPresentation(String primaryText, String secondaryText, boolean unset) {
+            this.primaryText = primaryText;
+            this.secondaryText = secondaryText;
+            this.unset = unset;
+        }
+
+        String getPrimaryText() {
+            return primaryText;
+        }
+
+        String getSecondaryText() {
+            return secondaryText;
+        }
+
+        boolean isUnset() {
+            return unset;
+        }
     }
 }

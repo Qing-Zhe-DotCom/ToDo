@@ -31,7 +31,8 @@ public class ScheduleStatusControl extends StackPane {
     public enum SizePreset {
         LIST("schedule-status-size-list", 24.0),
         TIMELINE("schedule-status-size-timeline", 18.0),
-        HEATMAP("schedule-status-size-heatmap", 22.0);
+        HEATMAP("schedule-status-size-heatmap", 22.0),
+        DETAIL("schedule-status-size-detail", 26.0);
 
         private final String styleClassName;
         private final double pixelSize;
@@ -62,7 +63,6 @@ public class ScheduleStatusControl extends StackPane {
     private static final double STROKE_WIDTH = 16.0;
     private static final double SHADOW_OFFSET_Y = 4.0;
     private static final double SEGMENT_SWEEP = 120.0;
-
     private final Predicate<Boolean> commitHandler;
     private final ScheduleStatusInteractionModel interactionModel;
     private final Arc staticSegmentA;

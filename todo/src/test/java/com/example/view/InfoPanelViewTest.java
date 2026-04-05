@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -39,6 +40,41 @@ class InfoPanelViewTest {
 
         assertEquals("未设置时间", presentation.getPrimaryText());
         assertEquals("", presentation.getSecondaryText());
+    }
+
+    @Test
+    void buildsTriggerPresentationForSetAndUnsetValues() {
+        InfoPanelView.TimeTriggerPresentation unset = InfoPanelView.buildTimeTriggerPresentation(null);
+        InfoPanelView.TimeTriggerPresentation set = InfoPanelView.buildTimeTriggerPresentation(
+            LocalDateTime.of(2026, 4, 6, 21, 45)
+        );
+
+        assertEquals("未设置", unset.getPrimaryText());
+        assertEquals("", unset.getSecondaryText());
+        assertTrue(unset.isUnset());
+        assertEquals("4月6日 21:45", set.getPrimaryText());
+        assertEquals("2026年", set.getSecondaryText());
+        assertFalse(set.isUnset());
+    }
+
+    @Test
+    void defaultTimeSeedsMatchDetailPanelRules() {
+        LocalDate date = LocalDate.of(2026, 4, 6);
+        LocalDateTime due = LocalDateTime.of(2026, 4, 8, 18, 30);
+
+        assertEquals(LocalDateTime.of(2026, 4, 6, 23, 59), InfoPanelView.defaultDueValue(date));
+        assertEquals(LocalDateTime.of(2026, 4, 6, 9, 0), InfoPanelView.defaultStartValue(date));
+        assertEquals(due, InfoPanelView.defaultReminderValue(date, due));
+        assertEquals(LocalDateTime.of(2026, 4, 6, 9, 0), InfoPanelView.defaultReminderValue(date, null));
+    }
+
+    @Test
+    void wheelPopupHelpersClampMonthLength() {
+        assertEquals(29, IosWheelDateTimePopup.daysInMonth(2024, 2));
+        assertEquals(28, IosWheelDateTimePopup.daysInMonth(2025, 2));
+        assertEquals(30, IosWheelDateTimePopup.clampDay(2026, 4, 31));
+        assertEquals(28, IosWheelDateTimePopup.clampDay(2025, 2, 31));
+        assertEquals(1, IosWheelDateTimePopup.clampDay(2025, 2, 0));
     }
 
     @Test

@@ -130,9 +130,11 @@ class ThemeCssTest {
             () -> assertTrue(baseContent.contains(".schedule-status-role-list")),
             () -> assertTrue(baseContent.contains(".schedule-status-role-timeline")),
             () -> assertTrue(baseContent.contains(".schedule-status-role-heatmap")),
+            () -> assertTrue(baseContent.contains(".schedule-status-role-detail")),
             () -> assertTrue(baseContent.contains(".schedule-status-size-list")),
             () -> assertTrue(baseContent.contains(".schedule-status-size-timeline")),
-            () -> assertTrue(baseContent.contains(".schedule-status-size-heatmap"))
+            () -> assertTrue(baseContent.contains(".schedule-status-size-heatmap")),
+            () -> assertTrue(baseContent.contains(".schedule-status-size-detail"))
         );
     }
 
@@ -154,9 +156,14 @@ class ThemeCssTest {
 
         assertAll(
             () -> assertTrue(baseContent.contains(".info-panel-header {")),
+            () -> assertTrue(baseContent.contains(".info-panel-action-row {")),
+            () -> assertTrue(baseContent.contains(".info-panel-action-group {")),
             () -> assertTrue(baseContent.contains(".info-panel-toolbar-button {")),
+            () -> assertTrue(baseContent.contains(".info-panel-icon-button {")),
+            () -> assertTrue(baseContent.contains(".info-panel-icon-button-danger:hover {")),
             () -> assertTrue(baseContent.contains(".info-panel-status-pill {")),
             () -> assertTrue(baseContent.contains(".info-panel-chip {")),
+            () -> assertTrue(baseContent.contains(".info-panel-top-chip-pane {")),
             () -> assertTrue(baseContent.contains(".info-panel-title-input {")),
             () -> assertTrue(baseContent.contains(".info-panel-complete-toggle {")),
             () -> assertTrue(baseContent.contains(".info-panel-inline-row {")),
@@ -165,7 +172,36 @@ class ThemeCssTest {
             () -> assertTrue(baseContent.contains(".info-panel-inline-editor-active {")),
             () -> assertTrue(baseContent.contains(".info-panel-borderless-field")),
             () -> assertTrue(baseContent.contains(".info-panel-borderless-area")),
+            () -> assertTrue(baseContent.contains(".info-panel-time-trigger {")),
+            () -> assertTrue(baseContent.contains(".info-panel-time-trigger-title {")),
+            () -> assertTrue(baseContent.contains(".info-panel-time-trigger-subtitle {")),
+            () -> assertTrue(baseContent.contains(".info-panel-time-trigger-unset")),
+            () -> assertTrue(baseContent.contains(".ios-wheel-popup {")),
+            () -> assertTrue(baseContent.contains(".ios-wheel-header {")),
+            () -> assertTrue(baseContent.contains(".ios-wheel-year-switch {")),
+            () -> assertTrue(baseContent.contains(".ios-wheel-column {")),
+            () -> assertTrue(baseContent.contains(".ios-wheel-cell {")),
+            () -> assertTrue(baseContent.contains(".ios-wheel-selection-box {")),
+            () -> assertTrue(baseContent.contains(".ios-wheel-mask-top {")),
+            () -> assertTrue(baseContent.contains(".ios-wheel-mask-bottom {")),
             () -> assertTrue(baseContent.contains(".info-panel-delete-button {"))
+        );
+    }
+
+    @Test
+    void baseCssKeepsTimeTriggerCompact() throws IOException {
+        String baseContent = readCss("/styles/base.css");
+        String triggerBlock = extractCssBlock(baseContent, ".info-panel-time-trigger");
+        String toggleBlock = extractCssBlock(baseContent, ".info-panel-editor-toggle");
+
+        assertAll(
+            () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-padding: 6 10")),
+            () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-min-height: 54")),
+            () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-pref-height: 54")),
+            () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-max-height: 54")),
+            () -> assertTrue(triggerBlock != null && !triggerBlock.contains("-fx-pref-width")),
+            () -> assertTrue(triggerBlock != null && !triggerBlock.contains("-fx-max-width")),
+            () -> assertTrue(toggleBlock != null && toggleBlock.contains("-fx-text-overrun: clip"))
         );
     }
 
