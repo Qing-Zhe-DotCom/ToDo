@@ -139,13 +139,13 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         header.setAlignment(Pos.CENTER_LEFT);
         header.getStyleClass().add("timeline-header");
 
-        Label titleLabel = new Label("日程时间轴");
+        Label titleLabel = new Label(text("view.timeline.title"));
         titleLabel.getStyleClass().add("label-title");
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        startDatePicker = createRangeDatePicker("开始日期");
+        startDatePicker = createRangeDatePicker(text("view.timeline.startDate"));
         startDatePicker.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null && endDatePicker.getValue() != null && newVal.isAfter(endDatePicker.getValue())) {
                 endDatePicker.setValue(newVal.plusDays(7));
@@ -153,7 +153,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             refresh();
         });
 
-        endDatePicker = createRangeDatePicker("结束日期");
+        endDatePicker = createRangeDatePicker(text("view.timeline.endDate"));
         endDatePicker.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null && startDatePicker.getValue() != null && newVal.isBefore(startDatePicker.getValue())) {
                 startDatePicker.setValue(newVal.minusDays(7));
@@ -165,7 +165,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         rangeLabelBox.getStyleClass().add("timeline-range-label-box");
         rangeLabelBox.setMinWidth(Region.USE_PREF_SIZE);
 
-        Label rangeLabel = new Label("日期\n范围:");
+        Label rangeLabel = new Label(text("view.timeline.range"));
         rangeLabel.getStyleClass().add("timeline-range-label");
         rangeLabel.setWrapText(false);
         rangeLabel.setTextOverrun(OverrunStyle.CLIP);
@@ -184,7 +184,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         HBox.setHgrow(startDatePicker, Priority.ALWAYS);
         HBox.setHgrow(endDatePicker, Priority.ALWAYS);
 
-        Button resetBtn = new Button("重置视角");
+        Button resetBtn = new Button(text("view.timeline.reset"));
         resetBtn.getStyleClass().addAll("button-secondary", "timeline-range-reset");
         resetBtn.setOnAction(e -> {
             startDatePicker.setValue(null);
@@ -210,6 +210,10 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         picker.getStyleClass().add("timeline-range-picker");
         DatePickerArrowSupport.install(picker, controller);
         return picker;
+    }
+
+    private String text(String key, Object... args) {
+        return controller.text(key, args);
     }
 
     private StringConverter<LocalDate> createRangeDateConverter() {
@@ -264,13 +268,13 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
 
     @Override
     public void refresh() {
-        showTimelineState("时间轴加载中...");
+        showTimelineState(text("view.timeline.loading"));
         Platform.runLater(() -> {
             try {
                 drawTimeline();
             } catch (SQLException e) {
-                showTimelineState("时间轴加载失败，请检查数据连接");
-                controller.showError("加载时间轴失败", e.getMessage());
+                showTimelineState(text("view.timeline.loadFailed"));
+                controller.showError(text("error.timelineLoad.title"), e.getMessage());
             }
         });
     }
@@ -285,7 +289,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
 
         List<Schedule> baseSchedules = new ArrayList<>(allSchedules == null ? List.of() : allSchedules);
         if (baseSchedules.isEmpty()) {
-            showTimelineState("暂无可显示的日程，请为日程补充开始日期或截止日期");
+            showTimelineState(text("view.timeline.emptyWithoutDates"));
             return;
         }
 
@@ -311,7 +315,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             : (hasRecurring ? maxLocalDate(rawMaxDate.plusDays(7), LocalDate.now().plusDays(30)) : rawMaxDate.plusDays(7));
 
         if (minDate.isAfter(maxDate)) {
-            showTimelineState("起始日期不能晚于结束日期");
+            showTimelineState(text("view.timeline.invalidRange"));
             return;
         }
 
@@ -340,9 +344,9 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         List<TimelineEntry> timelineEntries = new ArrayList<>();
         double currentY = TRACK_TOP;
         
-        currentY = appendGroup(shortTasks, "短期日程 (<7天)", currentY, minDate, maxDate, timelineEntries);
-        currentY = appendGroup(mediumTasks, "中期日程 (7-35天)", currentY, minDate, maxDate, timelineEntries);
-        currentY = appendGroup(longTasks, "长期日程 (>35天)", currentY, minDate, maxDate, timelineEntries);
+        currentY = appendGroup(shortTasks, text("view.timeline.group.short"), currentY, minDate, maxDate, timelineEntries);
+        currentY = appendGroup(mediumTasks, text("view.timeline.group.medium"), currentY, minDate, maxDate, timelineEntries);
+        currentY = appendGroup(longTasks, text("view.timeline.group.long"), currentY, minDate, maxDate, timelineEntries);
 
         long visibleDays = ChronoUnit.DAYS.between(minDate, maxDate) + 1;
         double totalWidth = LEFT_PADDING + RIGHT_PADDING + visibleDays * DAY_WIDTH;
@@ -359,7 +363,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         }
 
         if (timelineEntries.isEmpty()) {
-            showTimelineState("当前日期范围内暂无日程");
+            showTimelineState(text("view.timeline.emptyInRange"));
         } else {
             hideTimelineState();
         }
@@ -418,7 +422,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         }
         
         if (maxStack == -1) {
-            Label emptyLabel = new Label("暂无该类日程");
+            Label emptyLabel = new Label(text("view.timeline.emptyGroup"));
             emptyLabel.getStyleClass().add("timeline-group-empty");
             emptyLabel.setLayoutX(LEFT_PADDING);
             emptyLabel.setLayoutY(cardStartY);
@@ -738,7 +742,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     }
 
     private List<Schedule> getFilteredSchedules(List<Schedule> schedules) {
-        return filterAndSortSchedules(schedules, "全部视图"); // 统一视角，全部渲染
+        return filterAndSortSchedules(schedules, "all");
     }
 
     static List<Schedule> filterAndSortSchedules(List<Schedule> schedules, String level) {
@@ -747,9 +751,9 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         
         renderableSchedules.removeIf(schedule -> {
             long days = ChronoUnit.DAYS.between(resolveTimelineStart(schedule), resolveTimelineEnd(schedule)) + 1;
-            if (level.startsWith("日级") && days >= 7) return true;
-            if (level.startsWith("周级") && (days < 7 || days > 35)) return true;
-            if (level.startsWith("月级") && days <= 35) return true;
+            if (level.startsWith("day") && days >= 7) return true;
+            if (level.startsWith("week") && (days < 7 || days > 35)) return true;
+            if (level.startsWith("month") && days <= 35) return true;
             return false;
         });
 
@@ -811,11 +815,11 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         LocalDateTime dueAt = schedule.getDueAt();
         long duration = ChronoUnit.DAYS.between(startDate, endDate) + 1;
         return schedule.getName() + "\n"
-            + "开始: " + (startAt != null ? startAt.format(dateTimeFormatter) : "未设置") + "\n"
-            + "截止: " + (dueAt != null ? dueAt.format(dateTimeFormatter) : "未设置") + "\n"
-            + "时长: " + duration + " 天\n"
-            + "优先级: " + schedule.getPriority() + "\n"
-            + "状态: " + (schedule.isCompleted() ? "已完成" : "未完成");
+            + text("view.timeline.tooltip.start", startAt != null ? startAt.format(dateTimeFormatter) : text("common.unset")) + "\n"
+            + text("view.timeline.tooltip.due", dueAt != null ? dueAt.format(dateTimeFormatter) : text("common.unset")) + "\n"
+            + text("view.timeline.tooltip.duration", duration) + "\n"
+            + text("view.timeline.tooltip.priority", controller.priorityDisplayName(schedule.getPriority())) + "\n"
+            + text("view.timeline.tooltip.status", schedule.isCompleted() ? text("status.completed") : text("status.pending"));
     }
 
     public void stopAutoScroll() {

@@ -4,12 +4,10 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -35,6 +33,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
 final class RecurrenceRuleDialog extends Dialog<RecurrenceRuleDialog.Result> {
+    private final MainController controller;
     private final RecurrenceRule existingRule;
     private final LocalDateTime defaultSeed;
     private final String timezone;
@@ -61,6 +60,7 @@ final class RecurrenceRuleDialog extends Dialog<RecurrenceRuleDialog.Result> {
         LocalDateTime defaultSeed,
         String timezone
     ) {
+        this.controller = controller;
         this.existingRule = existingRule != null ? existingRule.copy() : null;
         this.defaultSeed = defaultSeed != null ? defaultSeed : LocalDateTime.now().withHour(9).withMinute(0).withSecond(0).withNano(0);
         this.timezone = timezone;
@@ -68,11 +68,12 @@ final class RecurrenceRuleDialog extends Dialog<RecurrenceRuleDialog.Result> {
         DialogPane pane = getDialogPane();
         pane.getStyleClass().add("schedule-dialog-pane");
         pane.getStylesheets().setAll(controller.getCurrentThemeStylesheets());
-        setTitle("编辑重复规则");
+        controller.applyDialogPreferences(pane);
+        setTitle(text("recurrence.dialog.title"));
         setHeaderText(null);
 
-        ButtonType saveButtonType = new ButtonType("保存", ButtonBar.ButtonData.OK_DONE);
-        ButtonType cancelButtonType = new ButtonType("取消", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType saveButtonType = new ButtonType(text("common.save"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelButtonType = new ButtonType(text("common.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
         pane.getButtonTypes().addAll(saveButtonType, cancelButtonType);
         pane.setContent(buildContent());
 
@@ -96,15 +97,15 @@ final class RecurrenceRuleDialog extends Dialog<RecurrenceRuleDialog.Result> {
     }
 
     private VBox buildContent() {
-        enabledBox = new CheckBox("启用重复规则");
+        enabledBox = new CheckBox(text("recurrence.dialog.enabled"));
         enabledBox.setSelected(existingRule != null && existingRule.isActive());
 
         frequencyBox = new ComboBox<>();
         frequencyBox.getItems().setAll(
-            new FrequencyOption(RecurrenceRule.FREQ_DAILY, "每天"),
-            new FrequencyOption(RecurrenceRule.FREQ_WEEKLY, "每周"),
-            new FrequencyOption(RecurrenceRule.FREQ_MONTHLY, "每月"),
-            new FrequencyOption(RecurrenceRule.FREQ_YEARLY, "每年")
+            new FrequencyOption(RecurrenceRule.FREQ_DAILY, text("recurrence.frequency.daily")),
+            new FrequencyOption(RecurrenceRule.FREQ_WEEKLY, text("recurrence.frequency.weekly")),
+            new FrequencyOption(RecurrenceRule.FREQ_MONTHLY, text("recurrence.frequency.monthly")),
+            new FrequencyOption(RecurrenceRule.FREQ_YEARLY, text("recurrence.frequency.yearly"))
         );
         frequencyBox.setValue(findFrequencyOption(existingRule != null ? existingRule.getFrequency() : RecurrenceRule.FREQ_DAILY));
         frequencyBox.setMaxWidth(Double.MAX_VALUE);
@@ -112,7 +113,7 @@ final class RecurrenceRuleDialog extends Dialog<RecurrenceRuleDialog.Result> {
         intervalField = new TextField(String.valueOf(existingRule != null ? existingRule.getInterval() : 1));
         intervalField.setPromptText("1");
 
-        baseRow = labeledRow("閲嶅棰戠巼", frequencyBox, fixedField("闂撮殧", intervalField));
+        baseRow = labeledRow(text("recurrence.dialog.frequency"), frequencyBox, fixedField(text("recurrence.dialog.interval"), intervalField));
 
         FlowPane daysPane = new FlowPane(8, 8);
         daysPane.setAlignment(Pos.CENTER_LEFT);
@@ -121,24 +122,24 @@ final class RecurrenceRuleDialog extends Dialog<RecurrenceRuleDialog.Result> {
             ? existingRule.getByDays().stream().sorted(Comparator.comparingInt(DayOfWeek::getValue)).toList()
             : List.of(defaultSeed.getDayOfWeek());
         for (DayOfWeek day : DayOfWeek.values()) {
-            CheckBox box = new CheckBox(day.getDisplayName(TextStyle.SHORT, Locale.CHINA));
+            CheckBox box = new CheckBox(controller.weekdayShort(day));
             box.setSelected(defaultDays.contains(day));
             dayBoxes.put(day, box);
             daysPane.getChildren().add(box);
         }
-        weeklyBox = new VBox(8, sectionLabel("每周重复日"), daysPane);
+        weeklyBox = new VBox(8, sectionLabel(text("recurrence.dialog.weekdays")), daysPane);
 
         monthDayField = new TextField(String.valueOf(existingRule != null && existingRule.getByMonthDay() != null
             ? existingRule.getByMonthDay()
             : defaultSeed.getDayOfMonth()));
         monthDayField.setPromptText("1-31");
-        monthDayBox = new VBox(8, sectionLabel("每月日期"), monthDayField);
+        monthDayBox = new VBox(8, sectionLabel(text("recurrence.dialog.monthDay")), monthDayField);
 
         endModeBox = new ComboBox<>();
         endModeBox.getItems().setAll(
-            new EndModeOption("none", "永不结束"),
-            new EndModeOption("until", "截止到某天"),
-            new EndModeOption("count", "重复固定次数")
+            new EndModeOption("none", text("recurrence.end.none")),
+            new EndModeOption("until", text("recurrence.end.until")),
+            new EndModeOption("count", text("recurrence.end.count"))
         );
         endModeBox.setValue(resolveEndMode());
         endModeBox.setMaxWidth(Double.MAX_VALUE);
@@ -156,12 +157,12 @@ final class RecurrenceRuleDialog extends Dialog<RecurrenceRuleDialog.Result> {
         occurrenceCountField = new TextField(existingRule != null && existingRule.getOccurrenceCount() != null
             ? String.valueOf(existingRule.getOccurrenceCount())
             : "");
-        occurrenceCountField.setPromptText("例如 10");
+        occurrenceCountField.setPromptText(text("recurrence.dialog.count.prompt"));
         countRow = new HBox(10, occurrenceCountField);
 
         VBox endBox = new VBox(
             8,
-            sectionLabel("结束条件"),
+            sectionLabel(text("recurrence.dialog.endMode")),
             endModeBox,
             untilRow,
             countRow
@@ -187,8 +188,8 @@ final class RecurrenceRuleDialog extends Dialog<RecurrenceRuleDialog.Result> {
             return new Result(null);
         }
 
-        FrequencyOption option = Objects.requireNonNull(frequencyBox.getValue(), "请选择重复频率。");
-        int interval = parsePositiveInt(intervalField.getText(), "重复间隔必须是大于 0 的整数。");
+        FrequencyOption option = Objects.requireNonNull(frequencyBox.getValue(), text("recurrence.validation.frequencyRequired"));
+        int interval = parsePositiveInt(intervalField.getText(), text("recurrence.validation.interval"));
 
         RecurrenceRule rule = existingRule != null ? existingRule.copy() : new RecurrenceRule();
         rule.setActive(true);
@@ -204,31 +205,31 @@ final class RecurrenceRuleDialog extends Dialog<RecurrenceRuleDialog.Result> {
                 }
             }
             if (days.isEmpty()) {
-                throw new IllegalArgumentException("每周重复至少要选择一个星期。");
+                throw new IllegalArgumentException(text("recurrence.validation.weekdayRequired"));
             }
             rule.setByDays(days);
             rule.setByMonthDay(null);
         } else {
             rule.setByDays(List.of());
             if (RecurrenceRule.FREQ_MONTHLY.equals(option.value())) {
-                rule.setByMonthDay(parseRangedInt(monthDayField.getText(), 1, 31, "每月日期必须在 1 到 31 之间。"));
+                rule.setByMonthDay(parseRangedInt(monthDayField.getText(), 1, 31, text("recurrence.validation.monthDay")));
             } else {
                 rule.setByMonthDay(null);
             }
         }
 
-        EndModeOption endMode = Objects.requireNonNull(endModeBox.getValue(), "请选择结束条件。");
+        EndModeOption endMode = Objects.requireNonNull(endModeBox.getValue(), text("recurrence.validation.endModeRequired"));
         switch (endMode.value()) {
             case "until" -> {
                 if (untilDatePicker.getValue() == null) {
-                    throw new IllegalArgumentException("请选择截止日期。");
+                    throw new IllegalArgumentException(text("recurrence.validation.untilDateRequired"));
                 }
                 rule.setUntilAtUtc(LocalDateTime.of(untilDatePicker.getValue(), parseTime(untilTimeBox.getValue())));
                 rule.setOccurrenceCount(null);
             }
             case "count" -> {
                 rule.setUntilAtUtc(null);
-                rule.setOccurrenceCount(parsePositiveInt(occurrenceCountField.getText(), "重复次数必须是大于 0 的整数。"));
+                rule.setOccurrenceCount(parsePositiveInt(occurrenceCountField.getText(), text("recurrence.validation.count")));
             }
             default -> {
                 rule.setUntilAtUtc(null);
@@ -272,6 +273,10 @@ final class RecurrenceRuleDialog extends Dialog<RecurrenceRuleDialog.Result> {
         node.setVisible(visible);
     }
 
+    private String text(String key, Object... args) {
+        return controller.text(key, args);
+    }
+
     private FrequencyOption findFrequencyOption(String value) {
         return frequencyBox == null
             ? new FrequencyOption(value, value)
@@ -283,12 +288,12 @@ final class RecurrenceRuleDialog extends Dialog<RecurrenceRuleDialog.Result> {
 
     private EndModeOption resolveEndMode() {
         if (existingRule != null && existingRule.getUntilAtUtc() != null) {
-            return new EndModeOption("until", "截止到某天");
+            return new EndModeOption("until", text("recurrence.end.until"));
         }
         if (existingRule != null && existingRule.getOccurrenceCount() != null && existingRule.getOccurrenceCount() > 0) {
-            return new EndModeOption("count", "重复固定次数");
+            return new EndModeOption("count", text("recurrence.end.count"));
         }
-        return new EndModeOption("none", "永不结束");
+        return new EndModeOption("none", text("recurrence.end.none"));
     }
 
     private LocalDate resolveUntilDate() {

@@ -2,7 +2,6 @@ package com.example.model;
 
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
-import java.time.format.TextStyle;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -194,40 +193,6 @@ public final class RecurrenceRule {
 
     public boolean hasEndingConstraint() {
         return untilAtUtc != null || (occurrenceCount != null && occurrenceCount > 0);
-    }
-
-    public String describe() {
-        if (!active) {
-            return "未启用重复";
-        }
-        StringBuilder builder = new StringBuilder();
-        switch (getFrequency()) {
-            case FREQ_WEEKLY -> {
-                builder.append(getInterval() == 1 ? "每周" : "每 ").append(getInterval()).append(" 周");
-                if (!byDays.isEmpty()) {
-                    String byDayText = byDays.stream()
-                        .sorted(Comparator.comparingInt(DayOfWeek::getValue))
-                        .map(day -> day.getDisplayName(TextStyle.SHORT, Locale.CHINA))
-                        .collect(Collectors.joining("、"));
-                    builder.append(" ").append(byDayText);
-                }
-            }
-            case FREQ_MONTHLY -> {
-                builder.append(getInterval() == 1 ? "每月" : "每 ").append(getInterval()).append(" 月");
-                if (byMonthDay != null) {
-                    builder.append(" 第 ").append(byMonthDay).append(" 天");
-                }
-            }
-            case FREQ_YEARLY -> builder.append(getInterval() == 1 ? "每年" : "每 ").append(getInterval()).append(" 年");
-            default -> builder.append(getInterval() == 1 ? "每天" : "每 ").append(getInterval()).append(" 天");
-        }
-
-        if (untilAtUtc != null) {
-            builder.append("，直到 ").append(untilAtUtc.toLocalDate());
-        } else if (occurrenceCount != null && occurrenceCount > 0) {
-            builder.append("，共 ").append(occurrenceCount).append(" 次");
-        }
-        return builder.toString();
     }
 
     public RecurrenceRule copy() {

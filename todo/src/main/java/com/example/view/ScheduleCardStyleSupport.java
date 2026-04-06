@@ -1,19 +1,26 @@
 package com.example.view;
 
-import com.example.model.Schedule;
-
-import javafx.collections.ObservableList;
-import javafx.scene.Node;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public final class ScheduleCardStyleSupport {
+import com.example.model.Schedule;
 
+import javafx.collections.ObservableList;
+import javafx.scene.Node;
+
+public final class ScheduleCardStyleSupport {
     public static final String BASE_CARD_CLASS = "schedule-card-surface";
+
+    public static final String STYLE_ID_CLASSIC = "classic";
+    public static final String STYLE_ID_FRESH = "fresh";
+    public static final String STYLE_ID_COZY = "cozy";
+    public static final String STYLE_ID_MODERN_MINIMAL = "modern-minimal";
+    public static final String STYLE_ID_NEO_BRUTALISM = "neo-brutalism";
+    public static final String STYLE_ID_MATERIAL_YOU = "material-you";
+    public static final String STYLE_ID_NEUMORPHISM = "neumorphism";
 
     private static final String STYLE_CLASSIC = "schedule-card-style-classic";
     private static final String STYLE_FRESH = "schedule-card-style-fresh";
@@ -30,11 +37,14 @@ public final class ScheduleCardStyleSupport {
     private static final String STATE_PRIORITY_MEDIUM = "schedule-card-state-priority-medium";
     private static final String STATE_PRIORITY_LOW = "schedule-card-state-priority-low";
 
-    private static final String DEFAULT_STYLE_NAME = "温馨治愈风";
+    private static final String DEFAULT_STYLE_ID = STYLE_ID_COZY;
 
-    private static final Map<String, String> STYLE_CLASS_BY_NAME = createStyleClassMap();
-    private static final List<String> STYLE_NAMES = Collections.unmodifiableList(new ArrayList<>(STYLE_CLASS_BY_NAME.keySet()));
-    private static final List<String> STYLE_CLASSES = Collections.unmodifiableList(new ArrayList<>(STYLE_CLASS_BY_NAME.values()));
+    private static final Map<String, StyleMetadata> STYLES_BY_ID = createStyleMap();
+    private static final Map<String, String> LEGACY_LABEL_TO_ID = createLegacyLabelMap();
+    private static final List<String> STYLE_IDS = Collections.unmodifiableList(new ArrayList<>(STYLES_BY_ID.keySet()));
+    private static final List<String> STYLE_CLASSES = Collections.unmodifiableList(
+        STYLES_BY_ID.values().stream().map(StyleMetadata::styleClass).toList()
+    );
     private static final List<String> STATE_CLASSES = List.of(
         STATE_COMPLETED,
         STATE_OVERDUE,
@@ -47,34 +57,44 @@ public final class ScheduleCardStyleSupport {
     private ScheduleCardStyleSupport() {
     }
 
-    public static String getDefaultStyleName() {
-        return DEFAULT_STYLE_NAME;
+    public static String getDefaultStyleId() {
+        return DEFAULT_STYLE_ID;
     }
 
-    public static List<String> getStyleNames() {
-        return STYLE_NAMES;
+    public static List<String> getStyleIds() {
+        return STYLE_IDS;
     }
 
-    public static String normalizeStyleName(String styleName) {
-        if (styleName != null && STYLE_CLASS_BY_NAME.containsKey(styleName)) {
-            return styleName;
+    public static String getLabelKey(String styleId) {
+        return STYLES_BY_ID.get(normalizeStyleId(styleId)).labelKey();
+    }
+
+    public static String normalizeStyleId(String styleId) {
+        if (styleId != null && STYLES_BY_ID.containsKey(styleId)) {
+            return styleId;
         }
-        return DEFAULT_STYLE_NAME;
+        if (styleId != null) {
+            String migrated = LEGACY_LABEL_TO_ID.get(styleId);
+            if (migrated != null) {
+                return migrated;
+            }
+        }
+        return DEFAULT_STYLE_ID;
     }
 
-    public static void applyCardPresentation(Node node, Schedule schedule, String styleName, String... roleClasses) {
-        applyCardStyle(node, styleName, roleClasses);
+    public static void applyCardPresentation(Node node, Schedule schedule, String styleId, String... roleClasses) {
+        applyCardStyle(node, styleId, roleClasses);
         applyScheduleState(node, schedule);
     }
 
-    public static void applyCardStyle(Node node, String styleName, String... roleClasses) {
+    public static void applyCardStyle(Node node, String styleId, String... roleClasses) {
         ObservableList<String> styleClasses = node.getStyleClass();
         if (!styleClasses.contains(BASE_CARD_CLASS)) {
             styleClasses.add(BASE_CARD_CLASS);
         }
 
         styleClasses.removeAll(STYLE_CLASSES);
-        styleClasses.add(STYLE_CLASS_BY_NAME.get(normalizeStyleName(styleName)));
+        styleClasses.add(STYLES_BY_ID.get(normalizeStyleId(styleId)).styleClass());
 
         if (roleClasses == null) {
             return;
@@ -94,9 +114,9 @@ public final class ScheduleCardStyleSupport {
             return;
         }
 
-        if ("高".equals(schedule.getPriority())) {
+        if (Schedule.PRIORITY_HIGH.equals(schedule.getPriority())) {
             styleClasses.add(STATE_PRIORITY_HIGH);
-        } else if ("低".equals(schedule.getPriority())) {
+        } else if (Schedule.PRIORITY_LOW.equals(schedule.getPriority())) {
             styleClasses.add(STATE_PRIORITY_LOW);
         } else {
             styleClasses.add(STATE_PRIORITY_MEDIUM);
@@ -111,15 +131,30 @@ public final class ScheduleCardStyleSupport {
         }
     }
 
-    private static Map<String, String> createStyleClassMap() {
-        Map<String, String> styleClassMap = new LinkedHashMap<>();
-        styleClassMap.put("经典实体卡片", STYLE_CLASSIC);
-        styleClassMap.put("清新扁平", STYLE_FRESH);
-        styleClassMap.put("温馨治愈风", STYLE_COZY);
-        styleClassMap.put("现代高级极简风", STYLE_MODERN_MINIMAL);
-        styleClassMap.put("新粗野主义", STYLE_NEO_BRUTALISM);
-        styleClassMap.put("Material You", STYLE_MATERIAL_YOU);
-        styleClassMap.put("拟物浮雕风", STYLE_NEUMORPHISM);
-        return styleClassMap;
+    private static Map<String, StyleMetadata> createStyleMap() {
+        Map<String, StyleMetadata> styles = new LinkedHashMap<>();
+        styles.put(STYLE_ID_CLASSIC, new StyleMetadata(STYLE_CLASSIC, "style.classic"));
+        styles.put(STYLE_ID_FRESH, new StyleMetadata(STYLE_FRESH, "style.fresh"));
+        styles.put(STYLE_ID_COZY, new StyleMetadata(STYLE_COZY, "style.cozy"));
+        styles.put(STYLE_ID_MODERN_MINIMAL, new StyleMetadata(STYLE_MODERN_MINIMAL, "style.modernMinimal"));
+        styles.put(STYLE_ID_NEO_BRUTALISM, new StyleMetadata(STYLE_NEO_BRUTALISM, "style.neoBrutalism"));
+        styles.put(STYLE_ID_MATERIAL_YOU, new StyleMetadata(STYLE_MATERIAL_YOU, "style.materialYou"));
+        styles.put(STYLE_ID_NEUMORPHISM, new StyleMetadata(STYLE_NEUMORPHISM, "style.neumorphism"));
+        return styles;
+    }
+
+    private static Map<String, String> createLegacyLabelMap() {
+        Map<String, String> labels = new LinkedHashMap<>();
+        labels.put("经典实体卡片", STYLE_ID_CLASSIC);
+        labels.put("清新扁平", STYLE_ID_FRESH);
+        labels.put("温馨治愈风", STYLE_ID_COZY);
+        labels.put("现代高级极简风", STYLE_ID_MODERN_MINIMAL);
+        labels.put("新粗野主义", STYLE_ID_NEO_BRUTALISM);
+        labels.put("Material You", STYLE_ID_MATERIAL_YOU);
+        labels.put("拟物浮雕风", STYLE_ID_NEUMORPHISM);
+        return labels;
+    }
+
+    private record StyleMetadata(String styleClass, String labelKey) {
     }
 }

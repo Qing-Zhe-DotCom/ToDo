@@ -1,12 +1,14 @@
 package com.example;
 
-import com.example.application.ApplicationContext;
-import com.example.controller.MainController;
-
 import java.awt.Taskbar;
 import java.awt.Taskbar.Feature;
-import java.io.InputStream;
 import java.awt.image.BufferedImage;
+import java.io.InputStream;
+
+import com.example.application.ApplicationContext;
+import com.example.application.FontService;
+import com.example.application.LocalizationService;
+import com.example.controller.MainController;
 
 import javafx.application.Application;
 import javafx.embed.swing.SwingFXUtils;
@@ -22,20 +24,23 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 public class MainApp extends Application {
-    
-    private static final String APP_TITLE = "ToDo 日程管理";
     private static final String APP_ICON_RESOURCE = "/icons/macaron_todo_icon.png";
     private static final double MIN_WIDTH = 1200;
     private static final double MIN_HEIGHT = 700;
-    
+
     private MainController mainController;
     private Stage primaryStageRef;
     private Image baseIconImage;
-    
+    private LocalizationService localizationService;
+    private FontService fontService;
+
     @Override
     public void start(Stage primaryStage) {
         try {
             ApplicationContext applicationContext = ApplicationContext.createDefault();
+            localizationService = applicationContext.getLocalizationService();
+            fontService = applicationContext.getFontService();
+
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/example/ui/main-shell.fxml"));
             loader.setControllerFactory(type -> {
                 if (type == MainController.class) {
@@ -49,52 +54,48 @@ public class MainApp extends Application {
             });
 
             Parent root = loader.load();
+            fontService.applyTo(root, localizationService.getActiveLanguage());
             mainController = loader.getController();
-            
+
             Scene scene = new Scene(root, MIN_WIDTH, MIN_HEIGHT);
-            
-            // 加载默认主题
-            
-            // 将场景对象传递给控制器
             mainController.setScene(scene);
-            
+
             primaryStageRef = primaryStage;
-            primaryStage.setTitle(APP_TITLE);
+            primaryStage.setTitle(resolveAppTitle());
             primaryStage.setScene(scene);
             primaryStage.setMinWidth(MIN_WIDTH);
             primaryStage.setMinHeight(MIN_HEIGHT);
             applyAppIcons(0);
             applyWindowBadge(primaryStage, 0);
-            
+
             primaryStage.show();
-            
+
             mainController.initializeApplication();
             mainController.setPendingCountListener(pendingCount -> applyWindowBadge(primaryStage, pendingCount));
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println("启动应用失败: " + e.getMessage());
+        } catch (Exception exception) {
+            exception.printStackTrace();
+            System.err.println("Failed to start application: " + exception.getMessage());
         }
     }
-    
+
     @Override
     public void stop() {
-        // 应用关闭时的清理工作
         if (mainController != null) {
             mainController.shutdown();
         }
     }
-    
+
     public static void main(String[] args) {
         launch(args);
     }
 
     private void applyWindowBadge(Stage stage, int pendingCount) {
+        String appTitle = resolveAppTitle();
         if (stage != null) {
             if (pendingCount > 0) {
-                stage.setTitle("(" + pendingCount + ") " + APP_TITLE);
+                stage.setTitle("(" + pendingCount + ") " + appTitle);
             } else {
-                stage.setTitle(APP_TITLE);
+                stage.setTitle(appTitle);
             }
         }
         applyAppIcons(pendingCount);
@@ -132,14 +133,13 @@ public class MainApp extends Application {
         if (primaryStageRef == null) {
             return;
         }
-        
+
         Image baseImage = loadBaseIconImage();
         if (baseImage != null && pendingCount <= 0) {
-            // 当没有角标时，直接使用原图，防止 Canvas snapshot 导致透明通道或抗锯齿丢失
             primaryStageRef.getIcons().setAll(baseImage);
             return;
         }
-        
+
         primaryStageRef.getIcons().setAll(
             createAppIconImage(16, pendingCount),
             createAppIconImage(24, pendingCount),
@@ -158,10 +158,8 @@ public class MainApp extends Application {
         }
         Canvas canvas = new Canvas(size, size);
         GraphicsContext gc = canvas.getGraphicsContext2D();
-        
-        // 关键：在绘制之前必须清空背景为完全透明，避免出现白色底或黑色底（对于带透明度的 PNG 图标特别重要）
+
         gc.clearRect(0, 0, size, size);
-        
         gc.drawImage(source, 0, 0, size, size);
         if (pendingCount > 0) {
             double badgeRadius = Math.max(5, size * 0.18);
@@ -176,9 +174,9 @@ public class MainApp extends Application {
             String text = pendingCount > 99 ? "99+" : String.valueOf(pendingCount);
             gc.fillText(text, badgeCx, badgeCy);
         }
-        
+
         SnapshotParameters params = new SnapshotParameters();
-        params.setFill(Color.TRANSPARENT); // 关键：确保快照的底色也是透明的
+        params.setFill(Color.TRANSPARENT);
         WritableImage image = new WritableImage(size, size);
         canvas.snapshot(params, image);
         return image;
@@ -210,5 +208,9 @@ public class MainApp extends Application {
         WritableImage image = new WritableImage(size, size);
         canvas.snapshot(new SnapshotParameters(), image);
         return image;
+    }
+
+    private String resolveAppTitle() {
+        return localizationService != null ? localizationService.text("app.title") : "ToDo";
     }
 }

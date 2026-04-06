@@ -5,8 +5,10 @@ import java.io.File;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.Path;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -18,12 +20,18 @@ import java.util.concurrent.ThreadFactory;
 import java.util.function.IntConsumer;
 
 import com.example.application.ApplicationContext;
+import com.example.application.AppFontWeight;
+import com.example.application.AppLanguage;
+import com.example.application.FontService;
+import com.example.application.LocalizationService;
 import com.example.application.MainViewModel;
 import com.example.application.NavigationService;
+import com.example.application.RecurrenceSummaryFormatter;
 import com.example.application.ScheduleItemService;
 import com.example.application.ThemeService;
 import com.example.model.ScheduleItem;
 import com.example.model.Schedule;
+import com.example.model.RecurrenceRule;
 import com.example.view.FlowchartView;
 import com.example.view.HeatmapView;
 import com.example.view.InfoPanelView;
@@ -44,11 +52,14 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.Labeled;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.Separator;
@@ -103,6 +114,8 @@ public class MainController {
     private final ScheduleItemService scheduleItemService;
     private final NavigationService navigationService;
     private final ThemeService themeService;
+    private final LocalizationService localizationService;
+    private final FontService fontService;
 
     @FXML
     private BorderPane root;
@@ -136,7 +149,7 @@ public class MainController {
     private String importedThemeStylesheet;
     private final Map<String, String> builtinThemes;
     private final List<String> scheduleCardStyles;
-    private static final String DEFAULT_SCHEDULE_CARD_STYLE = ScheduleCardStyleSupport.getDefaultStyleName();
+    private static final String DEFAULT_SCHEDULE_CARD_STYLE = ScheduleCardStyleSupport.getDefaultStyleId();
     private final ExecutorService scheduleCompletionExecutor;
     private final ScheduleCompletionCoordinator scheduleCompletionCoordinator;
     private IntConsumer pendingCountListener;
@@ -156,6 +169,8 @@ public class MainController {
         this.scheduleItemService = applicationContext.getScheduleItemService();
         this.navigationService = mainViewModel.getNavigationService();
         this.themeService = mainViewModel.getThemeService();
+        this.localizationService = mainViewModel.getLocalizationService();
+        this.fontService = mainViewModel.getFontService();
         this.builtinThemes = new LinkedHashMap<>(themeService.getBuiltinThemes());
         this.scheduleCardStyles = List.copyOf(themeService.getScheduleCardStyles());
         syncThemeState();
@@ -226,11 +241,12 @@ public class MainController {
         collapseToggle = new ToggleButton();
         collapseToggle.getStyleClass().addAll("nav-button", "sidebar-collapse-button");
         collapseToggle.setMaxWidth(Double.MAX_VALUE);
-        collapseToggleIcon = createSvgIcon("/icons/macaron-logo-triangle-arrow.svg", "展开或收起侧边栏", 24);
+        String collapseTooltip = text("sidebar.collapse.toggle");
+        collapseToggleIcon = createSvgIcon("/icons/macaron-logo-triangle-arrow.svg", collapseTooltip, 24);
         collapseToggle.setGraphic(collapseToggleIcon);
         collapseToggle.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
-        collapseToggle.setAccessibleText("展开或收起侧边栏");
-        collapseToggle.setTooltip(new Tooltip("展开或收起侧边栏"));
+        collapseToggle.setAccessibleText(collapseTooltip);
+        collapseToggle.setTooltip(new Tooltip(collapseTooltip));
         collapseToggle.setOnAction(e -> {
             sidebarCollapsed = collapseToggle.isSelected();
             updateSidebarCollapseState();
@@ -238,7 +254,7 @@ public class MainController {
 
         searchField = new TextField();
         searchField.getStyleClass().add("search-field");
-        searchField.setPromptText("搜索日程...");
+        searchField.setPromptText(text("sidebar.search.prompt"));
         searchField.textProperty().addListener((observable, oldValue, newValue) -> {
             if (shouldClearSearchResults(oldValue, newValue)) {
                 clearScheduleSearch();
@@ -249,28 +265,28 @@ public class MainController {
         // 导航按钮
         ToggleGroup navGroup = new ToggleGroup();
 
-        ToggleButton scheduleBtn = createNavButton("/icons/macaron-logo-calendar.svg", "日程管理", navGroup);
+        ToggleButton scheduleBtn = createNavButton("/icons/macaron-logo-calendar.svg", text("nav.schedule"), navGroup);
         scheduleBtn.setSelected(true);
         scheduleBtn.setOnAction(e -> showView(scheduleListView));
 
-        ToggleButton timelineBtn = createNavButton("/icons/macaron-logo-timeline.svg", "日程时间轴", navGroup);
+        ToggleButton timelineBtn = createNavButton("/icons/macaron-logo-timeline.svg", text("nav.timeline"), navGroup);
         timelineBtn.setOnAction(e -> showView(timelineView));
 
-        ToggleButton heatmapBtn = createNavButton("/icons/macaron-logo-grid-heatmap.svg", "日程热力图", navGroup);
+        ToggleButton heatmapBtn = createNavButton("/icons/macaron-logo-grid-heatmap.svg", text("nav.heatmap"), navGroup);
         heatmapBtn.setOnAction(e -> showView(heatmapView));
 
-        ToggleButton flowchartBtn = createNavButton("/icons/macaron-logo-flowchart.svg", "日程流程图", navGroup);
+        ToggleButton flowchartBtn = createNavButton("/icons/macaron-logo-flowchart.svg", text("nav.flowchart"), navGroup);
         flowchartBtn.setOnAction(e -> showView(flowchartView));
 
         Region spacer = new Region();
         VBox.setVgrow(spacer, Priority.ALWAYS);
 
-        functionTitle = new Label("侧边功能栏");
+        functionTitle = new Label(text("sidebar.functions"));
         functionTitle.getStyleClass().addAll("label-hint", "sidebar-function-title");
 
-        Button loginButton = createActionButton("/icons/macaron-logo-user.svg", "登录", this::showLoginDialog);
-        Button settingsButton = createActionButton("/icons/macaron-logo-settings.svg", "设置", this::showSettingsDialog);
-        Button exitButton = createActionButton("/icons/macaron-logo-logout.svg", "退出", Platform::exit);
+        Button loginButton = createActionButton("/icons/macaron-logo-user.svg", text("sidebar.login"), this::showLoginDialog);
+        Button settingsButton = createActionButton("/icons/macaron-logo-settings.svg", text("sidebar.settings"), this::showSettingsDialog);
+        Button exitButton = createActionButton("/icons/macaron-logo-logout.svg", text("sidebar.exit"), Platform::exit);
 
         bottomActions = new VBox(6);
         bottomActions.getStyleClass().add("sidebar-bottom-actions");
@@ -284,11 +300,12 @@ public class MainController {
         featurePanelToggle = new ToggleButton();
         featurePanelToggle.getStyleClass().addAll("nav-button", "sidebar-feature-toggle");
         featurePanelToggle.setMaxWidth(Double.MAX_VALUE);
-        featureToggleIcon = createSvgIcon("/icons/macaron-logo-triangle-arrow.svg", "展开或收起侧边功能栏", 24);
+        String featureTooltip = text("sidebar.feature.toggle");
+        featureToggleIcon = createSvgIcon("/icons/macaron-logo-triangle-arrow.svg", featureTooltip, 24);
         featurePanelToggle.setGraphic(featureToggleIcon);
         featurePanelToggle.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
-        featurePanelToggle.setAccessibleText("展开或收起侧边功能栏");
-        featurePanelToggle.setTooltip(new Tooltip("展开或收起侧边功能栏"));
+        featurePanelToggle.setAccessibleText(featureTooltip);
+        featurePanelToggle.setTooltip(new Tooltip(featureTooltip));
         featurePanelToggle.setOnAction(e -> {
             featurePanelExpanded = featurePanelToggle.isSelected();
             updateFeaturePanelState();
@@ -371,7 +388,7 @@ public class MainController {
                 collapseToggle.setAlignment(Pos.CENTER);
                 collapseToggle.setPadding(new Insets(8, 0, 8, 0));
             } else {
-                collapseToggle.setText("侧边栏");
+                collapseToggle.setText(text("sidebar.title"));
                 collapseToggle.setStyle("-fx-padding: 10 12 10 12; -fx-alignment: center-left; -fx-min-height: 40; -fx-pref-height: 40; -fx-max-height: 40;");
                 collapseToggle.setAlignment(Pos.CENTER_LEFT);
                 collapseToggle.setPadding(new Insets(10, 12, 10, 12));
@@ -678,7 +695,7 @@ public class MainController {
                 featurePanelToggle.setPrefSize(40, 40);
                 featurePanelToggle.setMaxSize(40, 40);
             } else {
-                featurePanelToggle.setText("更多功能");
+                featurePanelToggle.setText(text("sidebar.more"));
                 featurePanelToggle.setContentDisplay(ContentDisplay.LEFT);
                 featurePanelToggle.setStyle("-fx-padding: 10 12 10 12; -fx-alignment: center-left; -fx-min-height: 40; -fx-pref-height: 40; -fx-max-height: 40;");
                 featurePanelToggle.setAlignment(Pos.CENTER_LEFT);
@@ -972,8 +989,8 @@ public class MainController {
         }
         String message = cause != null && cause.getMessage() != null && !cause.getMessage().isBlank()
             ? cause.getMessage()
-            : "Failed to save schedule completion state.";
-        showError("Schedule update failed", message);
+            : text("error.scheduleUpdate.message");
+        showError(text("error.scheduleUpdate.title"), message);
     }
 
     private ThreadFactory createCompletionThreadFactory() {
@@ -1043,31 +1060,18 @@ public class MainController {
         return getClass().getResource(resourcePath).toExternalForm();
     }
 
-    private Map<String, String> createBuiltinThemeMap() {
-        Map<String, String> themes = new LinkedHashMap<>();
-        themes.put("light", "浅色");
-        themes.put("mint", "薄荷");
-        themes.put("ocean", "海洋");
-        themes.put("sunset", "落日");
-        themes.put("lavender", "薰衣草");
-        themes.put("forest", "森林");
-        themes.put("slate", "石板");
-        themes.put("macaron", "马卡龙");
-        return themes;
-    }
-
     private void showThemeMenu(Button anchor) {
         ContextMenu menu = new ContextMenu();
 
         for (Map.Entry<String, String> entry : builtinThemes.entrySet()) {
-            String prefix = entry.getKey().equals(currentTheme) ? "✓ " : "";
-            MenuItem item = new MenuItem(prefix + "使用" + entry.getValue() + "主题");
+            String prefix = entry.getKey().equals(currentTheme) ? text("common.selected.prefix") : "";
+            MenuItem item = new MenuItem(prefix + text("theme.menu.use", themeDisplayName(entry.getKey())));
             item.setOnAction(e -> switchTheme(entry.getKey()));
             menu.getItems().add(item);
         }
 
         menu.getItems().add(new SeparatorMenuItem());
-        MenuItem importItem = new MenuItem("导入主题...");
+        MenuItem importItem = new MenuItem(text("theme.menu.import"));
         importItem.setOnAction(e -> importThemeFromFile());
         menu.getItems().add(importItem);
 
@@ -1076,8 +1080,8 @@ public class MainController {
 
     private boolean importThemeFromFile() {
         FileChooser chooser = new FileChooser();
-        chooser.setTitle("导入主题文件");
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSS 文件", "*.css"));
+        chooser.setTitle(text("theme.import.fileChooser.title"));
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(text("theme.import.fileChooser.css"), "*.css"));
         File selected = chooser.showOpenDialog(root.getScene() != null ? root.getScene().getWindow() : null);
         if (selected == null) {
             return false;
@@ -1088,7 +1092,7 @@ public class MainController {
         applyThemeStylesheets(resolveImportedThemeStylesheets());
         saveThemePreference();
         updateThemeIconState();
-        showInfo("主题已导入", "已应用外部主题文件:\n" + selected.getAbsolutePath());
+        showInfo(text("theme.import.success.title"), text("theme.import.success.message", selected.getAbsolutePath()));
         return true;
     }
 
@@ -1185,19 +1189,23 @@ public class MainController {
     
     private void showLoginDialog() {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("登录");
-        alert.setHeaderText("用户登录");
-        alert.setContentText("登录功能开发中...");
+        applyDialogPreferences(alert.getDialogPane());
+        alert.setTitle(text("sidebar.login"));
+        alert.setHeaderText(text("login.dialog.title"));
+        alert.setContentText(text("login.dialog.message"));
         alert.showAndWait();
     }
     
     private void showSettingsDialog() {
         Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("设置");
+        dialog.setTitle(text("settings.title"));
         dialog.setHeaderText(null);
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        ButtonType saveButtonType = new ButtonType(text("common.save"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelButtonType = new ButtonType(text("common.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, cancelButtonType);
         dialog.getDialogPane().getStylesheets().setAll(getCurrentThemeStylesheets());
         dialog.getDialogPane().getStyleClass().add("settings-dialog-pane");
+        applyDialogPreferences(dialog.getDialogPane());
         dialog.getDialogPane().setPrefWidth(940);
         dialog.getDialogPane().setPrefHeight(600);
 
@@ -1208,25 +1216,25 @@ public class MainController {
         VBox navBar = new VBox(8);
         navBar.getStyleClass().addAll("sidebar");
         navBar.setPrefWidth(196);
-        Label navTitle = new Label("设置");
+        Label navTitle = new Label(text("settings.title"));
         navTitle.getStyleClass().add("label-title");
-        Label navSubTitle = new Label("选择要设置的功能");
+        Label navSubTitle = new Label(text("settings.subtitle"));
         navSubTitle.getStyleClass().add("label-hint");
 
         ToggleGroup categoryGroup = new ToggleGroup();
-        ToggleButton detailTab = new ToggleButton("详情");
-        detailTab.setGraphic(createSvgIcon("/icons/macaron_detail-v2_icon.svg", "详情", 20));
+        ToggleButton detailTab = new ToggleButton(text("settings.tab.details"));
+        detailTab.setGraphic(createSvgIcon("/icons/macaron_detail-v2_icon.svg", text("settings.tab.details"), 20));
         detailTab.setGraphicTextGap(8);
         
-        ToggleButton themeTab = new ToggleButton("主题");
-        themeTab.setGraphic(createSvgIcon("/icons/macaron_theme-v1_icon.svg", "主题", 20));
+        ToggleButton themeTab = new ToggleButton(text("settings.tab.theme"));
+        themeTab.setGraphic(createSvgIcon("/icons/macaron_theme-v1_icon.svg", text("settings.tab.theme"), 20));
         themeTab.setGraphicTextGap(8);
         
-        ToggleButton styleTab = new ToggleButton("样式");
-        styleTab.setGraphic(createSvgIcon("/icons/macaron_style-v1_icon.svg", "样式", 20));
+        ToggleButton styleTab = new ToggleButton(text("settings.tab.style"));
+        styleTab.setGraphic(createSvgIcon("/icons/macaron_style-v1_icon.svg", text("settings.tab.style"), 20));
         styleTab.setGraphicTextGap(8);
-        ToggleButton dataTab = new ToggleButton("鏁版嵁");
-        dataTab.setGraphic(createSvgIcon("/icons/macaron-logo-folder.svg", "鏁版嵁", 20));
+        ToggleButton dataTab = new ToggleButton(text("settings.tab.data"));
+        dataTab.setGraphic(createSvgIcon("/icons/macaron-logo-folder.svg", text("settings.tab.data"), 20));
         dataTab.setGraphicTextGap(8);
         for (ToggleButton tab : List.of(detailTab, themeTab, styleTab, dataTab)) {
             tab.getStyleClass().add("nav-button");
@@ -1247,25 +1255,78 @@ public class MainController {
 
         VBox detailPage = new VBox(18);
         detailPage.getStyleClass().add("settings-page");
-        VBox aboutCard = createSettingsCard("应用详情", "关于当前应用与设置入口说明");
-        Label aboutText = new Label("ToDo 日程管理应用\n版本: " + displayAppVersion + "\n当前设置中心只包含：详情、主题、样式。");
+        VBox aboutCard = createSettingsCard(text("settings.about.title"), text("settings.about.subtitle"));
+        Label aboutText = new Label(text("settings.about.body", displayAppVersion));
         aboutText.getStyleClass().add("settings-info-text");
         aboutText.setWrapText(true);
         aboutCard.getChildren().add(aboutText);
-        VBox currentCard = createSettingsCard("当前配置", "用于快速确认正在生效的视觉配置");
-        Label themeValue = new Label("imported".equals(currentTheme) ? "外部导入主题" : builtinThemes.getOrDefault(currentTheme, "浅色"));
+        VBox currentCard = createSettingsCard(text("settings.current.title"), text("settings.current.subtitle"));
+        Label themeValue = new Label("imported".equals(currentTheme) ? text("settings.current.importedTheme") : themeDisplayName(currentTheme));
         themeValue.getStyleClass().add("settings-inline-value");
-        Label styleValue = new Label(currentScheduleCardStyle);
+        Label styleValue = new Label(scheduleCardStyleDisplayName(currentScheduleCardStyle));
         styleValue.getStyleClass().add("settings-inline-value");
+        Label languageValue = new Label(localizationService.languageLabel(localizationService.getPreferredLanguage()));
+        languageValue.getStyleClass().add("settings-inline-value");
+        Label fontValue = new Label(localizationService.fontWeightLabel(fontService.getCurrentFontWeight()));
+        fontValue.getStyleClass().add("settings-inline-value");
         currentCard.getChildren().addAll(
-            createSettingRow("当前主题", "当前应用使用的主题", themeValue),
-            createSettingRow("日程卡片样式", "当前全局日程卡片视觉样式", styleValue)
+            createSettingRow(text("settings.current.theme.label"), text("settings.current.theme.description"), themeValue),
+            createSettingRow(text("settings.current.style.label"), text("settings.current.style.description"), styleValue),
+            createSettingRow(text("settings.current.language.label"), text("settings.current.language.description"), languageValue),
+            createSettingRow(text("settings.current.font.label"), text("settings.current.font.description"), fontValue)
         );
-        detailPage.getChildren().addAll(aboutCard, currentCard);
+        AppLanguage originalPreferredLanguage = localizationService.getPreferredLanguage();
+        AppFontWeight originalFontWeight = fontService.getCurrentFontWeight();
+        AppLanguage[] selectedLanguage = new AppLanguage[] { originalPreferredLanguage };
+        AppFontWeight[] selectedFontWeight = new AppFontWeight[] { originalFontWeight };
+
+        VBox languageFontCard = createSettingsCard(text("settings.preferences.title"), text("settings.preferences.subtitle"));
+        ComboBox<AppLanguage> languageComboBox = new ComboBox<>();
+        languageComboBox.getItems().setAll(AppLanguage.supportedValues());
+        languageComboBox.setValue(originalPreferredLanguage);
+        languageComboBox.setMaxWidth(200);
+        languageComboBox.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(AppLanguage item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : localizationService.languageLabel(item));
+            }
+        });
+        languageComboBox.setCellFactory(listView -> new ListCell<>() {
+            @Override
+            protected void updateItem(AppLanguage item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : localizationService.languageLabel(item));
+            }
+        });
+        languageComboBox.valueProperty().addListener((obs, oldValue, newValue) ->
+            selectedLanguage[0] = newValue != null ? newValue : originalPreferredLanguage
+        );
+
+        ToggleGroup fontWeightGroup = new ToggleGroup();
+        HBox fontChipRow = new HBox(8);
+        fontChipRow.setAlignment(Pos.CENTER_LEFT);
+        for (AppFontWeight fontWeight : AppFontWeight.supportedValues()) {
+            ToggleButton chip = new ToggleButton(localizationService.fontWeightLabel(fontWeight));
+            chip.getStyleClass().add("settings-style-chip");
+            chip.setToggleGroup(fontWeightGroup);
+            chip.setUserData(fontWeight);
+            if (fontWeight == originalFontWeight) {
+                chip.setSelected(true);
+            }
+            chip.setOnAction(event -> selectedFontWeight[0] = fontWeight);
+            fontChipRow.getChildren().add(chip);
+        }
+
+        languageFontCard.getChildren().addAll(
+            createSettingRow(text("settings.preferences.language.label"), text("settings.preferences.language.description"), languageComboBox),
+            createSettingRow(text("settings.preferences.font.label"), text("settings.preferences.font.description"), fontChipRow)
+        );
+        detailPage.getChildren().addAll(aboutCard, currentCard, languageFontCard);
 
         VBox themePage = new VBox(18);
         themePage.getStyleClass().add("settings-page");
-        VBox themeCard = createSettingsCard("主题配色", "点击色卡立即预览，保存后作为默认主题");
+        VBox themeCard = createSettingsCard(text("settings.theme.title"), text("settings.theme.subtitle"));
         HBox swatchRow = new HBox(10);
         swatchRow.setAlignment(Pos.CENTER_LEFT);
         ToggleGroup themeGroup = new ToggleGroup();
@@ -1284,29 +1345,29 @@ public class MainController {
             swatch.setToggleGroup(themeGroup);
             swatch.getStyleClass().add("settings-theme-swatch");
             swatch.setStyle("-fx-background-color: " + entry.getValue() + ";");
-            swatch.setTooltip(new Tooltip("使用" + builtinThemes.get(entry.getKey()) + "主题"));
+            swatch.setTooltip(new Tooltip(text("theme.menu.use", themeDisplayName(entry.getKey()))));
             if (entry.getKey().equals(selectedThemeKey)) {
                 swatch.setSelected(true);
             }
             swatch.setOnAction(e -> switchTheme(entry.getKey()));
             swatchRow.getChildren().add(swatch);
         }
-        Button importThemeButton = new Button("导入外部主题");
+        Button importThemeButton = new Button(text("settings.theme.importButton"));
         importThemeButton.getStyleClass().add("button-secondary");
         importThemeButton.setOnAction(e -> importThemeFromFile());
         themeCard.getChildren().addAll(
-            createSettingRow("主题色板", "可视化快速选择主题，不再使用传统下拉菜单", swatchRow),
-            createSettingRow("外部主题", "支持导入 CSS 文件扩展主题风格", importThemeButton)
+            createSettingRow(text("settings.theme.palette.label"), text("settings.theme.palette.description"), swatchRow),
+            createSettingRow(text("settings.theme.external.label"), text("settings.theme.external.description"), importThemeButton)
         );
         themePage.getChildren().add(themeCard);
 
-        VBox styleCard = createSettingsCard("日程卡片样式", "统一调整列表、时间轴、热力图等模块中的日程卡片风格");
+        VBox styleCard = createSettingsCard(text("settings.style.title"), text("settings.style.subtitle"));
         ToggleGroup styleGroup = new ToggleGroup();
         HBox styleChipRow = new HBox(8);
         styleChipRow.setAlignment(Pos.CENTER_LEFT);
         String[] selectedCardStyle = new String[] { currentScheduleCardStyle };
         for (String styleName : scheduleCardStyles) {
-            ToggleButton styleChip = new ToggleButton(styleName);
+            ToggleButton styleChip = new ToggleButton(scheduleCardStyleDisplayName(styleName));
             styleChip.getStyleClass().add("settings-style-chip");
             styleChip.setToggleGroup(styleGroup);
             if (styleName.equals(currentScheduleCardStyle)) {
@@ -1315,13 +1376,13 @@ public class MainController {
             styleChip.setOnAction(e -> selectedCardStyle[0] = styleName);
             styleChipRow.getChildren().add(styleChip);
         }
-        styleCard.getChildren().add(createSettingRow("卡片风格", "样式变化会同时作用于日程管理、时间轴与热力图中的日程卡片", styleChipRow));
+        styleCard.getChildren().add(createSettingRow(text("settings.style.option.label"), text("settings.style.option.description"), styleChipRow));
         VBox stylePage = new VBox(18);
         stylePage.getStyleClass().add("settings-page");
         stylePage.getChildren().add(styleCard);
         VBox dataPage = new VBox(18);
         dataPage.getStyleClass().add("settings-page");
-        VBox trashCard = createSettingsCard("鍥炴敹绔?", "杩欓噷浼氬垪鍑哄凡杞垹闄ょ殑鏃ョ▼锛屽彲浠ユ仮澶嶆垨瀵规湭鍚屾鐨勬湰鍦伴」鐩交搴曞垹闄?");
+        VBox trashCard = createSettingsCard(text("settings.data.title"), text("settings.data.subtitle"));
         Label trashSummary = new Label();
         trashSummary.getStyleClass().add("settings-row-desc");
         trashSummary.setWrapText(true);
@@ -1355,7 +1416,7 @@ public class MainController {
                 }
             }
             updateNavActive.run();
-            switchSettingsPage(contentHost, themePage);
+            switchSettingsPage(contentHost, detailPage);
         };
 
         detailTab.setOnAction(e -> switchPage.run());
@@ -1372,7 +1433,7 @@ public class MainController {
         dialog.getDialogPane().setContent(shell);
 
         Optional<ButtonType> result = dialog.showAndWait();
-        if (result.isEmpty() || result.get() != ButtonType.OK) {
+        if (result.isEmpty() || result.get() != saveButtonType) {
             return;
         }
 
@@ -1380,7 +1441,17 @@ public class MainController {
             currentScheduleCardStyle = selectedCardStyle[0];
             saveScheduleCardStylePreference();
         }
+        if (selectedLanguage[0] != null && selectedLanguage[0] != originalPreferredLanguage) {
+            localizationService.saveLanguagePreference(selectedLanguage[0]);
+        }
+        if (selectedFontWeight[0] != null && selectedFontWeight[0] != originalFontWeight) {
+            fontService.selectFontWeight(selectedFontWeight[0]);
+            applyCurrentFont();
+        }
         refreshAllViews();
+        if (selectedLanguage[0] != null && selectedLanguage[0] != originalPreferredLanguage) {
+            showRestartLanguageNotice(selectedLanguage[0]);
+        }
     }
 
     private VBox createSettingsCard(String title, String subtitle) {
@@ -1415,28 +1486,19 @@ public class MainController {
         host.getChildren().clear();
         try {
             List<Schedule> deletedSchedules = loadDeletedSchedules();
-            summaryLabel.setText("褰撳墠鍥炴敹绔欏叡鏈? " + deletedSchedules.size() + " 椤规棩绋嬨€傛仮澶嶄細鍥炲埌涓昏鍥撅紝褰诲簳鍒犻櫎鍙鏈湴鏈悓姝ョ殑椤圭洰鐢熸晥銆?");
+            summaryLabel.setText(text("trash.summary", deletedSchedules.size()));
             if (deletedSchedules.isEmpty()) {
-                Label emptyLabel = new Label("回收站暂时为空。");
+                Label emptyLabel = new Label(text("trash.empty"));
                 emptyLabel.getStyleClass().add("settings-row-desc");
                 host.getChildren().add(emptyLabel);
                 return;
-                /*
-                Label emptyLabel = new Label("鍥炴敹绔欐殏鏃犲唴瀹?);
-                emptyLabel.getStyleClass().add("settings-row-desc");
-                host.getChildren().add(emptyLabel);
-                return;
-                */
             }
 
             for (Schedule schedule : deletedSchedules) {
                 host.getChildren().add(createTrashRow(schedule, host, summaryLabel));
             }
         } catch (SQLException exception) {
-            summaryLabel.setText("加载回收站失败。");
-            /*
-            summaryLabel.setText("鍔犺浇鍥炴敹绔欏け璐?);
-            */
+            summaryLabel.setText(text("trash.load.failed"));
             Label errorLabel = new Label(exception.getMessage());
             errorLabel.getStyleClass().add("settings-row-desc");
             errorLabel.setWrapText(true);
@@ -1453,7 +1515,7 @@ public class MainController {
         metaLabel.setWrapText(true);
         textBox.getChildren().addAll(titleLabel, metaLabel);
 
-        Button restoreButton = new Button("鎭㈠");
+        Button restoreButton = new Button(text("trash.restore"));
         restoreButton.getStyleClass().add("button-secondary");
         restoreButton.setOnAction(e -> {
             try {
@@ -1462,22 +1524,22 @@ public class MainController {
                     refreshDataViews();
                 }
             } catch (SQLException exception) {
-                showError("鎭㈠澶辫触", exception.getMessage());
+                showError(text("trash.restore.failed.title"), exception.getMessage());
             }
         });
 
-        Button purgeButton = new Button("褰诲簳鍒犻櫎");
+        Button purgeButton = new Button(text("trash.purge"));
         purgeButton.getStyleClass().add("button-secondary");
         purgeButton.setOnAction(e -> {
             try {
                 if (!permanentlyDeleteSchedule(schedule.getId())) {
-                    showInfo("鏃犳硶褰诲簳鍒犻櫎", "宸插悓姝ョ殑 tombstone 椤圭洰褰撳墠涓嶅厑璁稿啀鍋氱墿鐞嗗垹闄ゃ€?");
+                    showInfo(text("trash.purge.unavailable.title"), text("trash.purge.unavailable.message"));
                     return;
                 }
                 populateTrashSettingsList(host, summaryLabel);
                 refreshDataViews();
             } catch (SQLException exception) {
-                showError("褰诲簳鍒犻櫎澶辫触", exception.getMessage());
+                showError(text("trash.purge.failed.title"), exception.getMessage());
             }
         });
 
@@ -1499,16 +1561,101 @@ public class MainController {
         LocalDateTime deletedAt = schedule.getDeletedAt();
         String timeText;
         if (startAt != null && dueAt != null) {
-            timeText = startAt.toLocalDate() + " " + startAt.toLocalTime() + " -> " + dueAt.toLocalDate() + " " + dueAt.toLocalTime();
+            timeText = format("format.trash.dateTime", startAt) + " -> " + format("format.trash.dateTime", dueAt);
         } else if (dueAt != null) {
-            timeText = "鎴: " + dueAt.toLocalDate() + " " + dueAt.toLocalTime();
+            timeText = text("trash.meta.due", format("format.trash.dateTime", dueAt));
         } else if (startAt != null) {
-            timeText = "寮€濮? " + startAt.toLocalDate() + " " + startAt.toLocalTime();
+            timeText = text("trash.meta.start", format("format.trash.dateTime", startAt));
         } else {
-            timeText = "鏈缃椂闂?";
+            timeText = text("trash.meta.unset");
         }
-        String deletedText = deletedAt != null ? deletedAt.toLocalDate() + " " + deletedAt.toLocalTime() : "未记录";
-        return timeText + "\n鍒犻櫎鏃堕棿: " + deletedText;
+        String deletedText = deletedAt != null ? format("format.trash.dateTime", deletedAt) : text("trash.meta.none");
+        return text("trash.meta.template", timeText, deletedText);
+    }
+
+    public String text(String key, Object... args) {
+        return localizationService.text(key, args);
+    }
+
+    public String format(String patternKey, TemporalAccessor value) {
+        return localizationService.format(patternKey, value);
+    }
+
+    public String themeDisplayName(String themeId) {
+        if (themeId == null || themeId.isBlank()) {
+            return "";
+        }
+        if ("imported".equals(themeId)) {
+            return text("settings.current.importedTheme");
+        }
+        String labelKey = builtinThemes.get(themeId);
+        return labelKey != null ? text(labelKey) : themeId;
+    }
+
+    public String scheduleCardStyleDisplayName(String styleId) {
+        return localizationService.scheduleCardStyleLabel(styleId);
+    }
+
+    public String priorityDisplayName(String priority) {
+        return localizationService.priorityLabel(priority);
+    }
+
+    public String categoryDisplayName(String category) {
+        return localizationService.categoryLabel(category);
+    }
+
+    public String recurrenceSummary(RecurrenceRule rule) {
+        return RecurrenceSummaryFormatter.describe(rule, localizationService);
+    }
+
+    public String weekdayShort(DayOfWeek dayOfWeek) {
+        return localizationService.weekdayShort(dayOfWeek);
+    }
+
+    public String weekdayNarrow(DayOfWeek dayOfWeek) {
+        return localizationService.weekdayNarrow(dayOfWeek);
+    }
+
+    public AppLanguage getActiveLanguage() {
+        return localizationService.getActiveLanguage();
+    }
+
+    public AppLanguage getPreferredLanguage() {
+        return localizationService.getPreferredLanguage();
+    }
+
+    public AppFontWeight getCurrentFontWeight() {
+        return fontService.getCurrentFontWeight();
+    }
+
+    public LocalizationService getLocalizationService() {
+        return localizationService;
+    }
+
+    public FontService getFontService() {
+        return fontService;
+    }
+
+    public void applyDialogPreferences(DialogPane pane) {
+        if (pane == null) {
+            return;
+        }
+        pane.getStylesheets().setAll(getCurrentThemeStylesheets());
+        fontService.applyTo(pane, localizationService.getActiveLanguage());
+    }
+
+    private void applyCurrentFont() {
+        Node target = scene != null ? scene.getRoot() : root;
+        if (target != null) {
+            fontService.applyTo(target, localizationService.getActiveLanguage());
+        }
+    }
+
+    private void showRestartLanguageNotice(AppLanguage language) {
+        showInfo(
+            text("settings.language.restart.title"),
+            text("settings.language.restart.message", localizationService.languageLabel(language))
+        );
     }
 
     private void switchSettingsPage(StackPane host, Node page) {
@@ -1553,7 +1700,8 @@ public class MainController {
 
     public void showError(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("错误");
+        applyDialogPreferences(alert.getDialogPane());
+        alert.setTitle(text("alert.error.title"));
         alert.setHeaderText(title);
         alert.setContentText(message);
         alert.showAndWait();
@@ -1561,7 +1709,8 @@ public class MainController {
     
     public void showInfo(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("提示");
+        applyDialogPreferences(alert.getDialogPane());
+        alert.setTitle(text("alert.info.title"));
         alert.setHeaderText(title);
         alert.setContentText(message);
         alert.showAndWait();
@@ -1601,6 +1750,7 @@ public class MainController {
     public void setScene(Scene scene) {
         this.scene = scene;
         applySavedThemeIfNeeded();
+        applyCurrentFont();
         setupGlobalInfoPanelInteractions();
     }
 

@@ -31,6 +31,8 @@ public final class ApplicationContext {
     private final ScheduleItemService scheduleItemService;
     private final NavigationService navigationService;
     private final ThemeService themeService;
+    private final LocalizationService localizationService;
+    private final FontService fontService;
     private final MainViewModel mainViewModel;
 
     private ApplicationContext(
@@ -44,6 +46,8 @@ public final class ApplicationContext {
         ScheduleItemService scheduleItemService,
         NavigationService navigationService,
         ThemeService themeService,
+        LocalizationService localizationService,
+        FontService fontService,
         MainViewModel mainViewModel
     ) {
         this.appProperties = appProperties;
@@ -56,6 +60,8 @@ public final class ApplicationContext {
         this.scheduleItemService = scheduleItemService;
         this.navigationService = navigationService;
         this.themeService = themeService;
+        this.localizationService = localizationService;
+        this.fontService = fontService;
         this.mainViewModel = mainViewModel;
     }
 
@@ -63,6 +69,8 @@ public final class ApplicationContext {
         AppProperties appProperties = ConfigurationLoader.loadAppProperties();
         DatabaseProperties databaseProperties = ConfigurationLoader.loadDatabaseProperties();
         UserPreferencesStore preferencesStore = new JavaPreferencesStore(MainApp.class);
+        LocalizationService localizationService = new LocalizationService(preferencesStore);
+        FontService fontService = new FontService(preferencesStore);
 
         AppDataPaths appDataPaths = null;
         ConnectionFactory connectionFactory;
@@ -96,9 +104,14 @@ public final class ApplicationContext {
         ThemeService themeService = new ThemeService(
             preferencesStore,
             appProperties,
-            List.copyOf(ScheduleCardStyleSupport.getStyleNames())
+            List.copyOf(ScheduleCardStyleSupport.getStyleIds())
         );
-        MainViewModel mainViewModel = new MainViewModel(navigationService, themeService);
+        MainViewModel mainViewModel = new MainViewModel(
+            navigationService,
+            themeService,
+            localizationService,
+            fontService
+        );
 
         return new ApplicationContext(
             appProperties,
@@ -111,6 +124,8 @@ public final class ApplicationContext {
             scheduleItemService,
             navigationService,
             themeService,
+            localizationService,
+            fontService,
             mainViewModel
         );
     }
@@ -153,6 +168,14 @@ public final class ApplicationContext {
 
     public ThemeService getThemeService() {
         return themeService;
+    }
+
+    public LocalizationService getLocalizationService() {
+        return localizationService;
+    }
+
+    public FontService getFontService() {
+        return fontService;
     }
 
     public MainViewModel getMainViewModel() {

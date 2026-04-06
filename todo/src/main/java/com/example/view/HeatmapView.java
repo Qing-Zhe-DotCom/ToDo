@@ -1,6 +1,7 @@
 package com.example.view;
 
 import java.sql.SQLException;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -155,7 +156,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         HBox header = new HBox(15);
         header.setAlignment(Pos.CENTER_LEFT);
 
-        Label titleLabel = new Label("日程热力图");
+        Label titleLabel = new Label(text("view.heatmap.title"));
         titleLabel.getStyleClass().add("label-title");
 
         // 视图模式选择
@@ -168,7 +169,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         monthBtn.setToggleGroup(viewGroup);
         monthBtn.setSelected(true);
         monthBtn.getStyleClass().setAll("icon-button");
-        monthBtn.setTooltip(new Tooltip("月视图"));
+        monthBtn.setTooltip(new Tooltip(text("view.heatmap.mode.month")));
         monthBtn.setOnAction(e -> {
             currentViewMode = "month";
             queueRefresh();
@@ -178,7 +179,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         yearBtn.setGraphic(controller.createSvgIcon("/icons/macaron_year_icon.svg", null, 48));
         yearBtn.setToggleGroup(viewGroup);
         yearBtn.getStyleClass().setAll("icon-button");
-        yearBtn.setTooltip(new Tooltip("年视图"));
+        yearBtn.setTooltip(new Tooltip(text("view.heatmap.mode.year")));
         yearBtn.setOnAction(e -> {
             currentViewMode = "year";
             queueRefresh();
@@ -199,7 +200,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         Button todayBtn = new Button();
         todayBtn.setGraphic(controller.createSvgIcon("/icons/macaron_today_icon.svg", null, 48));
         todayBtn.getStyleClass().setAll("icon-button");
-        todayBtn.setTooltip(new Tooltip("回到今天"));
+        todayBtn.setTooltip(new Tooltip(text("view.heatmap.today")));
         todayBtn.setOnAction(e -> {
             currentDate = LocalDate.now();
             queueRefresh();
@@ -216,7 +217,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Label viewLabel = new Label("视图:");
+        Label viewLabel = new Label(text("view.heatmap.viewLabel"));
         viewLabel.getStyleClass().add("label-subtitle");
 
         header.getChildren().addAll(
@@ -231,8 +232,10 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     }
 
     private String getPeriodName() {
-        if ("year".equals(currentViewMode)) return "年";
-        return "月";
+        if ("year".equals(currentViewMode)) {
+            return text("view.heatmap.period.year");
+        }
+        return text("view.heatmap.period.month");
     }
 
     private void navigate(int direction) {
@@ -268,7 +271,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         VBox panel = new VBox(10);
         panel.getStyleClass().add("heatmap-day-panel");
 
-        dayScheduleTitle = new Label("所选日期日程");
+        dayScheduleTitle = new Label(text("view.heatmap.selectedSchedules"));
         dayScheduleTitle.getStyleClass().add("heatmap-day-title");
 
         ScrollPane dayScheduleScrollPane = new ScrollPane();
@@ -283,7 +286,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         completedDropZone = new HBox();
         completedDropZone.setAlignment(Pos.CENTER_LEFT);
         completedDropZone.getStyleClass().add("heatmap-completed-zone");
-        Label completedDropLabel = new Label("已完成归档区");
+        Label completedDropLabel = new Label(text("view.heatmap.archive"));
         completedDropLabel.getStyleClass().add("heatmap-completed-zone-label");
         completedDropZone.getChildren().add(completedDropLabel);
 
@@ -304,7 +307,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         panelHeader.getStyleClass().add("heatmap-day-panel-header");
         panelHeader.setAlignment(Pos.CENTER_LEFT);
 
-        dayScheduleTitle = new Label("已选日期");
+        dayScheduleTitle = new Label(text("view.heatmap.selectedDate"));
         dayScheduleTitle.getStyleClass().add("heatmap-day-title");
 
         dayScheduleCountLabel = new Label(buildScheduleCountText(0));
@@ -330,7 +333,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         completedDropZone = new HBox();
         completedDropZone.setAlignment(Pos.CENTER_LEFT);
         completedDropZone.getStyleClass().add("heatmap-completed-zone");
-        Label completedDropLabel = new Label("已完成归档区");
+        Label completedDropLabel = new Label(text("view.heatmap.archive"));
         completedDropLabel.getStyleClass().add("heatmap-completed-zone-label");
         completedDropZone.getChildren().add(completedDropLabel);
 
@@ -355,7 +358,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             null,
             18
         ));
-        button.setTooltip(new Tooltip(collapseTarget ? "收起当日日程" : "展开当日日程"));
+        button.setTooltip(new Tooltip(collapseTarget ? text("view.heatmap.sidebar.collapse") : text("view.heatmap.sidebar.expand")));
         button.setOnAction(event -> setSidebarCollapsed(collapseTarget));
         return button;
     }
@@ -443,7 +446,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             try {
                 drawHeatmap();
             } catch (SQLException e) {
-                controller.showError("加载热力图失败", e.getMessage());
+                controller.showError(text("error.heatmapLoad.title"), e.getMessage());
             }
         });
     }
@@ -494,16 +497,12 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         Map<LocalDate, Integer> stats = buildDailyCompletionStats(loadedSchedules, visibleStartDate, visibleEndDate);
         int totalCompleted = stats.values().stream().mapToInt(Integer::intValue).sum();
         int activeDays = (int) stats.values().stream().filter(v -> v > 0).count();
-        statsLabel.setText(String.format(
-            "%s：共完成 %d 项，活跃 %d 天",
+        statsLabel.setText(text(
+            "view.heatmap.stats",
             getStatsPeriodLabel(visibleStartDate, visibleEndDate),
             totalCompleted,
             activeDays
-        )); /*
-        statsLabel.setText(String.format("%s: 鍏卞畬鎴?%d 椤逛换鍔★紝娲昏穬澶╂暟 %d 澶?,
-            getStatsPeriodLabel(visibleStartDate, visibleEndDate),
-            totalCompleted,
-            activeDays)); */
+        ));
 
         double cellSize = calculateCellSize(cols, rows);
         if ("year".equals(currentViewMode)) {
@@ -530,10 +529,9 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     }
 
     private void drawMonthView(LocalDate startDate, LocalDate endDate, Map<LocalDate, Integer> stats, double cellSize) {
-        // 添加星期标题
-        String[] dayNames = {"日", "一", "二", "三", "四", "五", "六"};
         for (int i = 0; i < MONTH_VIEW_COLUMNS; i++) {
-            Label label = new Label(dayNames[i]);
+            DayOfWeek day = DayOfWeek.of(i == 0 ? 7 : i);
+            Label label = new Label(controller.weekdayNarrow(day));
             label.getStyleClass().add("label-hint");
             heatmapGrid.add(label, i, 0);
         }
@@ -570,7 +568,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         VBox monthCard = new VBox(8);
         monthCard.getStyleClass().add("heatmap-year-card");
 
-        Label monthTitle = new Label(buildYearMonthTitle(monthStart));
+        Label monthTitle = new Label(buildYearMonthTitle(monthStart, controller));
         monthTitle.getStyleClass().add("heatmap-year-title");
 
         GridPane monthGrid = new GridPane();
@@ -578,9 +576,9 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         monthGrid.setHgap(GRID_GAP);
         monthGrid.setVgap(GRID_GAP);
 
-        String[] weekdayNames = {"日", "一", "二", "三", "四", "五", "六"};
-        for (int column = 0; column < weekdayNames.length; column++) {
-            Label weekdayLabel = new Label(weekdayNames[column]);
+        for (int column = 0; column < 7; column++) {
+            DayOfWeek day = DayOfWeek.of(column == 0 ? 7 : column);
+            Label weekdayLabel = new Label(controller.weekdayNarrow(day));
             weekdayLabel.getStyleClass().addAll("label-hint", "heatmap-year-weekday");
             monthGrid.add(weekdayLabel, column, 0);
         }
@@ -669,9 +667,9 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
 
     private String buildTooltipText(LocalDate date, int completedCount, List<Schedule> schedules) {
         StringBuilder builder = new StringBuilder();
-        builder.append(date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
-        builder.append("\n完成: ").append(completedCount).append(" 项");
-        builder.append("\n日程: ").append(schedules.size()).append(" 项");
+        builder.append(controller.format("format.heatmap.tooltipDate", date));
+        builder.append("\n").append(text("view.heatmap.tooltip.completed", completedCount));
+        builder.append("\n").append(text("view.heatmap.tooltip.schedules", schedules.size()));
 
         int previewCount = Math.min(3, schedules.size());
         for (int i = 0; i < previewCount; i++) {
@@ -687,11 +685,11 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         String periodName = getPeriodName();
         if (prevBtn != null) {
             prevBtn.setText("");
-            prevBtn.setTooltip(new Tooltip("上一" + periodName));
+            prevBtn.setTooltip(new Tooltip(text("view.heatmap.previous", periodName)));
         }
         if (nextBtn != null) {
             nextBtn.setText("");
-            nextBtn.setTooltip(new Tooltip("下一" + periodName));
+            nextBtn.setTooltip(new Tooltip(text("view.heatmap.next", periodName)));
         }
     }
 
@@ -702,7 +700,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
 
         legend.getChildren().clear();
 
-        Label title = new Label("完成数量:");
+        Label title = new Label(text("view.heatmap.legend"));
         title.getStyleClass().add("label-hint");
         legend.getChildren().add(title);
 
@@ -749,7 +747,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             return;
         }
 
-        dayScheduleTitle.setText(selectedDate.format(DateTimeFormatter.ofPattern("yyyy年MM月dd日")) + " 的日程");
+        dayScheduleTitle.setText(text("view.heatmap.dateSchedules", controller.format("format.heatmap.selectedDate", selectedDate)));
         removeCompletedDropProxy();
         dayScheduleCardsBox.getChildren().clear();
 
@@ -758,7 +756,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             dayScheduleCountLabel.setText(buildScheduleCountText(schedules.size()));
         }
         if (schedules.isEmpty()) {
-            Label emptyLabel = new Label("该日期暂无日程");
+            Label emptyLabel = new Label(text("view.heatmap.empty"));
             emptyLabel.getStyleClass().add("heatmap-day-empty");
             dayScheduleCardsBox.getChildren().add(emptyLabel);
             return;
@@ -1012,7 +1010,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             completedProxyShell.getStyleClass().add(COMPLETED_PROXY_STYLE);
             completedProxyShell.setPickOnBounds(false);
 
-            Label proxyLabel = new Label("已完成");
+            Label proxyLabel = new Label(text("status.completed"));
             proxyLabel.getStyleClass().add("heatmap-completed-zone-label");
             completedProxyShell.getChildren().add(proxyLabel);
 
@@ -1053,11 +1051,15 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         completedDropZone.getChildren().remove(completedProxyHost);
     }
 
+    private String text(String key, Object... args) {
+        return controller.text(key, args);
+    }
+
     private String getStatsPeriodLabel(LocalDate startDate, LocalDate endDate) {
         if ("year".equals(currentViewMode)) {
-            return currentDate.format(DateTimeFormatter.ofPattern("yyyy年"));
+            return controller.format("format.heatmap.year", currentDate);
         }
-        return currentDate.format(DateTimeFormatter.ofPattern("yyyy年MM月"));
+        return controller.format("format.heatmap.yearMonth", currentDate);
     }
 
     private String buildCurrentLayoutSignature() {
@@ -1440,46 +1442,44 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private String getScheduleDateText(Schedule schedule) {
         LocalDateTime startAt = schedule.getStartAt();
         LocalDateTime endAt = schedule.getDueAt();
-        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("MM/dd HH:mm");
-        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
 
         if (startAt != null && endAt != null) {
             if (startAt.toLocalDate().equals(endAt.toLocalDate())) {
-                return startAt.format(dateTimeFormatter) + " - " + endAt.format(timeFormatter);
+                return controller.format("format.heatmap.dateTime", startAt) + " - " + controller.format("format.heatmap.time", endAt);
             }
-            return startAt.format(dateTimeFormatter) + " - " + endAt.format(dateTimeFormatter);
+            return controller.format("format.heatmap.dateTime", startAt) + " - " + controller.format("format.heatmap.dateTime", endAt);
         }
         if (startAt != null) {
-            return "开始于 " + startAt.format(dateTimeFormatter);
+            return text("time.start.summary", controller.format("format.heatmap.dateTime", startAt));
         }
         if (endAt != null) {
-            return "截止于 " + endAt.format(dateTimeFormatter);
+            return text("time.due.summary", controller.format("format.heatmap.dateTime", endAt));
         }
-        return "未设置时间";
+        return text("time.unset");
     }
 
     private String getScheduleDescriptionText(Schedule schedule) {
         if (schedule.getDescription() == null || schedule.getDescription().isBlank()) {
-            return "暂无描述";
+            return text("common.noDescription");
         }
         return schedule.getDescription();
     }
 
     private String getScheduleStatusText(Schedule schedule) {
         if (schedule.isCompleted()) {
-            return "状态：已完成";
+            return text("view.heatmap.status", text("status.completed"));
         }
         if (schedule.isOverdue()) {
-            return "状态：已过期";
+            return text("view.heatmap.status", text("status.overdue"));
         }
         if (schedule.isUpcoming()) {
-            return "状态：即将到期";
+            return text("view.heatmap.status", text("status.upcoming"));
         }
-        return "状态：进行中";
+        return text("view.heatmap.status", text("status.ongoing"));
     }
 
     private String buildScheduleCountText(int count) {
-        return count + " 项日程";
+        return text("view.heatmap.scheduleCount", count);
     }
 
     private boolean hasText(String value) {
@@ -1533,10 +1533,10 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     }
 
     private String getPriorityClass(String priority) {
-        if ("高".equals(priority)) {
+        if (Schedule.PRIORITY_HIGH.equals(priority)) {
             return "high";
         }
-        if ("低".equals(priority)) {
+        if (Schedule.PRIORITY_LOW.equals(priority)) {
             return "low";
         }
         return "medium";
@@ -1578,6 +1578,13 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
 
     static String buildYearMonthTitle(LocalDate monthStart) {
         return monthStart.getMonthValue() + "月";
+    }
+
+    static String buildYearMonthTitle(LocalDate monthStart, MainController controller) {
+        if (controller == null) {
+            return buildYearMonthTitle(monthStart);
+        }
+        return controller.format("format.heatmap.monthTitle", monthStart);
     }
 
     private static int clampMonth(int month) {

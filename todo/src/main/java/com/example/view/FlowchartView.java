@@ -23,16 +23,13 @@ public class FlowchartView implements View {
         root.setPadding(new Insets(15));
         root.setAlignment(Pos.CENTER);
 
-        // 标题
-        Label titleLabel = new Label("日程流程图");
+        Label titleLabel = new Label(controller.text("view.flowchart.title"));
         titleLabel.getStyleClass().add("label-title");
 
-        // 开发中提示
-        Label developingLabel = new Label("日程流程图功能正在开发中...");
+        Label developingLabel = new Label(controller.text("view.flowchart.developing"));
         developingLabel.getStyleClass().add("developing-label");
 
-        // 说明文字
-        Label descriptionLabel = new Label("该功能将展示日程之间的依赖关系和执行流程\n敬请期待后续版本更新");
+        Label descriptionLabel = new Label(controller.text("view.flowchart.description"));
         descriptionLabel.getStyleClass().add("label-subtitle");
         descriptionLabel.setAlignment(Pos.CENTER);
 

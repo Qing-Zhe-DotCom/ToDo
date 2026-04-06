@@ -1,5 +1,6 @@
 package com.example.view;
 
+import com.example.controller.MainController;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Bounds;
@@ -28,6 +29,7 @@ import java.util.function.Consumer;
 import java.util.function.IntFunction;
 
 final class IosWheelDateTimePopup {
+    private MainController controller;
     private static final double POPUP_WIDTH = 336;
     private static final double POPUP_HEIGHT = 352;
     private static final double POPUP_GAP = 8;
@@ -42,9 +44,9 @@ final class IosWheelDateTimePopup {
     private final Label yearLabel = new Label();
     private final Button previousYearButton = new Button("<");
     private final Button nextYearButton = new Button(">");
-    private final Button saveButton = new Button("保存");
-    private final WheelColumn monthColumn = new WheelColumn(84, value -> value + "月");
-    private final WheelColumn dayColumn = new WheelColumn(84, value -> value + "日");
+    private final Button saveButton = new Button();
+    private final WheelColumn monthColumn = new WheelColumn(84, this::formatMonth);
+    private final WheelColumn dayColumn = new WheelColumn(84, this::formatDay);
     private final WheelColumn hourColumn = new WheelColumn(64, value -> String.format("%02d", value));
     private final WheelColumn minuteColumn = new WheelColumn(64, value -> String.format("%02d", value));
 
@@ -52,8 +54,14 @@ final class IosWheelDateTimePopup {
     private Consumer<LocalDateTime> onSave = value -> { };
 
     IosWheelDateTimePopup() {
+        this(null);
+    }
+
+    IosWheelDateTimePopup(MainController controller) {
+        this.controller = controller;
         buildUi();
         wireInteractions();
+        refreshLocalizedText();
     }
 
     void show(Node owner, String title, LocalDateTime seed, Consumer<LocalDateTime> saveAction) {
@@ -65,7 +73,8 @@ final class IosWheelDateTimePopup {
             return;
         }
         this.onSave = saveAction != null ? saveAction : value -> { };
-        titleLabel.setText(title == null ? "时间" : title);
+        refreshLocalizedText();
+        titleLabel.setText(title == null ? text("info.time") : title);
         applySeed(seed != null ? seed : LocalDateTime.now());
         double[] position = resolvePosition(owner);
         if (popup.isShowing()) {
@@ -189,7 +198,7 @@ final class IosWheelDateTimePopup {
     }
 
     private void updateYearLabel() {
-        yearLabel.setText(selectedYear + "年");
+        yearLabel.setText(text("wheel.year.label", selectedYear));
     }
 
     private LocalDateTime buildSelection() {
@@ -241,6 +250,32 @@ final class IosWheelDateTimePopup {
             values.add(value);
         }
         return values;
+    }
+
+    private void refreshLocalizedText() {
+        saveButton.setText(text("common.save"));
+    }
+
+    private String formatMonth(int value) {
+        return text("wheel.month.option", value);
+    }
+
+    private String formatDay(int value) {
+        return text("wheel.day.option", value);
+    }
+
+    private String text(String key, Object... args) {
+        if (controller != null) {
+            return controller.text(key, args);
+        }
+        return switch (key) {
+            case "common.save" -> "保存";
+            case "info.time" -> "时间";
+            case "wheel.year.label" -> args[0] + "年";
+            case "wheel.month.option" -> args[0] + "月";
+            case "wheel.day.option" -> args[0] + "日";
+            default -> key;
+        };
     }
 
     private static final class WheelColumn {

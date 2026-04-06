@@ -726,11 +726,6 @@ public class ScheduleItem {
         return rule != null && rule.isActive();
     }
 
-    public String getRecurrenceSummary() {
-        RecurrenceRule rule = recurrenceRule.get();
-        return rule == null ? "" : rule.describe();
-    }
-
     public void touchForWrite(String deviceId) {
         setUpdatedAtUtc(Tag.nowUtc());
         setDeviceId(deviceId);

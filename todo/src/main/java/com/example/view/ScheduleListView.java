@@ -45,12 +45,11 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     private static final int SEARCH_LOOKAHEAD_DAYS = 90;
     private static final int UPCOMING_LOOKAHEAD_DAYS = 30;
     private static final int OVERDUE_LOOKBACK_DAYS = 90;
-    static final String FILTER_MY_DAY = "我的一天";
-    static final String FILTER_OVERDUE = "过期日程";
-    static final String FILTER_ALL = "全部日程";
-    static final String FILTER_HIGH_PRIORITY = "高优先级";
-    static final String FILTER_UPCOMING = "即将到期";
-    static final String UPCOMING_TOOLTIP_TEXT = "短期日程：今天到期；中期日程：3天内到期；长期日程：7天内到期。";
+    static final String FILTER_MY_DAY = "my-day";
+    static final String FILTER_OVERDUE = "overdue";
+    static final String FILTER_ALL = "all";
+    static final String FILTER_HIGH_PRIORITY = "high-priority";
+    static final String FILTER_UPCOMING = "upcoming";
 
     private final MainController controller;
     private final List<Schedule> loadedSchedules = new ArrayList<>();
@@ -222,7 +221,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             );
 
             cardInner.setOpacity(schedule.isCompleted() ? COMPLETED_CARD_OPACITY : 1.0);
-            priorityLabel.setText(schedule.getPriority());
+            priorityLabel.setText(controller.priorityDisplayName(schedule.getPriority()));
             priorityLabel.getStyleClass().removeAll("priority-high", "priority-medium", "priority-low");
             priorityLabel.getStyleClass().add("priority-" + getPriorityClass(schedule.getPriority()));
 
@@ -232,12 +231,12 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
                 titleLabel.getStyleClass().add("title-completed");
             }
 
-            String dateText = buildScheduleDateText(schedule);
+            String dateText = buildScheduleDateText(schedule, controller);
             if (!dateText.isEmpty() && schedule.isOverdue() && !schedule.isCompleted()) {
-                dateText += " (\u5df2\u8fc7\u671f)";
+                dateText += " (" + controller.text("status.overdue") + ")";
             }
             dateLabel.setText(dateText);
-            categoryLabel.setText(schedule.getCategory());
+            categoryLabel.setText(controller.categoryDisplayName(schedule.getCategory()));
 
             container.getStyleClass().removeAll("completed", "overdue", "upcoming", "selected");
             cardInner.getStyleClass().remove("schedule-card-state-selected");
@@ -275,11 +274,11 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
         HBox toolbar = createToolbar();
 
-        pendingHeader = new GroupHeader("待办", () -> {
+        pendingHeader = new GroupHeader(controller.text("schedule.list.pending"), () -> {
             pendingCollapsed = !pendingCollapsed;
             renderSchedules();
         });
-        completedHeader = new GroupHeader("已完成", () -> {
+        completedHeader = new GroupHeader(controller.text("schedule.list.completed"), () -> {
             completedCollapsed = !completedCollapsed;
             renderSchedules();
         });
@@ -315,7 +314,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         HBox toolbar = new HBox(15);
         toolbar.setAlignment(Pos.CENTER_LEFT);
 
-        Label titleLabel = new Label("日程管理");
+        Label titleLabel = new Label(controller.text("schedule.list.title"));
         titleLabel.getStyleClass().add("label-title");
 
         filterComboBox = new ComboBox<>();
@@ -342,7 +341,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     }
 
     private VBox buildQuickAddBar() {
-        Label quickAddTitle = new Label("新建日程");
+        Label quickAddTitle = new Label(controller.text("schedule.list.quickAdd"));
         quickAddTitle.getStyleClass().add("quick-add-title");
 
         Node quickAddIcon = controller.createSvgIcon("/icons/macaron-logo-simple-plus-blue.svg", null, 20);
@@ -354,10 +353,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         quickAddField = new TextField();
         quickAddField.getStyleClass().add("quick-add-input");
         HBox.setHgrow(quickAddField, Priority.ALWAYS);
-        quickAddField.setPromptText("\u8f93\u5165\u65e5\u7a0b\u6807\u9898...");
-        /*
-        quickAddField.setPromptText("杈撳叆鏃ョ▼鏍囬锛屽洖杞﹀氨鑳藉垱寤?);
-        */
+        quickAddField.setPromptText(controller.text("schedule.list.quickAddPrompt"));
         quickAddField.setOnAction(event -> {
             if (!quickAddComposing) {
                 submitQuickAdd();
@@ -418,7 +414,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             quickAddField.clear();
             quickAddField.requestFocus();
         } catch (SQLException exception) {
-            controller.showError("创建日程失败", exception.getMessage());
+            controller.showError(controller.text("error.createSchedule.title"), exception.getMessage());
         }
     }
 
@@ -448,7 +444,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             List<Schedule> schedules = controller.applyPendingCompletionMutations(controller.loadAllSchedules());
             setLoadedSchedules(schedules);
         } catch (SQLException e) {
-            controller.showError("加载日程失败", e.getMessage());
+            controller.showError(controller.text("error.loadSchedules.title"), e.getMessage());
         }
     }
 
@@ -457,7 +453,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             List<Schedule> schedules = controller.applyPendingCompletionMutations(controller.searchSchedules(keyword));
             setLoadedSchedules(schedules);
         } catch (SQLException e) {
-            controller.showError("搜索失败", e.getMessage());
+            controller.showError(controller.text("error.search.title"), e.getMessage());
         }
     }
 
@@ -601,7 +597,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             return isOverdueOn(schedule, referenceDate);
         }
         if (FILTER_HIGH_PRIORITY.equals(normalizedFilter)) {
-            return "高".equals(schedule.getPriority());
+            return Schedule.PRIORITY_HIGH.equals(schedule.getPriority());
         }
         if (FILTER_UPCOMING.equals(normalizedFilter)) {
             return isUpcomingOn(schedule, referenceDate);
@@ -825,10 +821,10 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     }
 
     private String getPriorityClass(String priority) {
-        if ("高".equals(priority)) {
+        if (Schedule.PRIORITY_HIGH.equals(priority)) {
             return "high";
         }
-        if ("低".equals(priority)) {
+        if (Schedule.PRIORITY_LOW.equals(priority)) {
             return "low";
         }
         return "medium";
@@ -857,12 +853,36 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         return "";
     }
 
+    static String buildScheduleDateText(Schedule schedule, MainController controller) {
+        if (controller == null) {
+            return buildScheduleDateText(schedule);
+        }
+        if (schedule == null) {
+            return "";
+        }
+
+        if (schedule.getStartAt() != null && schedule.getDueAt() != null) {
+            String start = controller.format("format.list.dateTime", schedule.getStartAt());
+            if (schedule.getStartAt().toLocalDate().equals(schedule.getDueAt().toLocalDate())) {
+                return start + " - " + controller.format("format.list.time", schedule.getDueAt());
+            }
+            return start + " - " + controller.format("format.list.dateTime", schedule.getDueAt());
+        }
+        if (schedule.getDueAt() != null) {
+            return controller.text("time.due.summary", controller.format("format.list.dateTime", schedule.getDueAt()));
+        }
+        if (schedule.getStartAt() != null) {
+            return controller.text("time.start.summary", controller.format("format.list.dateTime", schedule.getStartAt()));
+        }
+        return "";
+    }
+
     private ListCell<String> createFilterButtonCell() {
         return new ListCell<>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty || item == null ? null : item);
+                setText(empty || item == null ? null : filterLabel(item));
                 setTooltip(null);
             }
         };
@@ -878,13 +898,24 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
                     setTooltip(null);
                     return;
                 }
-                setText(item);
+                setText(filterLabel(item));
                 if (FILTER_UPCOMING.equals(item)) {
-                    setTooltip(new Tooltip(UPCOMING_TOOLTIP_TEXT));
+                    setTooltip(new Tooltip(controller.text("schedule.list.upcoming.tooltip")));
                 } else {
                     setTooltip(null);
                 }
             }
+        };
+    }
+
+    private String filterLabel(String filterId) {
+        return switch (filterId) {
+            case FILTER_MY_DAY -> controller.text("schedule.filter.myDay");
+            case FILTER_OVERDUE -> controller.text("schedule.filter.overdue");
+            case FILTER_ALL -> controller.text("schedule.filter.all");
+            case FILTER_HIGH_PRIORITY -> controller.text("schedule.filter.highPriority");
+            case FILTER_UPCOMING -> controller.text("schedule.filter.upcoming");
+            default -> filterId;
         };
     }
 }

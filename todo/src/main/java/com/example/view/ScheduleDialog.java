@@ -85,12 +85,13 @@ public class ScheduleDialog extends Dialog<Schedule> {
         dialogPane.setHeader(null);
         
         // Set window title for OS decoration
-        setTitle(isEditMode ? "编辑日程" : "新建日程");
+        setTitle(isEditMode ? text("schedule.dialog.editTitle") : text("schedule.dialog.createTitle"));
 
-        ButtonType saveButtonType = new ButtonType("保存", ButtonBar.ButtonData.OK_DONE);
-        ButtonType cancelButtonType = new ButtonType("取消", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType saveButtonType = new ButtonType(text("common.save"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelButtonType = new ButtonType(text("common.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
         dialogPane.getButtonTypes().addAll(saveButtonType, cancelButtonType);
         dialogPane.getStylesheets().setAll(controller.getCurrentThemeStylesheets());
+        controller.applyDialogPreferences(dialogPane);
         setOnShown(event -> applyDialogIcon());
 
         setResultConverter(dialogButton -> {
@@ -126,9 +127,9 @@ public class ScheduleDialog extends Dialog<Schedule> {
         // 1. 标题 (Hero Section)
         VBox titleBox = new VBox(2);
         nameField = new TextField();
-        nameField.setPromptText("准备做什么？"); // Changed prompt text to be more bold/conversational
+        nameField.setPromptText(text("schedule.dialog.name.prompt"));
         nameField.getStyleClass().add("hero-title-input");
-        nameErrorLabel = new Label("名称不能为空");
+        nameErrorLabel = new Label(text("schedule.dialog.name.required"));
         nameErrorLabel.getStyleClass().add("error-label");
         nameErrorLabel.setVisible(false);
         nameErrorLabel.setManaged(false);
@@ -136,7 +137,7 @@ public class ScheduleDialog extends Dialog<Schedule> {
         
         // 2. 描述 (Hero Section)
         descriptionArea = new TextArea();
-        descriptionArea.setPromptText("添加详细描述...");
+        descriptionArea.setPromptText(text("schedule.dialog.description.prompt"));
         descriptionArea.getStyleClass().add("hero-desc-input");
         descriptionArea.setPrefRowCount(3);
         descriptionArea.setWrapText(true);
@@ -146,7 +147,7 @@ public class ScheduleDialog extends Dialog<Schedule> {
         
         VBox startBox = new VBox(8);
         HBox.setHgrow(startBox, Priority.ALWAYS);
-        Label startLabel = new Label("开始日期");
+        Label startLabel = new Label(text("schedule.dialog.startDate"));
         startLabel.getStyleClass().add("field-label");
         startDatePicker = new DatePicker(LocalDate.now());
         startDatePicker.setMaxWidth(Double.MAX_VALUE);
@@ -156,13 +157,13 @@ public class ScheduleDialog extends Dialog<Schedule> {
         
         VBox dueBox = new VBox(8);
         HBox.setHgrow(dueBox, Priority.ALWAYS);
-        Label dueLabel = new Label("截止日期 *");
+        Label dueLabel = new Label(text("schedule.dialog.dueDateRequired"));
         dueLabel.getStyleClass().add("field-label");
         dueDatePicker = new DatePicker(LocalDate.now().plusDays(7));
         dueDatePicker.setMaxWidth(Double.MAX_VALUE);
         dueDatePicker.getStyleClass().add("modern-input");
         DatePickerArrowSupport.install(dueDatePicker, controller);
-        dateErrorLabel = new Label("截止日期无效");
+        dateErrorLabel = new Label(text("schedule.dialog.dueDateInvalid"));
         dateErrorLabel.getStyleClass().add("error-label");
         dateErrorLabel.setVisible(false);
         dateErrorLabel.setManaged(false);
@@ -172,30 +173,30 @@ public class ScheduleDialog extends Dialog<Schedule> {
         
         // 4. 优先级 (分段控制器)
         VBox priorityBox = new VBox(8);
-        Label priorityLabel = new Label("优先级");
+        Label priorityLabel = new Label(text("schedule.dialog.priority"));
         priorityLabel.getStyleClass().add("field-label");
         
         HBox segmentedControl = new HBox();
         segmentedControl.getStyleClass().add("segmented-control");
         priorityGroup = new ToggleGroup();
         
-        ToggleButton highBtn = new ToggleButton("高");
-        highBtn.setUserData("高");
+        ToggleButton highBtn = new ToggleButton(controller.priorityDisplayName(Schedule.PRIORITY_HIGH));
+        highBtn.setUserData(Schedule.PRIORITY_HIGH);
         highBtn.getStyleClass().addAll("segment-button", "segment-high");
         highBtn.setToggleGroup(priorityGroup);
         HBox.setHgrow(highBtn, Priority.ALWAYS);
         highBtn.setMaxWidth(Double.MAX_VALUE);
         
-        ToggleButton midBtn = new ToggleButton("中");
-        midBtn.setUserData("中");
+        ToggleButton midBtn = new ToggleButton(controller.priorityDisplayName(Schedule.PRIORITY_MEDIUM));
+        midBtn.setUserData(Schedule.PRIORITY_MEDIUM);
         midBtn.getStyleClass().addAll("segment-button", "segment-mid");
         midBtn.setToggleGroup(priorityGroup);
         midBtn.setSelected(true);
         HBox.setHgrow(midBtn, Priority.ALWAYS);
         midBtn.setMaxWidth(Double.MAX_VALUE);
         
-        ToggleButton lowBtn = new ToggleButton("低");
-        lowBtn.setUserData("低");
+        ToggleButton lowBtn = new ToggleButton(controller.priorityDisplayName(Schedule.PRIORITY_LOW));
+        lowBtn.setUserData(Schedule.PRIORITY_LOW);
         lowBtn.getStyleClass().addAll("segment-button", "segment-low");
         lowBtn.setToggleGroup(priorityGroup);
         HBox.setHgrow(lowBtn, Priority.ALWAYS);
@@ -209,19 +210,19 @@ public class ScheduleDialog extends Dialog<Schedule> {
         
         VBox categoryBox = new VBox(8);
         HBox.setHgrow(categoryBox, Priority.ALWAYS);
-        Label categoryLabel = new Label("分类");
+        Label categoryLabel = new Label(text("schedule.dialog.category"));
         categoryLabel.getStyleClass().add("field-label");
         categoryField = new TextField();
-        categoryField.setPromptText("例如：工作");
+        categoryField.setPromptText(text("schedule.dialog.category.prompt"));
         categoryField.getStyleClass().add("modern-input");
         categoryBox.getChildren().addAll(categoryLabel, categoryField);
         
         VBox tagsBox = new VBox(8);
         HBox.setHgrow(tagsBox, Priority.ALWAYS);
-        Label tagsLabel = new Label("标签");
+        Label tagsLabel = new Label(text("schedule.dialog.tags"));
         tagsLabel.getStyleClass().add("field-label");
         tagsField = new TextField();
-        tagsField.setPromptText("用逗号分隔");
+        tagsField.setPromptText(text("schedule.dialog.tags.prompt"));
         tagsField.getStyleClass().add("modern-input");
         tagsBox.getChildren().addAll(tagsLabel, tagsField);
         
@@ -229,7 +230,7 @@ public class ScheduleDialog extends Dialog<Schedule> {
         
         // 6. 颜色标记 (预设色板)
         VBox colorBox = new VBox(8);
-        Label colorLabel = new Label("颜色标记");
+        Label colorLabel = new Label(text("schedule.dialog.color"));
         colorLabel.getStyleClass().add("field-label");
         colorPalette = new HBox(12);
         colorPalette.setAlignment(Pos.CENTER_LEFT);
@@ -260,7 +261,7 @@ public class ScheduleDialog extends Dialog<Schedule> {
         
         HBox switchBox = new HBox(10);
         switchBox.setAlignment(Pos.CENTER_LEFT);
-        Label reminderLabel = new Label("设置提醒");
+        Label reminderLabel = new Label(text("schedule.dialog.reminder"));
         reminderLabel.getStyleClass().add("field-label");
         reminderLabel.setStyle("-fx-padding: 0;");
         
@@ -380,13 +381,13 @@ public class ScheduleDialog extends Dialog<Schedule> {
     private boolean validateDates() {
         boolean valid = true;
         if (dueDatePicker.getValue() == null) {
-            dateErrorLabel.setText("请选择截止日期");
+            dateErrorLabel.setText(text("schedule.dialog.dueDate.required"));
             dueDatePicker.getStyleClass().add("error-border");
             dateErrorLabel.setVisible(true);
             dateErrorLabel.setManaged(true);
             valid = false;
         } else if (startDatePicker.getValue() != null && startDatePicker.getValue().isAfter(dueDatePicker.getValue())) {
-            dateErrorLabel.setText("开始日期不能晚于截止日期");
+            dateErrorLabel.setText(text("schedule.dialog.dateRange.invalid"));
             dueDatePicker.getStyleClass().add("error-border");
             dateErrorLabel.setVisible(true);
             dateErrorLabel.setManaged(true);
@@ -415,7 +416,7 @@ public class ScheduleDialog extends Dialog<Schedule> {
             }
         }
         
-        categoryField.setText(schedule.getCategory());
+        categoryField.setText(displayCategoryValue(schedule.getCategory()));
         tagsField.setText(schedule.getTags());
 
         if (schedule.getColor() != null && !schedule.getColor().isEmpty()) {
@@ -446,10 +447,10 @@ public class ScheduleDialog extends Dialog<Schedule> {
         if (priorityGroup.getSelectedToggle() != null) {
             result.setPriority(priorityGroup.getSelectedToggle().getUserData().toString());
         } else {
-            result.setPriority("中");
+            result.setPriority(Schedule.PRIORITY_MEDIUM);
         }
 
-        result.setCategory(resolveCategoryValue(categoryField.getText(), isEditMode));
+        result.setCategory(resolveCategoryInput(categoryField.getText()));
         result.setTags(resolveTagsValue(tagsField.getText(), isEditMode));
         result.setColor(selectedColorHex);
 
@@ -463,8 +464,27 @@ public class ScheduleDialog extends Dialog<Schedule> {
         return result;
     }
 
+    private String text(String key, Object... args) {
+        return controller.text(key, args);
+    }
+
+    private String displayCategoryValue(String category) {
+        return controller.categoryDisplayName(category);
+    }
+
+    private String resolveCategoryInput(String input) {
+        return resolveCategoryValue(input, isEditMode, text("category.default"));
+    }
+
     static String resolveCategoryValue(String input, boolean isEditMode) {
+        return resolveCategoryValue(input, isEditMode, Schedule.DEFAULT_CATEGORY);
+    }
+
+    static String resolveCategoryValue(String input, boolean isEditMode, String localizedDefaultLabel) {
         String normalized = input != null ? input.trim() : "";
+        if (normalized.equals(localizedDefaultLabel)) {
+            normalized = "";
+        }
         if (!normalized.isEmpty()) {
             return Schedule.normalizeCategory(normalized);
         }

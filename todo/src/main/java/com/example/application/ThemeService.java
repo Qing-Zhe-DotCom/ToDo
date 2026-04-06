@@ -8,6 +8,7 @@ import java.util.Map;
 
 import com.example.config.AppProperties;
 import com.example.config.UserPreferencesStore;
+import com.example.view.ScheduleCardStyleSupport;
 
 public final class ThemeService {
     private static final String PREF_THEME_KEY = "todo.theme";
@@ -68,8 +69,9 @@ public final class ThemeService {
     }
 
     public void setScheduleCardStyle(String scheduleCardStyle) {
-        if (scheduleCardStyles.contains(scheduleCardStyle)) {
-            currentScheduleCardStyle = scheduleCardStyle;
+        String normalizedStyleId = ScheduleCardStyleSupport.normalizeStyleId(scheduleCardStyle);
+        if (scheduleCardStyles.contains(normalizedStyleId)) {
+            currentScheduleCardStyle = normalizedStyleId;
             save();
         }
     }
@@ -124,10 +126,12 @@ public final class ThemeService {
             currentTheme = defaultTheme;
         }
 
-        String defaultStyle = appProperties.getDefaultScheduleCardStyle();
-        currentScheduleCardStyle = preferencesStore.get(
-            PREF_SCHEDULE_CARD_STYLE_KEY,
-            preferencesStore.get(PREF_TIMELINE_CARD_STYLE_KEY, defaultStyle)
+        String defaultStyle = ScheduleCardStyleSupport.normalizeStyleId(appProperties.getDefaultScheduleCardStyle());
+        currentScheduleCardStyle = ScheduleCardStyleSupport.normalizeStyleId(
+            preferencesStore.get(
+                PREF_SCHEDULE_CARD_STYLE_KEY,
+                preferencesStore.get(PREF_TIMELINE_CARD_STYLE_KEY, defaultStyle)
+            )
         );
         if (!scheduleCardStyles.contains(currentScheduleCardStyle)) {
             currentScheduleCardStyle = defaultStyle;
@@ -151,14 +155,14 @@ public final class ThemeService {
 
     private Map<String, String> createBuiltinThemeMap() {
         Map<String, String> themes = new LinkedHashMap<>();
-        themes.put("light", "浅色");
-        themes.put("mint", "薄荷");
-        themes.put("ocean", "海洋");
-        themes.put("sunset", "落日");
-        themes.put("lavender", "薰衣草");
-        themes.put("forest", "森林");
-        themes.put("slate", "石板");
-        themes.put("macaron", "马卡龙");
+        themes.put("light", "theme.light");
+        themes.put("mint", "theme.mint");
+        themes.put("ocean", "theme.ocean");
+        themes.put("sunset", "theme.sunset");
+        themes.put("lavender", "theme.lavender");
+        themes.put("forest", "theme.forest");
+        themes.put("slate", "theme.slate");
+        themes.put("macaron", "theme.macaron");
         return themes;
     }
 }
