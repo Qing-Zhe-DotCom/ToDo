@@ -3826,3 +3826,48 @@
     -fx-border-color: transparent;
 }
 
+.info-panel-tag-editor-chip-pane {
+    -fx-padding: 2 0 0 0;
+}
+
+.info-panel-chip-action {
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+    -fx-border-color: transparent;
+    -fx-padding: 4 10;
+    -fx-cursor: hand;
+}
+
+.info-panel-chip-action:hover {
+    -fx-background-color: derive(-color-primary-light, -4%);
+}
+
+.info-panel-reminder-editor,
+.info-panel-recurrence-editor {
+    -fx-spacing: 8;
+}
+
+.info-panel-reminder-list {
+    -fx-spacing: 8;
+}
+
+.info-panel-reminder-row {
+    -fx-alignment: center-left;
+    -fx-spacing: 8;
+}
+
+.info-panel-reminder-button {
+    -fx-alignment: center-left;
+    -fx-max-width: Infinity;
+}
+
+.info-panel-secondary-action {
+    -fx-padding: 6 12;
+}
+
+.info-panel-recurrence-summary {
+    -fx-text-fill: -color-text-sub;
+    -fx-font-size: 12px;
+    -fx-line-spacing: 2px;
+}
+

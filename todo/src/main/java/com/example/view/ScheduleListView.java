@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.example.application.ScheduleOccurrenceProjector;
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionCoordinator;
 import com.example.controller.ScheduleCompletionMutation;
@@ -40,6 +41,10 @@ import javafx.scene.shape.Rectangle;
 
 public class ScheduleListView implements View, ScheduleCompletionParticipant {
     private static final double COMPLETED_CARD_OPACITY = 0.7;
+    private static final int SEARCH_LOOKBACK_DAYS = 30;
+    private static final int SEARCH_LOOKAHEAD_DAYS = 90;
+    private static final int UPCOMING_LOOKAHEAD_DAYS = 30;
+    private static final int OVERDUE_LOOKBACK_DAYS = 90;
     static final String FILTER_MY_DAY = "我的一天";
     static final String FILTER_OVERDUE = "过期日程";
     static final String FILTER_ALL = "全部日程";
@@ -49,7 +54,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
     private final MainController controller;
     private final List<Schedule> loadedSchedules = new ArrayList<>();
-    private final Map<Integer, ScheduleCardNode> cardNodesById = new LinkedHashMap<>();
+    private final Map<String, ScheduleCardNode> cardNodesById = new LinkedHashMap<>();
 
     private VBox root;
     private ScrollPane listScrollPane;
@@ -70,6 +75,9 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     private boolean pendingCollapsed = false;
     private boolean completedCollapsed = false;
     private Node completedGroupHeaderNode;
+
+    private record ProjectionWindow(LocalDate start, LocalDate end) {
+    }
 
     private static final class GroupHeader {
         private final HBox root;
@@ -475,15 +483,20 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
     private void renderSchedules() {
         List<Schedule> displayedSchedules = buildDisplayedSchedules();
-        Set<Integer> loadedIds = loadedSchedules.stream()
-            .map(Schedule::getId)
-            .filter(id -> id > 0)
+        Set<String> loadedIds = displayedSchedules.stream()
+            .map(schedule -> schedule.getViewKey() != null && !schedule.getViewKey().isBlank()
+                ? schedule.getViewKey()
+                : schedule.getId())
+            .filter(id -> id != null && !id.isBlank())
             .collect(Collectors.toCollection(LinkedHashSet::new));
 
         List<Node> pendingNodes = new ArrayList<>();
         List<Node> completedNodes = new ArrayList<>();
         for (Schedule schedule : displayedSchedules) {
-            ScheduleCardNode cardNode = cardNodesById.computeIfAbsent(schedule.getId(), id -> new ScheduleCardNode(schedule));
+            String cardKey = schedule.getViewKey() != null && !schedule.getViewKey().isBlank()
+                ? schedule.getViewKey()
+                : schedule.getId();
+            ScheduleCardNode cardNode = cardNodesById.computeIfAbsent(cardKey, id -> new ScheduleCardNode(schedule));
             cardNode.bindSchedule(schedule);
             if (schedule.isCompleted()) {
                 completedNodes.add(cardNode.getContainer());
@@ -492,10 +505,10 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             }
         }
 
-        List<Integer> staleIds = cardNodesById.keySet().stream()
+        List<String> staleIds = cardNodesById.keySet().stream()
             .filter(id -> !loadedIds.contains(id))
             .collect(Collectors.toList());
-        for (Integer staleId : staleIds) {
+        for (String staleId : staleIds) {
             ScheduleCardNode staleNode = cardNodesById.remove(staleId);
             if (staleNode != null) {
                 pendingCardsBox.getChildren().remove(staleNode.getContainer());
@@ -531,13 +544,37 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
     private List<Schedule> buildDisplayedSchedules() {
         Comparator<Schedule> comparator = buildDisplayComparator();
+        ProjectionWindow projectionWindow = resolveProjectionWindow(
+            showingSearchResults ? FILTER_ALL : (filterComboBox != null ? filterComboBox.getValue() : FILTER_MY_DAY),
+            LocalDate.now()
+        );
+        List<Schedule> projectedSchedules = ScheduleOccurrenceProjector.projectForRange(
+            loadedSchedules,
+            projectionWindow.start(),
+            projectionWindow.end(),
+            true
+        );
         if (showingSearchResults) {
-            return loadedSchedules.stream().sorted(comparator).collect(Collectors.toList());
+            return projectedSchedules.stream().sorted(comparator).collect(Collectors.toList());
         }
-        return loadedSchedules.stream()
+        return projectedSchedules.stream()
             .filter(schedule -> matchesFilter(schedule, filterComboBox != null ? filterComboBox.getValue() : FILTER_MY_DAY, LocalDate.now()))
             .sorted(comparator)
             .collect(Collectors.toList());
+    }
+
+    private ProjectionWindow resolveProjectionWindow(String filter, LocalDate today) {
+        LocalDate reference = today != null ? today : LocalDate.now();
+        if (FILTER_MY_DAY.equals(filter)) {
+            return new ProjectionWindow(reference, reference);
+        }
+        if (FILTER_OVERDUE.equals(filter)) {
+            return new ProjectionWindow(reference.minusDays(OVERDUE_LOOKBACK_DAYS), reference.minusDays(1));
+        }
+        if (FILTER_UPCOMING.equals(filter)) {
+            return new ProjectionWindow(reference, reference.plusDays(UPCOMING_LOOKAHEAD_DAYS));
+        }
+        return new ProjectionWindow(reference.minusDays(SEARCH_LOOKBACK_DAYS), reference.plusDays(SEARCH_LOOKAHEAD_DAYS));
     }
 
     private void refreshSelectionState() {
@@ -664,13 +701,16 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             return false;
         }
 
-        Map<Integer, Bounds> beforeBounds =
-            ScheduleReflowAnimator.captureVisibleCardBounds(listContent, schedule.getId());
+        String cardKey = schedule.getViewKey() != null && !schedule.getViewKey().isBlank()
+            ? schedule.getViewKey()
+            : schedule.getId();
+        Map<String, Bounds> beforeBounds =
+            ScheduleReflowAnimator.captureVisibleCardBounds(listContent, cardKey);
 
         ScheduleCollapsePopAnimator.playCollapseSource(
             cardNode.getMotionHandle(),
             pendingCompletion::commit,
-            () -> handleCommittedListCompletion(schedule.getId(), beforeBounds),
+            () -> handleCommittedListCompletion(cardKey, beforeBounds),
             () -> {
                 pendingCompletion.cancel();
                 cardNode.syncAfterFailedCommit();
@@ -680,7 +720,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         return true;
     }
 
-    private void handleCommittedListCompletion(int scheduleId, Map<Integer, Bounds> beforeBounds) {
+    private void handleCommittedListCompletion(String scheduleId, Map<String, Bounds> beforeBounds) {
         ScheduleCollapsePopAnimator.MotionHandle targetHandle = resolveExpandedTargetHandle(scheduleId);
         if (targetHandle != null) {
             ScheduleCollapsePopAnimator.prepareTargetPopState(targetHandle);
@@ -702,7 +742,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         }
     }
 
-    private ScheduleCollapsePopAnimator.MotionHandle resolveExpandedTargetHandle(int scheduleId) {
+    private ScheduleCollapsePopAnimator.MotionHandle resolveExpandedTargetHandle(String scheduleId) {
         if (completedCollapsed) {
             return null;
         }

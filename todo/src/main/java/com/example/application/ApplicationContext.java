@@ -11,13 +11,13 @@ import com.example.config.JavaPreferencesStore;
 import com.example.config.UserPreferencesStore;
 import com.example.data.ConnectionFactory;
 import com.example.data.JdbcConnectionFactory;
-import com.example.data.JdbcScheduleRepository;
-import com.example.data.ScheduleRepository;
-import com.example.data.SchemaInitializer;
+import com.example.data.MysqlStageBSchemaManager;
+import com.example.data.ScheduleItemRepository;
+import com.example.data.SchemaManager;
+import com.example.data.SqlDialect;
+import com.example.data.SqlScheduleItemRepository;
 import com.example.data.SqliteConnectionFactory;
-import com.example.data.SqliteMigrationRunner;
-import com.example.data.SqliteScheduleRepository;
-import com.example.databaseutil.ScheduleDAO;
+import com.example.data.SqliteStageBSchemaManager;
 import com.example.view.ScheduleCardStyleSupport;
 
 public final class ApplicationContext {
@@ -26,9 +26,9 @@ public final class ApplicationContext {
     private final AppDataPaths appDataPaths;
     private final UserPreferencesStore preferencesStore;
     private final ConnectionFactory connectionFactory;
-    private final SchemaInitializer schemaInitializer;
-    private final ScheduleRepository scheduleRepository;
-    private final ScheduleService scheduleService;
+    private final SchemaManager schemaManager;
+    private final ScheduleItemRepository scheduleItemRepository;
+    private final ScheduleItemService scheduleItemService;
     private final NavigationService navigationService;
     private final ThemeService themeService;
     private final MainViewModel mainViewModel;
@@ -39,9 +39,9 @@ public final class ApplicationContext {
         AppDataPaths appDataPaths,
         UserPreferencesStore preferencesStore,
         ConnectionFactory connectionFactory,
-        SchemaInitializer schemaInitializer,
-        ScheduleRepository scheduleRepository,
-        ScheduleService scheduleService,
+        SchemaManager schemaManager,
+        ScheduleItemRepository scheduleItemRepository,
+        ScheduleItemService scheduleItemService,
         NavigationService navigationService,
         ThemeService themeService,
         MainViewModel mainViewModel
@@ -51,9 +51,9 @@ public final class ApplicationContext {
         this.appDataPaths = appDataPaths;
         this.preferencesStore = preferencesStore;
         this.connectionFactory = connectionFactory;
-        this.schemaInitializer = schemaInitializer;
-        this.scheduleRepository = scheduleRepository;
-        this.scheduleService = scheduleService;
+        this.schemaManager = schemaManager;
+        this.scheduleItemRepository = scheduleItemRepository;
+        this.scheduleItemService = scheduleItemService;
         this.navigationService = navigationService;
         this.themeService = themeService;
         this.mainViewModel = mainViewModel;
@@ -66,24 +66,32 @@ public final class ApplicationContext {
 
         AppDataPaths appDataPaths = null;
         ConnectionFactory connectionFactory;
-        SchemaInitializer schemaInitializer;
-        ScheduleRepository scheduleRepository;
+        SchemaManager schemaManager;
+        ScheduleItemRepository scheduleItemRepository;
         if (databaseProperties.isSqliteMode()) {
             appDataPaths = new AppDataPaths(
                 appProperties.getDataDirectoryOverride(),
                 databaseProperties.getSqlitePath()
             );
-            SqliteMigrationRunner migrationRunner = new SqliteMigrationRunner();
             connectionFactory = new SqliteConnectionFactory(databaseProperties, appDataPaths);
-            schemaInitializer = null;
-            scheduleRepository = new SqliteScheduleRepository(connectionFactory, migrationRunner);
+            schemaManager = new SqliteStageBSchemaManager();
+            scheduleItemRepository = new SqlScheduleItemRepository(connectionFactory, schemaManager, SqlDialect.SQLITE);
         } else {
             connectionFactory = new JdbcConnectionFactory(databaseProperties);
-            schemaInitializer = new SchemaInitializer();
-            scheduleRepository = new JdbcScheduleRepository(new ScheduleDAO());
+            schemaManager = new MysqlStageBSchemaManager();
+            scheduleItemRepository = new SqlScheduleItemRepository(connectionFactory, schemaManager, SqlDialect.MYSQL);
         }
 
-        ScheduleService scheduleService = new ScheduleService(scheduleRepository);
+        ScheduleItemService scheduleItemService = new ScheduleItemService(
+            scheduleItemRepository,
+            preferencesStore,
+            appProperties.getAppVersion()
+        );
+        try {
+            scheduleItemService.initializeRuntime();
+        } catch (Exception exception) {
+            throw new IllegalStateException("Failed to initialize stage-B data runtime", exception);
+        }
         NavigationService navigationService = new NavigationService();
         ThemeService themeService = new ThemeService(
             preferencesStore,
@@ -98,9 +106,9 @@ public final class ApplicationContext {
             appDataPaths,
             preferencesStore,
             connectionFactory,
-            schemaInitializer,
-            scheduleRepository,
-            scheduleService,
+            schemaManager,
+            scheduleItemRepository,
+            scheduleItemService,
             navigationService,
             themeService,
             mainViewModel
@@ -127,16 +135,16 @@ public final class ApplicationContext {
         return connectionFactory;
     }
 
-    public SchemaInitializer getSchemaInitializer() {
-        return schemaInitializer;
+    public SchemaManager getSchemaManager() {
+        return schemaManager;
     }
 
-    public ScheduleRepository getScheduleRepository() {
-        return scheduleRepository;
+    public ScheduleItemRepository getScheduleItemRepository() {
+        return scheduleItemRepository;
     }
 
-    public ScheduleService getScheduleService() {
-        return scheduleService;
+    public ScheduleItemService getScheduleItemService() {
+        return scheduleItemService;
     }
 
     public NavigationService getNavigationService() {

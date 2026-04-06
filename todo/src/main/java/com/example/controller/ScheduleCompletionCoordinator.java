@@ -9,7 +9,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 public final class ScheduleCompletionCoordinator {
 
@@ -22,7 +22,7 @@ public final class ScheduleCompletionCoordinator {
     }
 
     public interface CompletionStatusWriter {
-        boolean updateCompletion(int scheduleId, boolean targetCompleted) throws SQLException;
+        boolean updateCompletion(String scheduleId, boolean targetCompleted) throws SQLException;
     }
 
     public interface ErrorReporter {
@@ -77,8 +77,8 @@ public final class ScheduleCompletionCoordinator {
     private final ErrorReporter errorReporter;
     private final Executor backgroundExecutor;
     private final Executor uiExecutor;
-    private final Set<Integer> inFlightScheduleIds = ConcurrentHashMap.newKeySet();
-    private final Map<Integer, ScheduleCompletionMutation> activeMutations = new ConcurrentHashMap<>();
+    private final Set<String> inFlightScheduleIds = ConcurrentHashMap.newKeySet();
+    private final Map<String, ScheduleCompletionMutation> activeMutations = new ConcurrentHashMap<>();
 
     public ScheduleCompletionCoordinator(
         CompletionStatusWriter statusWriter,
@@ -94,8 +94,8 @@ public final class ScheduleCompletionCoordinator {
         this.uiExecutor = uiExecutor;
     }
 
-    public PendingCompletion prepare(Schedule schedule, boolean targetCompleted) {
-        if (schedule == null || schedule.getId() <= 0) {
+    public PendingCompletion prepare(ScheduleItem schedule, boolean targetCompleted) {
+        if (schedule == null || schedule.getId() == null || schedule.getId().isBlank()) {
             return null;
         }
         if (!inFlightScheduleIds.add(schedule.getId())) {
@@ -104,7 +104,7 @@ public final class ScheduleCompletionCoordinator {
         return new PendingCompletion(new ScheduleCompletionMutation(schedule, targetCompleted));
     }
 
-    public boolean submitImmediate(Schedule schedule, boolean targetCompleted) {
+    public boolean submitImmediate(ScheduleItem schedule, boolean targetCompleted) {
         PendingCompletion pendingCompletion = prepare(schedule, targetCompleted);
         return pendingCompletion != null && pendingCompletion.commit();
     }

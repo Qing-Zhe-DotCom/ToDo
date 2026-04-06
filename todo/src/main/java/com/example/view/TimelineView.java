@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import com.example.application.ScheduleOccurrenceProjector;
 import com.example.controller.MainController;
 import com.example.model.Schedule;
 
@@ -236,6 +237,26 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         return LocalDate.parse(text.trim(), RANGE_DATE_FORMATTER);
     }
 
+    private static LocalDate minLocalDate(LocalDate left, LocalDate right) {
+        if (left == null) {
+            return right;
+        }
+        if (right == null) {
+            return left;
+        }
+        return left.isBefore(right) ? left : right;
+    }
+
+    private static LocalDate maxLocalDate(LocalDate left, LocalDate right) {
+        if (left == null) {
+            return right;
+        }
+        if (right == null) {
+            return left;
+        }
+        return left.isAfter(right) ? left : right;
+    }
+
     @Override
     public Node getView() {
         return root;
@@ -262,31 +283,39 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     private void renderTimeline(List<Schedule> allSchedules) {
         timelinePane.getChildren().clear();
 
-        allSchedules = new ArrayList<>(allSchedules == null ? List.of() : allSchedules);
-        if (allSchedules.isEmpty()) {
+        List<Schedule> baseSchedules = new ArrayList<>(allSchedules == null ? List.of() : allSchedules);
+        if (baseSchedules.isEmpty()) {
             showTimelineState("暂无可显示的日程，请为日程补充开始日期或截止日期");
             return;
         }
 
-        allSchedules.removeIf(s -> resolveTimelineStart(s) == null || resolveTimelineEnd(s) == null);
+        baseSchedules.removeIf(s -> resolveTimelineStart(s) == null || resolveTimelineEnd(s) == null);
 
-        LocalDate rawMinDate = allSchedules.stream()
+        LocalDate rawMinDate = baseSchedules.stream()
             .map(TimelineView::resolveTimelineStart)
             .min(LocalDate::compareTo)
             .orElse(LocalDate.now().minusDays(7));
 
-        LocalDate rawMaxDate = allSchedules.stream()
+        LocalDate rawMaxDate = baseSchedules.stream()
             .map(TimelineView::resolveTimelineEnd)
             .max(LocalDate::compareTo)
             .orElse(LocalDate.now().plusDays(30));
 
-        LocalDate minDate = startDatePicker.getValue() != null ? startDatePicker.getValue() : rawMinDate.minusDays(3);
-        LocalDate maxDate = endDatePicker.getValue() != null ? endDatePicker.getValue() : rawMaxDate.plusDays(7);
+        boolean hasRecurring = baseSchedules.stream().anyMatch(Schedule::hasRecurrence);
+
+        LocalDate minDate = startDatePicker.getValue() != null
+            ? startDatePicker.getValue()
+            : (hasRecurring ? minLocalDate(rawMinDate.minusDays(3), LocalDate.now().minusDays(7)) : rawMinDate.minusDays(3));
+        LocalDate maxDate = endDatePicker.getValue() != null
+            ? endDatePicker.getValue()
+            : (hasRecurring ? maxLocalDate(rawMaxDate.plusDays(7), LocalDate.now().plusDays(30)) : rawMaxDate.plusDays(7));
 
         if (minDate.isAfter(maxDate)) {
             showTimelineState("起始日期不能晚于结束日期");
             return;
         }
+
+        allSchedules = ScheduleOccurrenceProjector.projectForRange(baseSchedules, minDate, maxDate, false);
 
         List<Schedule> shortTasks = new ArrayList<>();
         List<Schedule> mediumTasks = new ArrayList<>();

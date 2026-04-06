@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.example.application.ScheduleOccurrenceProjector;
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionCoordinator;
 import com.example.controller.ScheduleCompletionMutation;
@@ -530,7 +531,11 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         configureGridForCurrentView();
         updateNavigationButtons();
         updateLegend();
-        schedulesByDate = buildSchedulesByDate(loadedSchedules, visibleStartDate, visibleEndDate);
+        schedulesByDate = buildSchedulesByDate(
+            ScheduleOccurrenceProjector.projectForRange(loadedSchedules, visibleStartDate, visibleEndDate, false),
+            visibleStartDate,
+            visibleEndDate
+        );
         ensureSelectedDate(visibleStartDate, visibleEndDate);
 
         Map<LocalDate, Integer> stats = buildDailyCompletionStats(loadedSchedules, visibleStartDate, visibleEndDate);
@@ -977,8 +982,11 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             return false;
         }
 
-        Map<Integer, Bounds> beforeBounds =
-            ScheduleReflowAnimator.captureVisibleCardBounds(dayScheduleCardsBox, schedule.getId());
+        String cardKey = schedule.getViewKey() != null && !schedule.getViewKey().isBlank()
+            ? schedule.getViewKey()
+            : schedule.getId();
+        Map<String, Bounds> beforeBounds =
+            ScheduleReflowAnimator.captureVisibleCardBounds(dayScheduleCardsBox, cardKey);
 
         ScheduleCollapsePopAnimator.playCollapseSource(
             ScheduleCollapsePopAnimator.resolveMotionHandle(cardNode),
@@ -1049,7 +1057,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
 
     }*/
 
-    private void handleCommittedHeatmapCompletion(Map<Integer, Bounds> beforeBounds) {
+    private void handleCommittedHeatmapCompletion(Map<String, Bounds> beforeBounds) {
         ScheduleReflowAnimator.playVerticalReflow(dayScheduleCardsBox, beforeBounds, null);
         ScheduleCollapsePopAnimator.MotionHandle proxyHandle = createCompletedProxyHandle();
         if (proxyHandle != null) {

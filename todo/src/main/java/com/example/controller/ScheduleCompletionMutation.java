@@ -2,18 +2,18 @@ package com.example.controller;
 
 import java.time.LocalDateTime;
 
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 public final class ScheduleCompletionMutation {
-    private final int scheduleId;
+    private final String scheduleId;
     private final boolean previousCompleted;
     private final boolean targetCompleted;
     private final LocalDateTime previousUpdatedAt;
     private final LocalDateTime optimisticUpdatedAt;
 
-    public ScheduleCompletionMutation(Schedule schedule, boolean targetCompleted) {
+    public ScheduleCompletionMutation(ScheduleItem schedule, boolean targetCompleted) {
         this(
-            schedule != null ? schedule.getId() : -1,
+            schedule != null ? schedule.getId() : null,
             schedule != null && schedule.isCompleted(),
             targetCompleted,
             schedule != null ? schedule.getUpdatedAt() : null,
@@ -22,7 +22,7 @@ public final class ScheduleCompletionMutation {
     }
 
     public ScheduleCompletionMutation(
-        int scheduleId,
+        String scheduleId,
         boolean previousCompleted,
         boolean targetCompleted,
         LocalDateTime previousUpdatedAt,
@@ -35,7 +35,7 @@ public final class ScheduleCompletionMutation {
         this.optimisticUpdatedAt = optimisticUpdatedAt != null ? optimisticUpdatedAt : LocalDateTime.now();
     }
 
-    public int getScheduleId() {
+    public String getScheduleId() {
         return scheduleId;
     }
 
@@ -62,7 +62,7 @@ public final class ScheduleCompletionMutation {
         return targetCompleted ? -1 : 1;
     }
 
-    public void applyTo(Schedule schedule) {
+    public void applyTo(ScheduleItem schedule) {
         if (!matches(schedule)) {
             return;
         }
@@ -70,7 +70,7 @@ public final class ScheduleCompletionMutation {
         schedule.setUpdatedAt(optimisticUpdatedAt);
     }
 
-    public void revertOn(Schedule schedule) {
+    public void revertOn(ScheduleItem schedule) {
         if (!matches(schedule)) {
             return;
         }
@@ -78,7 +78,7 @@ public final class ScheduleCompletionMutation {
         schedule.setUpdatedAt(previousUpdatedAt);
     }
 
-    public boolean matches(Schedule schedule) {
-        return schedule != null && schedule.getId() == scheduleId;
+    public boolean matches(ScheduleItem schedule) {
+        return schedule != null && scheduleId != null && scheduleId.equals(schedule.getId());
     }
 }

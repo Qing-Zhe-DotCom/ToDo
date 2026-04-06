@@ -4,7 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
@@ -32,19 +32,19 @@ public final class ScheduleReflowAnimator {
     }
 
     public static final class VisibleCard {
-        private final int scheduleId;
+        private final String scheduleId;
         private final Node node;
         private final Bounds bounds;
         private final boolean completed;
 
-        VisibleCard(int scheduleId, Node node, Bounds bounds, boolean completed) {
+        VisibleCard(String scheduleId, Node node, Bounds bounds, boolean completed) {
             this.scheduleId = scheduleId;
             this.node = node;
             this.bounds = bounds;
             this.completed = completed;
         }
 
-        public int getScheduleId() {
+        public String getScheduleId() {
             return scheduleId;
         }
 
@@ -61,42 +61,58 @@ public final class ScheduleReflowAnimator {
         }
     }
 
-    public static void bindCard(Node node, Schedule schedule) {
-        if (node == null || schedule == null || schedule.getId() <= 0) {
+    public static void bindCard(Node node, ScheduleItem schedule) {
+        if (node == null || schedule == null) {
             return;
         }
-        node.getProperties().put(CARD_ID_KEY, schedule.getId());
+        String cardId = schedule.getViewKey() != null && !schedule.getViewKey().isBlank()
+            ? schedule.getViewKey()
+            : schedule.getId();
+        if (cardId == null || cardId.isBlank()) {
+            return;
+        }
+        node.getProperties().put(CARD_ID_KEY, cardId);
         node.getProperties().put(CARD_COMPLETED_KEY, schedule.isCompleted());
     }
 
-    public static Map<Integer, VisibleCard> captureVisibleCards(Node container) {
-        Map<Integer, VisibleCard> cardsById = new LinkedHashMap<>();
+    public static Map<String, VisibleCard> captureVisibleCards(Node container) {
+        Map<String, VisibleCard> cardsById = new LinkedHashMap<>();
         collectVisibleCards(container, cardsById);
         return cardsById;
     }
 
-    public static Map<Integer, Bounds> captureVisibleCardBounds(Node container, int excludedScheduleId) {
-        Map<Integer, Bounds> boundsById = new LinkedHashMap<>();
+    public static Map<String, Bounds> captureVisibleCardBounds(Node container, String excludedScheduleId) {
+        Map<String, Bounds> boundsById = new LinkedHashMap<>();
         for (VisibleCard card : captureVisibleCards(container).values()) {
-            if (card.getScheduleId() != excludedScheduleId) {
+            if (!card.getScheduleId().equals(excludedScheduleId)) {
                 boundsById.put(card.getScheduleId(), card.getBounds());
             }
         }
         return boundsById;
     }
 
-    public static VisibleCard findVisibleCardById(Node container, int scheduleId) {
-        if (scheduleId <= 0) {
+    public static VisibleCard findVisibleCardById(Node container, String scheduleId) {
+        if (scheduleId == null || scheduleId.isBlank()) {
             return null;
         }
         return findVisibleCard(container, scheduleId, null);
     }
 
-    public static VisibleCard findVisibleCardByIdAndCompletion(Node container, int scheduleId, boolean completed) {
-        if (scheduleId <= 0) {
+    @Deprecated
+    public static VisibleCard findVisibleCardById(Node container, int scheduleId) {
+        return findVisibleCardById(container, String.valueOf(scheduleId));
+    }
+
+    public static VisibleCard findVisibleCardByIdAndCompletion(Node container, String scheduleId, boolean completed) {
+        if (scheduleId == null || scheduleId.isBlank()) {
             return null;
         }
         return findVisibleCard(container, scheduleId, completed);
+    }
+
+    @Deprecated
+    public static VisibleCard findVisibleCardByIdAndCompletion(Node container, int scheduleId, boolean completed) {
+        return findVisibleCardByIdAndCompletion(container, String.valueOf(scheduleId), completed);
     }
 
     public static void animateLiveShift(Node node, double targetTranslateY, Duration duration) {
@@ -125,7 +141,7 @@ public final class ScheduleReflowAnimator {
 
     public static void playVerticalReflow(
         Node container,
-        Map<Integer, Bounds> beforeBounds,
+        Map<String, Bounds> beforeBounds,
         Supplier<Node> targetSupplier
     ) {
         playVerticalReflow(
@@ -140,7 +156,7 @@ public final class ScheduleReflowAnimator {
 
     public static void playVerticalReflow(
         Node container,
-        Map<Integer, Bounds> beforeBounds,
+        Map<String, Bounds> beforeBounds,
         Supplier<Node> targetSupplier,
         Duration reflowDuration,
         Duration targetFeedbackDuration
@@ -150,7 +166,7 @@ public final class ScheduleReflowAnimator {
 
     public static void playVerticalReflow(
         Node container,
-        Map<Integer, Bounds> beforeBounds,
+        Map<String, Bounds> beforeBounds,
         Supplier<Node> targetSupplier,
         Duration reflowDuration,
         Duration targetFeedbackDuration,
@@ -167,7 +183,7 @@ public final class ScheduleReflowAnimator {
         Duration safeTargetDuration = targetFeedbackDuration != null ? targetFeedbackDuration : TARGET_FEEDBACK_DURATION;
 
         Platform.runLater(() -> Platform.runLater(() -> {
-            Map<Integer, VisibleCard> visibleCards = captureVisibleCards(container);
+            Map<String, VisibleCard> visibleCards = captureVisibleCards(container);
             Map<VisibleCard, Timeline> reflowTimelines = new LinkedHashMap<>();
             for (VisibleCard card : visibleCards.values()) {
                 Bounds before = beforeBounds.get(card.getScheduleId());
@@ -348,13 +364,13 @@ public final class ScheduleReflowAnimator {
         receive.playFromStart();
     }
 
-    private static void collectVisibleCards(Node node, Map<Integer, VisibleCard> cardsById) {
+    private static void collectVisibleCards(Node node, Map<String, VisibleCard> cardsById) {
         if (node == null) {
             return;
         }
 
-        int cardId = extractCardId(node);
-        if (cardId > 0 && node.isVisible() && node.isManaged()) {
+        String cardId = extractCardId(node);
+        if (cardId != null && !cardId.isBlank() && node.isVisible() && node.isManaged()) {
             Bounds bounds = resolveCardBounds(node);
             if (bounds != null) {
                 cardsById.putIfAbsent(cardId, new VisibleCard(cardId, node, bounds, extractCompleted(node)));
@@ -368,13 +384,13 @@ public final class ScheduleReflowAnimator {
         }
     }
 
-    private static VisibleCard findVisibleCard(Node node, int scheduleId, Boolean completed) {
+    private static VisibleCard findVisibleCard(Node node, String scheduleId, Boolean completed) {
         if (node == null) {
             return null;
         }
 
-        int cardId = extractCardId(node);
-        if (cardId == scheduleId && node.isVisible() && node.isManaged()) {
+        String cardId = extractCardId(node);
+        if (scheduleId.equals(cardId) && node.isVisible() && node.isManaged()) {
             boolean nodeCompleted = extractCompleted(node);
             if (completed == null || nodeCompleted == completed.booleanValue()) {
                 Bounds bounds = resolveCardBounds(node);
@@ -395,15 +411,12 @@ public final class ScheduleReflowAnimator {
         return null;
     }
 
-    private static int extractCardId(Node node) {
+    private static String extractCardId(Node node) {
         Object rawValue = node.getProperties().get(CARD_ID_KEY);
-        if (rawValue instanceof Integer) {
-            return (Integer) rawValue;
+        if (rawValue instanceof String) {
+            return (String) rawValue;
         }
-        if (rawValue instanceof Long) {
-            return ((Long) rawValue).intValue();
-        }
-        return -1;
+        return null;
     }
 
     private static boolean extractCompleted(Node node) {

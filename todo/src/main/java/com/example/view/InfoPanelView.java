@@ -2,6 +2,8 @@ package com.example.view;
 
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionMutation;
+import com.example.model.RecurrenceRule;
+import com.example.model.Reminder;
 import com.example.model.Schedule;
 import javafx.animation.FadeTransition;
 import javafx.animation.ParallelTransition;
@@ -32,10 +34,13 @@ import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 
 import java.sql.SQLException;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 
@@ -79,6 +84,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     private Label summaryPrimary;
     private Label summarySecondary;
     private TextField titleField;
+    private CheckBox allDayToggle;
     private CheckBox dueToggle;
     private Button dueTrigger;
     private Label dueTriggerTitle;
@@ -95,6 +101,12 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     private TextField categoryField;
     private TextField tagsField;
     private TextArea notesArea;
+    private FlowPane tagEditorChipPane;
+    private VBox reminderListBox;
+    private Button addReminderButton;
+    private Label recurrenceSummaryLabel;
+    private Button recurrenceEditButton;
+    private Button recurrenceClearButton;
     private VBox priorityEditor;
     private VBox categoryEditor;
     private VBox tagsEditor;
@@ -259,6 +271,47 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         return new TimeTriggerPresentation(SUMMARY_FORMATTER.format(value), YEAR_FORMATTER.format(value), false);
     }
 
+    static DatePresentation buildDatePresentation(LocalDateTime startAt, LocalDateTime dueAt, boolean allDay) {
+        if (!allDay) {
+            return buildDatePresentation(startAt, dueAt);
+        }
+        LocalDateTime start = startAt != null ? startAt : dueAt;
+        LocalDateTime end = dueAt != null ? dueAt : startAt;
+        if (start == null || end == null) {
+            return new DatePresentation(EMPTY_TIME_TEXT, "");
+        }
+        if (start.isAfter(end)) {
+            LocalDateTime temp = start;
+            start = end;
+            end = temp;
+        }
+        if (startAt == null && dueAt != null) {
+            return new DatePresentation("截止 " + formatDaySummary(end), YEAR_FORMATTER.format(end));
+        }
+        if (startAt != null && dueAt == null) {
+            return new DatePresentation("开始于 " + formatDaySummary(start), YEAR_FORMATTER.format(start));
+        }
+        String primary = formatDaySummary(start) + " - " + formatDaySummary(end);
+        String secondary = start.getYear() == end.getYear()
+            ? YEAR_FORMATTER.format(start)
+            : YEAR_FORMATTER.format(start) + " - " + YEAR_FORMATTER.format(end);
+        return new DatePresentation(primary, secondary);
+    }
+
+    static TimeTriggerPresentation buildTimeTriggerPresentation(LocalDateTime value, boolean allDay) {
+        if (!allDay) {
+            return buildTimeTriggerPresentation(value);
+        }
+        if (value == null) {
+            return new TimeTriggerPresentation(UNSET_TRIGGER_TEXT, "", true);
+        }
+        return new TimeTriggerPresentation(formatDaySummary(value), YEAR_FORMATTER.format(value), false);
+    }
+
+    private static String formatDaySummary(LocalDateTime value) {
+        return DateTimeFormatter.ofPattern("M月d日").format(value);
+    }
+
     static LocalDateTime defaultDueValue(LocalDate date) {
         return date.atTime(23, 59);
     }
@@ -333,6 +386,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         summaryPrimary = summaryLabel("info-panel-date-primary");
         summaryPrimary.setText(EMPTY_TIME_TEXT);
         summarySecondary = summaryLabel("info-panel-date-secondary");
+        allDayToggle = rowToggle("全天");
 
         dueToggle = rowToggle("截止时间");
         dueTrigger = timeTrigger();
@@ -364,12 +418,35 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         notesArea.getStyleClass().addAll("info-panel-notes-input", "info-panel-borderless-area");
         notesArea.setPrefRowCount(6);
         notesArea.setWrapText(true);
+        tagEditorChipPane = new FlowPane(8, 8);
+        tagEditorChipPane.getStyleClass().addAll("info-panel-chip-pane", "info-panel-tag-editor-chip-pane");
+
+        reminderListBox = new VBox(8);
+        reminderListBox.getStyleClass().add("info-panel-reminder-list");
+        addReminderButton = new Button("添加提醒");
+        addReminderButton.getStyleClass().addAll("button-secondary", "info-panel-secondary-action");
+
+        recurrenceSummaryLabel = new Label("未设置重复规则");
+        recurrenceSummaryLabel.getStyleClass().add("info-panel-recurrence-summary");
+        recurrenceSummaryLabel.setWrapText(true);
+        recurrenceEditButton = new Button("编辑规则");
+        recurrenceEditButton.getStyleClass().addAll("button-secondary", "info-panel-secondary-action");
+        recurrenceClearButton = new Button("清除规则");
+        recurrenceClearButton.getStyleClass().addAll("button-secondary", "info-panel-secondary-action");
         notesArea.setPromptText("补充备注、描述和上下文");
 
         priorityEditor = inlineEditor(priorityBox);
         categoryEditor = inlineEditor(categoryField);
-        tagsEditor = inlineEditor(tagsField);
+        tagsEditor = inlineEditor(tagsField, tagEditorChipPane);
         notesEditor = inlineEditor(notesArea);
+
+        HBox recurrenceActions = new HBox(8, recurrenceEditButton, recurrenceClearButton);
+        recurrenceActions.setAlignment(Pos.CENTER_LEFT);
+        VBox recurrenceEditor = new VBox(8, recurrenceSummaryLabel, recurrenceActions);
+        recurrenceEditor.getStyleClass().add("info-panel-recurrence-editor");
+
+        VBox reminderEditor = new VBox(8, reminderListBox, addReminderButton);
+        reminderEditor.getStyleClass().add("info-panel-reminder-editor");
 
         VBox content = new VBox();
         content.getStyleClass().add("info-panel-content");
@@ -378,10 +455,13 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
             titleField,
             summaryPrimary,
             summarySecondary,
+            section("全天日程", toggleOnlyRow(allDayToggle)),
             section("时间", timeRow(dueToggle, dueTrigger), timeRow(startToggle, startTrigger), timeRow(reminderToggle, reminderTrigger)),
             section("优先级", priorityEditor),
             section("任务", categoryEditor),
             section("标签", tagsEditor),
+            section("提醒", reminderEditor),
+            section("重复", recurrenceEditor),
             section("备注", notesEditor)
         );
 
@@ -407,6 +487,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         tagsField.textProperty().addListener((obs, oldValue, newValue) -> {
             if (!suspend) {
                 updateChips(categoryField.getText(), newValue);
+                renderTagEditorChips(Schedule.splitTags(newValue));
             }
         });
         notesArea.textProperty().addListener((obs, oldValue, newValue) -> {
@@ -438,6 +519,11 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
                 handleStartToggle(selected);
             }
         });
+        allDayToggle.selectedProperty().addListener((obs, oldValue, selected) -> {
+            if (!suspend) {
+                saveAllDay(selected);
+            }
+        });
         reminderToggle.selectedProperty().addListener((obs, oldValue, selected) -> {
             if (!suspend) {
                 handleReminderToggle(selected);
@@ -447,6 +533,9 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         dueTrigger.setOnAction(event -> openDuePicker());
         startTrigger.setOnAction(event -> openStartPicker());
         reminderTrigger.setOnAction(event -> openReminderPicker());
+        addReminderButton.setOnAction(event -> addReminder());
+        recurrenceEditButton.setOnAction(event -> editRecurrenceRule());
+        recurrenceClearButton.setOnAction(event -> clearRecurrenceRule());
         scrollPane.vvalueProperty().addListener((obs, oldValue, newValue) -> closeWheelPopup());
     }
 
@@ -504,6 +593,154 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         save("保存备注失败", draft -> draft.setDescription(value), false);
     }
 
+    private void saveAllDay(boolean selected) {
+        if (persistedSchedule != null && selected == persistedSchedule.isAllDay()) {
+            updateTimeTriggers();
+            return;
+        }
+        save("保存全天状态失败", draft -> draft.setAllDay(selected), true);
+    }
+
+    private void renderTagEditorChips(List<String> tags) {
+        tagEditorChipPane.getChildren().clear();
+        List<String> normalizedTags = tags != null ? tags : List.of();
+        for (String tag : normalizedTags) {
+            Button chip = new Button(tag + " ×");
+            chip.getStyleClass().addAll("info-panel-chip", "info-panel-chip-tag", "info-panel-chip-action");
+            chip.setOnAction(event -> removeTag(tag));
+            tagEditorChipPane.getChildren().add(chip);
+        }
+        boolean hasTags = !normalizedTags.isEmpty();
+        tagEditorChipPane.setVisible(hasTags);
+        tagEditorChipPane.setManaged(hasTags);
+    }
+
+    private void removeTag(String tag) {
+        List<String> updatedTags = new ArrayList<>(Schedule.splitTags(tagsField.getText()));
+        if (!updatedTags.removeIf(existing -> Objects.equals(existing, tag))) {
+            return;
+        }
+        save("保存标签失败", draft -> draft.setTagNames(updatedTags), true);
+    }
+
+    private void addReminder() {
+        if (currentSchedule == null) {
+            return;
+        }
+        List<Reminder> reminders = new ArrayList<>(currentSchedule.getReminders());
+        reminders.add(new Reminder(defaultReminderValue(LocalDate.now(), currentSchedule.getDueAt())));
+        saveReminders(reminders);
+    }
+
+    private void editReminder(Reminder reminder, Button owner) {
+        if (currentSchedule == null || reminder == null) {
+            return;
+        }
+        openTimePicker("提醒", owner, reminder.getRemindAtUtc(), value -> {
+            List<Reminder> reminders = new ArrayList<>(currentSchedule.getReminders());
+            for (Reminder candidate : reminders) {
+                if (Objects.equals(candidate.getId(), reminder.getId())) {
+                    candidate.setRemindAtUtc(value);
+                    break;
+                }
+            }
+            saveReminders(reminders);
+        });
+    }
+
+    private void removeReminder(String reminderId) {
+        if (currentSchedule == null || reminderId == null) {
+            return;
+        }
+        List<Reminder> reminders = new ArrayList<>(currentSchedule.getReminders());
+        reminders.removeIf(reminder -> Objects.equals(reminder.getId(), reminderId));
+        saveReminders(reminders);
+    }
+
+    private void saveReminders(List<Reminder> reminders) {
+        save("保存提醒失败", draft -> draft.setReminders(reminders), true);
+    }
+
+    private void renderReminderEditor() {
+        reminderListBox.getChildren().clear();
+        List<Reminder> reminders = currentSchedule != null ? currentSchedule.getReminders() : List.of();
+        int index = 1;
+        for (Reminder reminder : reminders) {
+            Button editButton = new Button("提醒 " + index + "  " + formatReminderButtonText(reminder));
+            editButton.getStyleClass().addAll("button-secondary", "info-panel-reminder-button");
+            editButton.setMaxWidth(Double.MAX_VALUE);
+            HBox.setHgrow(editButton, Priority.ALWAYS);
+            editButton.setOnAction(event -> editReminder(reminder, editButton));
+
+            Button removeButton = new Button("移除");
+            removeButton.getStyleClass().addAll("button-secondary", "info-panel-secondary-action");
+            removeButton.setOnAction(event -> removeReminder(reminder.getId()));
+
+            HBox row = new HBox(8, editButton, removeButton);
+            row.setAlignment(Pos.CENTER_LEFT);
+            row.getStyleClass().add("info-panel-reminder-row");
+            reminderListBox.getChildren().add(row);
+            index++;
+        }
+        boolean hasReminders = !reminders.isEmpty();
+        reminderListBox.setVisible(hasReminders);
+        reminderListBox.setManaged(hasReminders);
+        addReminderButton.setDisable(currentSchedule == null || !reminderToggle.isSelected());
+    }
+
+    private String formatReminderButtonText(Reminder reminder) {
+        if (reminder == null || reminder.getRemindAtUtc() == null) {
+            return "未设置";
+        }
+        TimeTriggerPresentation presentation = buildTimeTriggerPresentation(reminder.getRemindAtUtc(), false);
+        if (presentation.getSecondaryText().isBlank()) {
+            return presentation.getPrimaryText();
+        }
+        return presentation.getPrimaryText() + " · " + presentation.getSecondaryText();
+    }
+
+    private void editRecurrenceRule() {
+        if (currentSchedule == null) {
+            return;
+        }
+        LocalDateTime seed = currentSchedule.getStartAt() != null
+            ? currentSchedule.getStartAt()
+            : (currentSchedule.getDueAt() != null ? currentSchedule.getDueAt() : LocalDateTime.now());
+        RecurrenceRuleDialog dialog = new RecurrenceRuleDialog(
+            controller,
+            currentSchedule.getRecurrenceRule(),
+            seed,
+            currentSchedule.getTimezone()
+        );
+        dialog.showAndWait().ifPresent(result -> saveRecurrenceRule(result.getRule()));
+    }
+
+    private void clearRecurrenceRule() {
+        if (currentSchedule == null || currentSchedule.getRecurrenceRule() == null) {
+            return;
+        }
+        save("保存重复规则失败", draft -> draft.setRecurrenceRule(null), true);
+    }
+
+    private void saveRecurrenceRule(RecurrenceRule rule) {
+        save("保存重复规则失败", draft -> draft.setRecurrenceRule(rule), true);
+    }
+
+    private void updateRecurrenceEditor() {
+        String summary = currentSchedule != null && currentSchedule.hasRecurrence()
+            ? currentSchedule.getRecurrenceSummary()
+            : "未设置重复规则";
+        recurrenceSummaryLabel.setText(summary);
+        recurrenceClearButton.setDisable(currentSchedule == null || currentSchedule.getRecurrenceRule() == null);
+    }
+
+    private LocalDateTime normalizeAllDayValue(LocalDateTime value, boolean allDay, boolean endOfDay) {
+        if (value == null || !allDay) {
+            return value;
+        }
+        return endOfDay ? value.toLocalDate().atTime(23, 59) : value.toLocalDate().atStartOfDay();
+    }
+
     private void handleDueToggle(boolean selected) {
         closeWheelPopup();
         saveDue(selected ? (currentSchedule != null && currentSchedule.getDueAt() != null
@@ -520,9 +757,16 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
 
     private void handleReminderToggle(boolean selected) {
         closeWheelPopup();
-        saveReminder(selected ? (currentSchedule != null && currentSchedule.getReminderTime() != null
-            ? currentSchedule.getReminderTime()
-            : defaultReminderValue(LocalDate.now(), currentSchedule != null ? currentSchedule.getDueAt() : null)) : null);
+        if (!selected) {
+            saveReminders(List.of());
+            return;
+        }
+        if (currentSchedule != null && !currentSchedule.getReminders().isEmpty()) {
+            renderReminderEditor();
+            updateTimeTriggers();
+            return;
+        }
+        addReminder();
     }
 
     private void openDuePicker() {
@@ -552,19 +796,21 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     }
 
     private void saveDue(LocalDateTime value) {
-        if (persistedSchedule != null && Objects.equals(value, persistedSchedule.getDueAt())) {
+        LocalDateTime normalizedValue = normalizeAllDayValue(value, currentSchedule != null && currentSchedule.isAllDay(), true);
+        if (persistedSchedule != null && Objects.equals(normalizedValue, persistedSchedule.getDueAt())) {
             updateTimeTriggers();
             return;
         }
-        save("保存截止时间失败", draft -> draft.setDueAt(value), true);
+        save("淇濆瓨鎴鏃堕棿澶辫触", draft -> draft.setDueAt(normalizedValue), true);
     }
 
     private void saveStart(LocalDateTime value) {
-        if (persistedSchedule != null && Objects.equals(value, persistedSchedule.getStartAt())) {
+        LocalDateTime normalizedValue = normalizeAllDayValue(value, currentSchedule != null && currentSchedule.isAllDay(), false);
+        if (persistedSchedule != null && Objects.equals(normalizedValue, persistedSchedule.getStartAt())) {
             updateTimeTriggers();
             return;
         }
-        save("保存开始时间失败", draft -> draft.setStartAt(value), true);
+        save("保存开始时间失败", draft -> draft.setStartAt(normalizedValue), true);
     }
 
     private void saveReminder(LocalDateTime value) {
@@ -572,7 +818,16 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
             updateTimeTriggers();
             return;
         }
-        save("保存提醒失败", draft -> draft.setReminderTime(value), true);
+        List<Reminder> reminders = currentSchedule != null ? new ArrayList<>(currentSchedule.getReminders()) : new ArrayList<>();
+        if (value == null) {
+            reminders.clear();
+        } else if (reminders.isEmpty()) {
+            reminders.add(new Reminder(value));
+        } else {
+            reminders.get(0).setRemindAtUtc(value);
+        }
+        saveReminders(reminders);
+        return;
     }
 
     private void save(String errorTitle, Change change, boolean rerender) {
@@ -625,9 +880,10 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         categoryField.setText(currentSchedule.getCategory());
         tagsField.setText(currentSchedule.getTags());
         notesArea.setText(currentSchedule.getDescription());
+        allDayToggle.setSelected(currentSchedule.isAllDay());
         dueToggle.setSelected(currentSchedule.getDueAt() != null);
         startToggle.setSelected(currentSchedule.getStartAt() != null);
-        reminderToggle.setSelected(currentSchedule.getReminderTime() != null);
+        reminderToggle.setSelected(!currentSchedule.getReminders().isEmpty());
         suspend = false;
         updateEditorsEnabled();
         updateDerivedState();
@@ -641,6 +897,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         categoryField.setText(Schedule.DEFAULT_CATEGORY);
         tagsField.setText("");
         notesArea.setText("");
+        allDayToggle.setSelected(false);
         dueToggle.setSelected(false);
         startToggle.setSelected(false);
         reminderToggle.setSelected(false);
@@ -653,6 +910,13 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         chipPane.getChildren().clear();
         chipPane.setVisible(false);
         chipPane.setManaged(false);
+        tagEditorChipPane.getChildren().clear();
+        tagEditorChipPane.setVisible(false);
+        tagEditorChipPane.setManaged(false);
+        reminderListBox.getChildren().clear();
+        reminderListBox.setVisible(false);
+        reminderListBox.setManaged(false);
+        recurrenceSummaryLabel.setText("未设置重复规则");
 
         summaryPrimary.setText(EMPTY_TIME_TEXT);
         summarySecondary.setText("");
@@ -689,7 +953,11 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         completeControl.syncCompleted(currentSchedule.isCompleted());
         setDisabled(false);
 
-        DatePresentation presentation = buildDatePresentation(currentSchedule.getStartAt(), currentSchedule.getDueAt());
+        DatePresentation presentation = buildDatePresentation(
+            currentSchedule.getStartAt(),
+            currentSchedule.getDueAt(),
+            currentSchedule.isAllDay()
+        );
         summaryPrimary.setText(presentation.getPrimaryText());
         summarySecondary.setText(presentation.getSecondaryText());
         summarySecondary.setVisible(!presentation.getSecondaryText().isBlank());
@@ -697,6 +965,9 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
 
         updateTimeTriggers();
         updateChips(currentSchedule.getCategory(), currentSchedule.getTags());
+        renderTagEditorChips(currentSchedule.getTagNames());
+        renderReminderEditor();
+        updateRecurrenceEditor();
     }
 
     private void updateChips(String category, String tags) {
@@ -721,13 +992,29 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         dueTrigger.setDisable(disabled || !dueToggle.isSelected());
         startTrigger.setDisable(disabled || !startToggle.isSelected());
         reminderTrigger.setDisable(disabled || !reminderToggle.isSelected());
+        addReminderButton.setDisable(disabled || !reminderToggle.isSelected());
+        recurrenceEditButton.setDisable(disabled);
+        recurrenceClearButton.setDisable(disabled || currentSchedule == null || currentSchedule.getRecurrenceRule() == null);
     }
 
     private void updateTimeTriggers() {
-        configureTimeTrigger(dueTrigger, dueTriggerTitle, dueTriggerSubtitle, currentSchedule != null && dueToggle.isSelected() ? currentSchedule.getDueAt() : null);
-        configureTimeTrigger(startTrigger, startTriggerTitle, startTriggerSubtitle, currentSchedule != null && startToggle.isSelected() ? currentSchedule.getStartAt() : null);
+        configureTimeTrigger(
+            dueTrigger,
+            dueTriggerTitle,
+            dueTriggerSubtitle,
+            currentSchedule != null && dueToggle.isSelected() ? currentSchedule.getDueAt() : null,
+            currentSchedule != null && currentSchedule.isAllDay()
+        );
+        configureTimeTrigger(
+            startTrigger,
+            startTriggerTitle,
+            startTriggerSubtitle,
+            currentSchedule != null && startToggle.isSelected() ? currentSchedule.getStartAt() : null,
+            currentSchedule != null && currentSchedule.isAllDay()
+        );
         configureTimeTrigger(reminderTrigger, reminderTriggerTitle, reminderTriggerSubtitle, currentSchedule != null && reminderToggle.isSelected() ? currentSchedule.getReminderTime() : null);
         updateEditorsEnabled();
+        renderReminderEditor();
     }
 
     private void configureTimeTrigger(Button trigger, Label titleLabel, Label subtitleLabel, LocalDateTime value) {
@@ -739,10 +1026,20 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         toggleStyleClass(trigger, "info-panel-time-trigger-unset", presentation.isUnset());
     }
 
+    private void configureTimeTrigger(Button trigger, Label titleLabel, Label subtitleLabel, LocalDateTime value, boolean allDay) {
+        TimeTriggerPresentation presentation = buildTimeTriggerPresentation(value, allDay);
+        titleLabel.setText(presentation.getPrimaryText());
+        subtitleLabel.setText(presentation.getSecondaryText());
+        subtitleLabel.setVisible(!presentation.getSecondaryText().isBlank());
+        subtitleLabel.setManaged(!presentation.getSecondaryText().isBlank());
+        toggleStyleClass(trigger, "info-panel-time-trigger-unset", presentation.isUnset());
+    }
+
     private void setDisabled(boolean disabled) {
         completeControl.setDisable(disabled);
         deleteButton.setDisable(disabled);
         titleField.setDisable(disabled);
+        allDayToggle.setDisable(disabled);
         dueToggle.setDisable(disabled);
         startToggle.setDisable(disabled);
         reminderToggle.setDisable(disabled);
@@ -750,6 +1047,10 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         categoryField.setDisable(disabled);
         tagsField.setDisable(disabled);
         notesArea.setDisable(disabled);
+        reminderListBox.setDisable(disabled);
+        addReminderButton.setDisable(disabled);
+        recurrenceEditButton.setDisable(disabled);
+        recurrenceClearButton.setDisable(disabled);
     }
 
     private void deleteSchedule() {
@@ -884,6 +1185,13 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         return row;
     }
 
+    private HBox toggleOnlyRow(CheckBox toggle) {
+        HBox row = new HBox(toggle);
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.getStyleClass().add("info-panel-inline-row");
+        return row;
+    }
+
     private VBox inlineEditor(Node editor, Node... supportingNodes) {
         VBox wrapper = new VBox(8);
         wrapper.getStyleClass().add("info-panel-inline-editor");
@@ -977,18 +1285,30 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     private Schedule copyOf(Schedule source) {
         Schedule copy = new Schedule();
         copy.setId(source.getId());
+        copy.setViewKey(source.getViewKey());
         copy.setName(source.getName());
         copy.setDescription(source.getDescription());
+        copy.setNotes(source.getNotes());
         copy.setStartAt(source.getStartAt());
+        copy.setEndAt(source.getEndAt());
         copy.setDueAt(source.getDueAt());
+        copy.setAllDay(source.isAllDay());
+        copy.setTimePrecision(source.getTimePrecision());
+        copy.setTimezone(source.getTimezone());
         copy.setCompleted(source.isCompleted());
         copy.setPriority(source.getPriority());
         copy.setCategory(source.getCategory());
         copy.setTags(source.getTags());
+        copy.setTagObjects(source.getTagObjects());
         copy.setReminderTime(source.getReminderTime());
+        copy.setReminders(source.getReminders());
+        copy.setRecurrenceRule(source.getRecurrenceRule());
         copy.setColor(source.getColor());
         copy.setCreatedAt(source.getCreatedAt());
         copy.setUpdatedAt(source.getUpdatedAt());
+        copy.setDeletedAt(source.getDeletedAt());
+        copy.setStatus(source.getStatus());
+        copy.setCompletedAt(source.getCompletedAt());
         return copy;
     }
 

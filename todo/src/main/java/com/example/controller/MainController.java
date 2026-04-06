@@ -20,8 +20,9 @@ import java.util.function.IntConsumer;
 import com.example.application.ApplicationContext;
 import com.example.application.MainViewModel;
 import com.example.application.NavigationService;
-import com.example.application.ScheduleService;
+import com.example.application.ScheduleItemService;
 import com.example.application.ThemeService;
+import com.example.model.ScheduleItem;
 import com.example.model.Schedule;
 import com.example.view.FlowchartView;
 import com.example.view.HeatmapView;
@@ -99,7 +100,7 @@ import org.w3c.dom.NodeList;
 public class MainController {
     private final ApplicationContext applicationContext;
     private final MainViewModel mainViewModel;
-    private final ScheduleService scheduleService;
+    private final ScheduleItemService scheduleItemService;
     private final NavigationService navigationService;
     private final ThemeService themeService;
 
@@ -152,7 +153,7 @@ public class MainController {
     public MainController(ApplicationContext applicationContext) {
         this.applicationContext = applicationContext;
         this.mainViewModel = applicationContext.getMainViewModel();
-        this.scheduleService = applicationContext.getScheduleService();
+        this.scheduleItemService = applicationContext.getScheduleItemService();
         this.navigationService = mainViewModel.getNavigationService();
         this.themeService = mainViewModel.getThemeService();
         this.builtinThemes = new LinkedHashMap<>(themeService.getBuiltinThemes());
@@ -160,7 +161,7 @@ public class MainController {
         syncThemeState();
         scheduleCompletionExecutor = Executors.newSingleThreadExecutor(createCompletionThreadFactory());
         scheduleCompletionCoordinator = new ScheduleCompletionCoordinator(
-            scheduleService::updateScheduleStatus,
+            scheduleItemService::updateScheduleItemCompletion,
             new ScheduleCompletionCoordinator.MutationApplier() {
                 @Override
                 public void applyOptimistic(ScheduleCompletionMutation mutation) {
@@ -713,8 +714,21 @@ public class MainController {
         if (schedule == null) {
             return;
         }
-        navigationService.setSelectedSchedule(schedule);
-        infoPanelView.setSchedule(schedule);
+        Schedule detailsSchedule = schedule;
+        if (schedule.hasRecurrence()
+            && schedule.getViewKey() != null
+            && schedule.getId() != null
+            && !schedule.getId().equals(schedule.getViewKey())) {
+            try {
+                Schedule baseSchedule = findScheduleById(schedule.getId());
+                if (baseSchedule != null) {
+                    detailsSchedule = baseSchedule;
+                }
+            } catch (SQLException ignored) {
+            }
+        }
+        navigationService.setSelectedSchedule(detailsSchedule);
+        infoPanelView.setSchedule(detailsSchedule);
         infoPanelView.showWithAnimation();
     }
 
@@ -732,8 +746,9 @@ public class MainController {
         if (selectedSchedule == null || schedule == null) {
             return false;
         }
-        if (selectedSchedule.getId() > 0 && schedule.getId() > 0) {
-            return selectedSchedule.getId() == schedule.getId();
+        if (selectedSchedule.getId() != null && !selectedSchedule.getId().isBlank()
+            && schedule.getId() != null && !schedule.getId().isBlank()) {
+            return selectedSchedule.getId().equals(schedule.getId());
         }
         return selectedSchedule == schedule;
     }
@@ -804,8 +819,8 @@ public class MainController {
         updatePendingCountBadge();
     }
 
-    public int createSchedule(Schedule schedule) throws SQLException {
-        return scheduleService.addSchedule(schedule);
+    public String createSchedule(Schedule schedule) throws SQLException {
+        return scheduleItemService.addScheduleItem(schedule);
     }
 
     public Schedule quickCreateSchedule(String rawTitle) throws SQLException {
@@ -830,23 +845,35 @@ public class MainController {
     }
 
     public boolean saveSchedule(Schedule schedule) throws SQLException {
-        return scheduleService.updateSchedule(schedule);
+        return scheduleItemService.updateScheduleItem(schedule);
     }
 
-    public boolean removeSchedule(int scheduleId) throws SQLException {
-        return scheduleService.deleteSchedule(scheduleId);
+    public boolean removeSchedule(String scheduleId) throws SQLException {
+        return scheduleItemService.softDeleteScheduleItem(scheduleId);
     }
 
-    public Schedule findScheduleById(int scheduleId) throws SQLException {
-        return scheduleService.getScheduleById(scheduleId);
+    public Schedule findScheduleById(String scheduleId) throws SQLException {
+        return toLegacySchedule(scheduleItemService.getScheduleItemById(scheduleId));
     }
 
     public List<Schedule> loadAllSchedules() throws SQLException {
-        return scheduleService.getAllSchedules();
+        return toLegacySchedules(scheduleItemService.getActiveScheduleItems());
     }
 
     public List<Schedule> searchSchedules(String keyword) throws SQLException {
-        return scheduleService.searchSchedules(keyword);
+        return toLegacySchedules(scheduleItemService.searchActiveScheduleItems(keyword));
+    }
+
+    public List<Schedule> loadDeletedSchedules() throws SQLException {
+        return toLegacySchedules(scheduleItemService.getDeletedScheduleItems());
+    }
+
+    public boolean restoreDeletedSchedule(String scheduleId) throws SQLException {
+        return scheduleItemService.restoreScheduleItem(scheduleId);
+    }
+
+    public boolean permanentlyDeleteSchedule(String scheduleId) throws SQLException {
+        return scheduleItemService.permanentlyDeleteScheduleItem(scheduleId);
     }
 
     public void focusScheduleQuickAdd() {
@@ -1176,7 +1203,10 @@ public class MainController {
         ToggleButton styleTab = new ToggleButton("样式");
         styleTab.setGraphic(createSvgIcon("/icons/macaron_style-v1_icon.svg", "样式", 20));
         styleTab.setGraphicTextGap(8);
-        for (ToggleButton tab : List.of(detailTab, themeTab, styleTab)) {
+        ToggleButton dataTab = new ToggleButton("鏁版嵁");
+        dataTab.setGraphic(createSvgIcon("/icons/macaron-logo-folder.svg", "鏁版嵁", 20));
+        dataTab.setGraphicTextGap(8);
+        for (ToggleButton tab : List.of(detailTab, themeTab, styleTab, dataTab)) {
             tab.getStyleClass().add("nav-button");
             tab.setMaxWidth(Double.MAX_VALUE);
             tab.setContentDisplay(ContentDisplay.LEFT);
@@ -1185,7 +1215,7 @@ public class MainController {
             tab.setToggleGroup(categoryGroup);
         }
         themeTab.setSelected(true);
-        navBar.getChildren().addAll(navTitle, navSubTitle, detailTab, themeTab, styleTab);
+        navBar.getChildren().addAll(navTitle, navSubTitle, detailTab, themeTab, styleTab, dataTab);
 
         StackPane contentHost = new StackPane();
         contentHost.getStyleClass().add("settings-content-host");
@@ -1267,11 +1297,23 @@ public class MainController {
         VBox stylePage = new VBox(18);
         stylePage.getStyleClass().add("settings-page");
         stylePage.getChildren().add(styleCard);
+        VBox dataPage = new VBox(18);
+        dataPage.getStyleClass().add("settings-page");
+        VBox trashCard = createSettingsCard("鍥炴敹绔?", "杩欓噷浼氬垪鍑哄凡杞垹闄ょ殑鏃ョ▼锛屽彲浠ユ仮澶嶆垨瀵规湭鍚屾鐨勬湰鍦伴」鐩交搴曞垹闄?");
+        Label trashSummary = new Label();
+        trashSummary.getStyleClass().add("settings-row-desc");
+        trashSummary.setWrapText(true);
+        VBox trashItemsBox = new VBox(10);
+        trashItemsBox.getStyleClass().add("settings-trash-list");
+        populateTrashSettingsList(trashItemsBox, trashSummary);
+        trashCard.getChildren().addAll(trashSummary, trashItemsBox);
+        dataPage.getChildren().add(trashCard);
 
         Map<ToggleButton, VBox> pages = new LinkedHashMap<>();
         pages.put(detailTab, detailPage);
         pages.put(themeTab, themePage);
         pages.put(styleTab, stylePage);
+        pages.put(dataTab, dataPage);
 
         Runnable updateNavActive = () -> {
             for (ToggleButton tab : pages.keySet()) {
@@ -1297,6 +1339,10 @@ public class MainController {
         detailTab.setOnAction(e -> switchPage.run());
         themeTab.setOnAction(e -> switchPage.run());
         styleTab.setOnAction(e -> switchPage.run());
+        dataTab.setOnAction(e -> {
+            populateTrashSettingsList(trashItemsBox, trashSummary);
+            switchPage.run();
+        });
         switchPage.run();
 
         shell.setLeft(navBar);
@@ -1341,6 +1387,106 @@ public class MainController {
         HBox.setHgrow(spacer, Priority.ALWAYS);
         row.getChildren().addAll(textBox, spacer, control);
         return row;
+    }
+
+    private void populateTrashSettingsList(VBox host, Label summaryLabel) {
+        host.getChildren().clear();
+        try {
+            List<Schedule> deletedSchedules = loadDeletedSchedules();
+            summaryLabel.setText("褰撳墠鍥炴敹绔欏叡鏈? " + deletedSchedules.size() + " 椤规棩绋嬨€傛仮澶嶄細鍥炲埌涓昏鍥撅紝褰诲簳鍒犻櫎鍙鏈湴鏈悓姝ョ殑椤圭洰鐢熸晥銆?");
+            if (deletedSchedules.isEmpty()) {
+                Label emptyLabel = new Label("回收站暂时为空。");
+                emptyLabel.getStyleClass().add("settings-row-desc");
+                host.getChildren().add(emptyLabel);
+                return;
+                /*
+                Label emptyLabel = new Label("鍥炴敹绔欐殏鏃犲唴瀹?);
+                emptyLabel.getStyleClass().add("settings-row-desc");
+                host.getChildren().add(emptyLabel);
+                return;
+                */
+            }
+
+            for (Schedule schedule : deletedSchedules) {
+                host.getChildren().add(createTrashRow(schedule, host, summaryLabel));
+            }
+        } catch (SQLException exception) {
+            summaryLabel.setText("加载回收站失败。");
+            /*
+            summaryLabel.setText("鍔犺浇鍥炴敹绔欏け璐?);
+            */
+            Label errorLabel = new Label(exception.getMessage());
+            errorLabel.getStyleClass().add("settings-row-desc");
+            errorLabel.setWrapText(true);
+            host.getChildren().add(errorLabel);
+        }
+    }
+
+    private Node createTrashRow(Schedule schedule, VBox host, Label summaryLabel) {
+        VBox textBox = new VBox(4);
+        Label titleLabel = new Label(schedule.getName());
+        titleLabel.getStyleClass().add("settings-row-title");
+        Label metaLabel = new Label(buildTrashMetaText(schedule));
+        metaLabel.getStyleClass().add("settings-row-desc");
+        metaLabel.setWrapText(true);
+        textBox.getChildren().addAll(titleLabel, metaLabel);
+
+        Button restoreButton = new Button("鎭㈠");
+        restoreButton.getStyleClass().add("button-secondary");
+        restoreButton.setOnAction(e -> {
+            try {
+                if (restoreDeletedSchedule(schedule.getId())) {
+                    populateTrashSettingsList(host, summaryLabel);
+                    refreshDataViews();
+                }
+            } catch (SQLException exception) {
+                showError("鎭㈠澶辫触", exception.getMessage());
+            }
+        });
+
+        Button purgeButton = new Button("褰诲簳鍒犻櫎");
+        purgeButton.getStyleClass().add("button-secondary");
+        purgeButton.setOnAction(e -> {
+            try {
+                if (!permanentlyDeleteSchedule(schedule.getId())) {
+                    showInfo("鏃犳硶褰诲簳鍒犻櫎", "宸插悓姝ョ殑 tombstone 椤圭洰褰撳墠涓嶅厑璁稿啀鍋氱墿鐞嗗垹闄ゃ€?");
+                    return;
+                }
+                populateTrashSettingsList(host, summaryLabel);
+                refreshDataViews();
+            } catch (SQLException exception) {
+                showError("褰诲簳鍒犻櫎澶辫触", exception.getMessage());
+            }
+        });
+
+        HBox actions = new HBox(8, restoreButton, purgeButton);
+        actions.setAlignment(Pos.CENTER_RIGHT);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox row = new HBox(12, textBox, spacer, actions);
+        row.getStyleClass().add("settings-row");
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
+    }
+
+    private String buildTrashMetaText(Schedule schedule) {
+        LocalDateTime dueAt = schedule.getDueAt();
+        LocalDateTime startAt = schedule.getStartAt();
+        LocalDateTime deletedAt = schedule.getDeletedAt();
+        String timeText;
+        if (startAt != null && dueAt != null) {
+            timeText = startAt.toLocalDate() + " " + startAt.toLocalTime() + " -> " + dueAt.toLocalDate() + " " + dueAt.toLocalTime();
+        } else if (dueAt != null) {
+            timeText = "鎴: " + dueAt.toLocalDate() + " " + dueAt.toLocalTime();
+        } else if (startAt != null) {
+            timeText = "寮€濮? " + startAt.toLocalDate() + " " + startAt.toLocalTime();
+        } else {
+            timeText = "鏈缃椂闂?";
+        }
+        String deletedText = deletedAt != null ? deletedAt.toLocalDate() + " " + deletedAt.toLocalTime() : "未记录";
+        return timeText + "\n鍒犻櫎鏃堕棿: " + deletedText;
     }
 
     private void switchSettingsPage(StackPane host, Node page) {
@@ -1486,12 +1632,33 @@ public class MainController {
             return;
         }
         try {
-            lastKnownPendingCount = scheduleService.getPendingCount();
+            lastKnownPendingCount = scheduleItemService.getPendingCount();
             pendingCountListener.accept(lastKnownPendingCount);
         } catch (SQLException ignored) {
             lastKnownPendingCount = 0;
             pendingCountListener.accept(0);
         }
+    }
+
+    private Schedule toLegacySchedule(ScheduleItem item) {
+        if (item == null) {
+            return null;
+        }
+        return item instanceof Schedule schedule ? new Schedule(schedule) : new Schedule(item);
+    }
+
+    private List<Schedule> toLegacySchedules(List<ScheduleItem> items) {
+        List<Schedule> schedules = new ArrayList<>();
+        if (items == null) {
+            return schedules;
+        }
+        for (ScheduleItem item : items) {
+            Schedule schedule = toLegacySchedule(item);
+            if (schedule != null) {
+                schedules.add(schedule);
+            }
+        }
+        return schedules;
     }
 
     private NavigationService.Screen resolveScreen(View view) {
