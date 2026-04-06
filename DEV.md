@@ -19,6 +19,7 @@
 
 - Java 21
 - JavaFX 21.0.7
+- Maven 3.9+
 - Maven Compiler Plugin 3.15.0
 - Maven Surefire Plugin 3.5.5
 - JavaFX Maven Plugin 0.0.8
@@ -112,7 +113,7 @@ there is no POM in this directory (C:\Windows)
 
 显式写 `-f .\pom.xml` 是当前最稳的方式。
 
-## 4. 测试体系现状
+## 4. 当前测试体系现状
 
 当前测试体系已经恢复到可运行状态，但有一个明确的现实约束：
 
@@ -140,7 +141,32 @@ there is no POM in this directory (C:\Windows)
 
 完整 JavaFX UI 自动化测试仍未接入。
 
-## 5. 当前架构现实
+## 5. 资源过滤与版本号注入
+
+当前工程已经形成应用版本的构建链路：
+
+```text
+todo/pom.xml
+  -> src/main/resources/application-defaults.properties
+  -> ConfigurationLoader
+  -> AppProperties
+  -> MainController 设置详情页
+```
+
+当前真实情况：
+
+- `pom.xml` 中的 `<version>` 是应用版本源头
+- `application-defaults.properties` 中的 `todo.app.version` 通过 Maven resources filtering 注入
+- `ConfigurationLoader` 会把 `todo.app.version` 读入 `AppProperties`
+- 设置中心详情页会显示当前应用版本
+
+要点：
+
+- 如果你改了 `pom.xml` 里的 `<version>`，需要重新编译并重新启动应用
+- 当前只形成了“应用版本”链路
+- 当前还没有单独的“安装包版本”链路，因为安装包体系尚未落地
+
+## 6. 当前架构现实
 
 ### 已经完成的部分
 
@@ -152,13 +178,15 @@ there is no POM in this directory (C:\Windows)
   - `application`
 - UI 不再像早期那样普遍直接 `new ScheduleDAO()`
 - 默认本地运行已切到 SQLite
+- SQLite schema migration 已有 V001 / V002 / V003
 
 ### 仍处于过渡态的部分
 
 - `MainController` 仍然比较重
 - `ScheduleDAO` 仍然被 `JdbcScheduleRepository` 包装使用
 - `Connectdatabase` 仍然代表 legacy MySQL 兼容连接入口
-- 领域模型仍以 `Schedule` 为中心，尚未升级到分钟级时间和同步模型
+- 领域模型仍以 `Schedule` 为中心，尚未升级到全局 UUID 与聚合子表
+- 分钟级时间只完成了 `start_at` / `due_at` 这一步，尚未统一全部时间语义
 
 ### 当前已确定方向
 
@@ -173,15 +201,17 @@ there is no POM in this directory (C:\Windows)
 - [DATABASE_AND_RUNTIME.md](./DATABASE_AND_RUNTIME.md)
 - [todo/改造计划/](./todo/%E6%94%B9%E9%80%A0%E8%AE%A1%E5%88%92/)
 
-## 6. 当前数据库现实
+## 7. 当前数据库现实
 
 当前默认配置已经是 SQLite：
 
+- `todo.app.version`
 - `todo.db.mode=sqlite`
 - `todo.db.driver=org.sqlite.JDBC`
 - `todo.db.url=`
 - `todo.db.user=`
 - `todo.db.password=`
+- `todo.app.data-dir=`
 - `todo.db.sqlite.path=`
 
 默认模式下意味着：
@@ -206,6 +236,7 @@ SQLite 相关的当前关键对象：
 
 - `TODO_CONFIG_FILE`
 - `TODO_APP_DATA_DIR`
+- `TODO_APP_VERSION`
 - `TODO_DB_MODE`
 - `TODO_DB_SQLITE_PATH`
 - `TODO_DB_DRIVER`
@@ -213,7 +244,7 @@ SQLite 相关的当前关键对象：
 - `TODO_DB_USER`
 - `TODO_DB_PASSWORD`
 
-## 7. 常见开发任务
+## 8. 常见开发任务
 
 ### 看入口
 
@@ -248,19 +279,20 @@ SQLite 相关的当前关键对象：
 
 - [`todo/改造计划/`](./todo/%E6%94%B9%E9%80%A0%E8%AE%A1%E5%88%92/)
 
-## 8. 当前技术债
+## 9. 当前技术债
 
 最值得持续关注的技术债：
 
 - `MainController` 仍偏重
 - `ScheduleDAO` 与新分层并存
-- `Schedule` 仍未升级到分钟级时间和同步字段模型
+- `Schedule` 仍未升级到全局 UUID 和聚合主模型
+- 分钟级时间只完成部分落地
 - 完整 UI 自动化测试不足
 - 文档与代码仍要持续防止“现状”和“未来路线”混写
 
-## 9. 文档维护原则
+## 10. 文档维护原则
 
-从这次文档重组开始，根目录说明文档遵循这组约定：
+根目录说明文档遵循这组约定：
 
 - `README.md`：入口总览
 - `DEV.md`：开发维护
@@ -271,9 +303,9 @@ SQLite 相关的当前关键对象：
 
 说明性文档只解释“现在是什么”和“已确定的未来方向”，不代替 [`todo/改造计划/`](./todo/%E6%94%B9%E9%80%A0%E8%AE%A1%E5%88%92/) 的阶段任务书。
 
-## 10. FAQ
+## 11. FAQ
 
-### 10.1 为什么 `mvn clean javafx:run` 会报找不到 POM
+### 11.1 为什么 `mvn clean javafx:run` 会报找不到 POM
 
 优先使用：
 
@@ -281,20 +313,16 @@ SQLite 相关的当前关键对象：
 mvn -f .\pom.xml clean javafx:run
 ```
 
-### 10.2 为什么测试要 `forkCount=0`
+### 11.2 为什么测试要 `forkCount=0`
 
 因为当前中文路径下，Surefire fork JVM 会触发 JPMS `@argfile` 路径乱码问题；这是现阶段的现实约束。
 
-### 10.3 为什么文档里说分层已经建立，但代码里还有 `databaseutil`
+### 11.3 为什么文档里说分层已经建立，但代码里还有 `databaseutil`
 
 因为项目正处于过渡重构状态。  
 `config / data / application` 已初步落地，但 legacy DAO 还未完全退出，尤其是 MySQL 兼容链路仍依赖它们。
 
-### 10.4 下一步最优先的工程任务是什么
+### 11.4 为什么设置页版本号改了 `pom.xml` 之后有时没立即变
 
-按已确定路线，优先级是：
-
-1. 稳定 SQLite 本地可用性与数据迁移
-2. 升级日程数据模型到分钟级时间与同步字段
-3. 引入云端同步与 PostgreSQL
-4. 补齐商业化与运营底座
+因为应用版本是在构建阶段注入资源文件的。  
+只改 `pom.xml` 还不够，必须重新编译并重启应用。

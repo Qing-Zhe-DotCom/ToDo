@@ -17,6 +17,7 @@ public final class ConfigurationLoader {
     public static AppProperties loadAppProperties() {
         Properties properties = loadMergedProperties();
         return new AppProperties(
+            resolve(properties, "todo.app.version", "TODO_APP_VERSION", "dev"),
             resolve(properties, "todo.app.default-theme", "TODO_APP_DEFAULT_THEME", "light"),
             resolve(properties, "todo.app.default-schedule-card-style", "TODO_APP_DEFAULT_SCHEDULE_CARD_STYLE", "Classic"),
             resolveNullable(properties, "todo.app.data-dir", "TODO_APP_DATA_DIR")

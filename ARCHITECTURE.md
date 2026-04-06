@@ -121,10 +121,12 @@ ApplicationContext
 ### `com.example.model`
 
 - 当前仍以 `Schedule` 作为主要领域模型
-- 该模型仍带有明显的旧阶段痕迹，例如：
+- 该模型仍带有明显的中间态痕迹，例如：
   - 主键仍是 `int`
-  - 时间字段仍以 `LocalDate` 为主
+  - 数据库主表仍是 `schedules`
   - 标签仍是单字符串
+  - 提醒仍是单字段
+  - 只完成了 `start_at` / `due_at` 的分钟级时间补充
 
 ## 4. FXML shell 的定位
 
@@ -152,6 +154,8 @@ ApplicationContext
 - 主题与偏好从 `MainController` 中抽到 `ThemeService` / `JavaPreferencesStore`
 - UI 层不再像旧版本那样普遍直接 `new ScheduleDAO()`
 - 默认本地运行基线已切到 SQLite
+- SQLite 迁移链路已存在 V001 / V002 / V003
+- 设置详情页已接入应用版本显示链路
 - `target/` 已停止跟踪
 
 ## 6. 当前仍保留的 legacy
@@ -162,6 +166,7 @@ ApplicationContext
 - `ScheduleDAO` 仍存在，并且仍是 MySQL 兼容数据访问链路的一部分
 - `Connectdatabase` 仍存在，并保留 legacy MySQL fallback 逻辑
 - `Schedule` 仍是旧模型与新分层之间的共享对象
+- `ScheduleRepository` 仍然是围绕旧主模型设计的接口
 - 主要视图仍在 `com.example.view`，还没有完全迁入细粒度的 `ui/<screen>` 结构
 
 需要特别说明的是：
@@ -172,7 +177,7 @@ ApplicationContext
 
 ## 7. 跨层协作方式
 
-当前比较稳定的协作链路主要有 3 条：
+当前比较稳定的协作链路主要有 4 条：
 
 ### 7.1 主题与偏好
 
@@ -182,7 +187,17 @@ MainController
   -> JavaPreferencesStore
 ```
 
-### 7.2 日程读写
+### 7.2 应用版本显示
+
+```text
+pom.xml
+  -> application-defaults.properties
+  -> ConfigurationLoader
+  -> AppProperties
+  -> MainController 设置详情页
+```
+
+### 7.3 日程读写
 
 ```text
 View / Controller
@@ -201,7 +216,7 @@ View / Controller
   -> ScheduleDAO
 ```
 
-### 7.3 完成状态协同
+### 7.4 完成状态协同
 
 ```text
 MainController
@@ -216,7 +231,9 @@ MainController
 虽然当前已经引入分层、组合根和 FXML shell，但它还没有达到最终架构目标，原因主要是：
 
 - 视图层还没有彻底分拆成每个屏幕独立 controller / viewmodel
-- 领域模型还没升级到分钟级时间、全局 ID 和同步字段
+- 数据模型仍以 `Schedule`、`schedules`、自增 `int` 主键为中心
+- 分钟级时间只完成了一部分字段补齐，尚未统一全部时间语义
+- `schedule_item`、子表聚合、`sync_outbox`、`sync_checkpoint` 等未来目标结构仍未落地
 - legacy DAO 仍保留在兼容链路中
 - `MainController` 还没有完成彻底瘦身
 
@@ -234,21 +251,21 @@ MainController
 - 把应用强化成真正的本地优先桌面应用
 - 把 MySQL 兼容链路继续收缩到导入 / 兼容用途
 
-### 9.2 云端同步
+### 9.2 数据模型
+
+- 从当前 `Schedule` 演进到更适合同步和商业化的模型
+- 目标支持：
+  - 全局 UUID
+  - 更完整的时间语义
+  - 提醒 / 标签 / 重复规则子表
+  - 同步状态
+  - 软删除
+
+### 9.3 云端同步
 
 - 云端中心库固定为 PostgreSQL
 - 中间层为 API / Sync 服务
 - 客户端继续优先读写本地库
-
-### 9.3 领域模型
-
-- 从当前 `Schedule` 演进到更适合同步和商业化的模型
-- 支持：
-  - 分钟级时间
-  - 全局 UUID
-  - 提醒 / 标签 / 重复规则
-  - 同步状态
-  - 软删除
 
 ### 9.4 UI 层
 
