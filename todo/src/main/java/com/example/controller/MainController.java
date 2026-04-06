@@ -1191,11 +1191,12 @@ public class MainController {
         contentHost.getStyleClass().add("settings-content-host");
 
         String appVersion = applicationContext.getAppProperties().getAppVersion();
+        String displayAppVersion = "v" + appVersion;
 
         VBox detailPage = new VBox(18);
         detailPage.getStyleClass().add("settings-page");
         VBox aboutCard = createSettingsCard("应用详情", "关于当前应用与设置入口说明");
-        Label aboutText = new Label("ToDo 日程管理应用\n版本: " + appVersion + "\n当前设置中心只包含：详情、主题、样式。");
+        Label aboutText = new Label("ToDo 日程管理应用\n版本: " + displayAppVersion + "\n当前设置中心只包含：详情、主题、样式。");
         aboutText.getStyleClass().add("settings-info-text");
         aboutText.setWrapText(true);
         aboutCard.getChildren().add(aboutText);
