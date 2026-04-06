@@ -476,6 +476,9 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     }
 
     public void clearSearch() {
+        if (!showingSearchResults && (currentSearchKeyword == null || currentSearchKeyword.isBlank())) {
+            return;
+        }
         showingSearchResults = false;
         currentSearchKeyword = "";
         loadSchedules();

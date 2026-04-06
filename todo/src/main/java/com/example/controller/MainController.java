@@ -239,6 +239,11 @@ public class MainController {
         searchField = new TextField();
         searchField.getStyleClass().add("search-field");
         searchField.setPromptText("搜索日程...");
+        searchField.textProperty().addListener((observable, oldValue, newValue) -> {
+            if (shouldClearSearchResults(oldValue, newValue)) {
+                clearScheduleSearch();
+            }
+        });
         searchField.setOnAction(e -> performSearch(searchField.getText()));
 
         // 导航按钮
@@ -1147,10 +1152,27 @@ public class MainController {
     }
     
     private void performSearch(String keyword) {
-        if (keyword != null && !keyword.trim().isEmpty()) {
-            scheduleListView.searchSchedules(keyword.trim());
-            showView(scheduleListView);
+        if (isBlankSearchText(keyword)) {
+            clearScheduleSearch();
+            return;
         }
+        scheduleListView.searchSchedules(keyword.trim());
+        showView(scheduleListView);
+    }
+
+    private void clearScheduleSearch() {
+        if (scheduleListView == null) {
+            return;
+        }
+        scheduleListView.clearSearch();
+    }
+
+    static boolean shouldClearSearchResults(String previousText, String currentText) {
+        return !isBlankSearchText(previousText) && isBlankSearchText(currentText);
+    }
+
+    private static boolean isBlankSearchText(String text) {
+        return text == null || text.trim().isEmpty();
     }
     
     public void openNewScheduleDialog() {
