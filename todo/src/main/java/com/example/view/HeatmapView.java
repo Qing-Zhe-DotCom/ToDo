@@ -1,7 +1,6 @@
 package com.example.view;
 
 import java.sql.SQLException;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -44,7 +43,6 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private static final double CELL_CHROME = 4;
     private static final double CALENDAR_LAYOUT_SAFETY = 2;
     private static final double MONTH_HEADER_HEIGHT = 28;
-    private static final double WEEK_EXTRA_HEIGHT = 58;
     private static final int MONTH_VIEW_COLUMNS = 7;
     private static final int MONTH_VIEW_ROWS = 6;
     private static final int YEAR_MONTH_COLUMNS = 4;
@@ -91,7 +89,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private StackPane completedProxyShell;
     private ChangeListener<Bounds> viewportReadyListener;
 
-    private String currentViewMode = "month"; // week, month, year
+    private String currentViewMode = "month"; // month, year
     private LocalDate currentDate = LocalDate.now();
     private LocalDate selectedDate;
 
@@ -165,16 +163,6 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         HBox viewModes = new HBox(24); // Increase spacing to 24px (1.5x of 16px)
         viewModes.setAlignment(Pos.CENTER_LEFT);
 
-        ToggleButton weekBtn = new ToggleButton();
-        weekBtn.setGraphic(controller.createSvgIcon("/icons/macaron_week_icon.svg", null, 48));
-        weekBtn.setToggleGroup(viewGroup);
-        weekBtn.getStyleClass().setAll("icon-button");
-        weekBtn.setTooltip(new Tooltip("周视图"));
-        weekBtn.setOnAction(e -> {
-            currentViewMode = "week";
-            queueRefresh();
-        });
-
         ToggleButton monthBtn = new ToggleButton();
         monthBtn.setGraphic(controller.createSvgIcon("/icons/macaron_month_icon.svg", null, 48));
         monthBtn.setToggleGroup(viewGroup);
@@ -196,7 +184,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             queueRefresh();
         });
         
-        viewModes.getChildren().addAll(weekBtn, monthBtn, yearBtn);
+        viewModes.getChildren().addAll(monthBtn, yearBtn);
 
         // 导航按钮
         HBox navButtons = new HBox(24); // Increase spacing to 24px (1.5x of 16px)
@@ -243,15 +231,12 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     }
 
     private String getPeriodName() {
-        if ("week".equals(currentViewMode)) return "周";
         if ("year".equals(currentViewMode)) return "年";
         return "月";
     }
 
     private void navigate(int direction) {
-        if ("week".equals(currentViewMode)) {
-            currentDate = currentDate.plusWeeks(direction);
-        } else if ("year".equals(currentViewMode)) {
+        if ("year".equals(currentViewMode)) {
             currentDate = currentDate.plusYears(direction);
         } else {
             currentDate = currentDate.plusMonths(direction);
@@ -470,12 +455,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         LocalDate endDate;
         int rows, cols;
 
-        if ("week".equals(currentViewMode)) {
-            startDate = currentDate.with(DayOfWeek.MONDAY);
-            endDate = startDate.plusDays(6);
-            rows = 1;
-            cols = 7;
-        } else if ("year".equals(currentViewMode)) {
+        if ("year".equals(currentViewMode)) {
             startDate = currentDate.withDayOfYear(1);
             endDate = startDate.plusYears(1).minusDays(1);
             rows = YEAR_MONTH_ROWS;
@@ -492,34 +472,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         loadedSchedules.clear();
         loadedSchedules.addAll(controller.applyPendingCompletionMutations(controller.loadAllSchedules()));
         renderHeatmapFromLoadedSchedules(rows, cols);
-        return;
     }
-        /* Map<LocalDate, Integer> stats = scheduleDAO.getDailyCompletionStats(startDate, endDate);
-        List<Schedule> schedules = scheduleDAO.getAllSchedules();
-        schedulesByDate = buildSchedulesByDate(schedules, startDate, endDate);
-        ensureSelectedDate(startDate, endDate);
-
-        int totalCompleted = stats.values().stream().mapToInt(Integer::intValue).sum();
-        int activeDays = (int) stats.values().stream().filter(v -> v > 0).count();
-        statsLabel.setText(String.format("%s: 共完成 %d 项任务，活跃天数 %d 天",
-            getStatsPeriodLabel(startDate, endDate),
-            totalCompleted, activeDays));
-
-        double cellSize = calculateCellSize(cols, rows);
-
-        // 绘制热力图
-        if ("week".equals(currentViewMode)) {
-            drawWeekView(startDate, stats, cellSize);
-        } else if ("year".equals(currentViewMode)) {
-            drawYearView(startDate, stats, cellSize);
-        } else {
-            drawMonthView(startDate, endDate, stats, cellSize);
-        }
-
-        updateDaySchedulePanel();
-    }
-
-    */
 
     private void renderHeatmapFromLoadedSchedules(int rows, int cols) {
         if (visibleStartDate == null || visibleEndDate == null) {
@@ -553,9 +506,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             activeDays)); */
 
         double cellSize = calculateCellSize(cols, rows);
-        if ("week".equals(currentViewMode)) {
-            drawWeekView(visibleStartDate, stats, cellSize);
-        } else if ("year".equals(currentViewMode)) {
+        if ("year".equals(currentViewMode)) {
             drawYearView(visibleStartDate, stats, cellSize);
         } else {
             drawMonthView(visibleStartDate, visibleEndDate, stats, cellSize);
@@ -564,29 +515,6 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         updateSelectedCellStyles();
         updateDaySchedulePanel();
         lastLayoutSignature = buildCurrentLayoutSignature();
-    }
-
-    private void drawWeekView(LocalDate startDate, Map<LocalDate, Integer> stats, double cellSize) {
-        String[] dayNames = {"周一", "周二", "周三", "周四", "周五", "周六", "周日"};
-
-        for (int i = 0; i < 7; i++) {
-            LocalDate date = startDate.plusDays(i);
-            int count = stats.getOrDefault(date, 0);
-
-            // 星期标签
-            Label dayLabel = new Label(dayNames[i]);
-            dayLabel.getStyleClass().add("label-hint");
-            heatmapGrid.add(dayLabel, i, 0);
-
-            // 日期单元格
-            StackPane cell = createHeatmapCell(date, count, cellSize, true);
-            heatmapGrid.add(cell, i, 1);
-
-            // 日期数字
-            Label dateLabel = new Label(date.format(DateTimeFormatter.ofPattern("MM/dd")));
-            dateLabel.getStyleClass().add("label-hint");
-            heatmapGrid.add(dateLabel, i, 2);
-        }
     }
 
     private void configureGridForCurrentView() {
@@ -1126,11 +1054,6 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     }
 
     private String getStatsPeriodLabel(LocalDate startDate, LocalDate endDate) {
-        if ("week".equals(currentViewMode)) {
-            return startDate.format(DateTimeFormatter.ofPattern("MM月dd日"))
-                + " - "
-                + endDate.format(DateTimeFormatter.ofPattern("MM月dd日"));
-        }
         if ("year".equals(currentViewMode)) {
             return currentDate.format(DateTimeFormatter.ofPattern("yyyy年"));
         }
@@ -1254,8 +1177,8 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         double viewportHeight = resolveViewportHeight();
         double horizontalPadding = heatmapGrid.getPadding().getLeft() + heatmapGrid.getPadding().getRight();
         double verticalPadding = heatmapGrid.getPadding().getTop() + heatmapGrid.getPadding().getBottom();
-        double reservedHeaderHeight = "week".equals(currentViewMode) ? WEEK_EXTRA_HEIGHT : MONTH_HEADER_HEIGHT;
-        double minimumSize = "week".equals(currentViewMode) ? 28 : 18;
+        double reservedHeaderHeight = MONTH_HEADER_HEIGHT;
+        double minimumSize = 18;
 
         return calculateCalendarCellSize(
             viewportWidth,
@@ -1294,9 +1217,6 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
 
     private double getReservedHeight() {
         double verticalPadding = heatmapGrid.getPadding().getTop() + heatmapGrid.getPadding().getBottom();
-        if ("week".equals(currentViewMode)) {
-            return verticalPadding + 90;
-        }
         if ("month".equals(currentViewMode)) {
             return verticalPadding + 40;
         }
@@ -1665,9 +1585,6 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     }
 
     private int resolveCurrentRows() {
-        if ("week".equals(currentViewMode)) {
-            return 1;
-        }
         if ("year".equals(currentViewMode)) {
             return YEAR_MONTH_ROWS;
         }
