@@ -37,7 +37,7 @@ public final class ScheduleCardStyleSupport {
     private static final String STATE_PRIORITY_MEDIUM = "schedule-card-state-priority-medium";
     private static final String STATE_PRIORITY_LOW = "schedule-card-state-priority-low";
 
-    private static final String DEFAULT_STYLE_ID = STYLE_ID_COZY;
+    private static final String DEFAULT_STYLE_ID = STYLE_ID_CLASSIC;
 
     private static final Map<String, StyleMetadata> STYLES_BY_ID = createStyleMap();
     private static final Map<String, String> LEGACY_LABEL_TO_ID = createLegacyLabelMap();
@@ -146,12 +146,23 @@ public final class ScheduleCardStyleSupport {
     private static Map<String, String> createLegacyLabelMap() {
         Map<String, String> labels = new LinkedHashMap<>();
         labels.put("经典实体卡片", STYLE_ID_CLASSIC);
+        labels.put("經典實體卡片", STYLE_ID_CLASSIC);
+        labels.put("Classic card", STYLE_ID_CLASSIC);
         labels.put("清新扁平", STYLE_ID_FRESH);
+        labels.put("Fresh flat", STYLE_ID_FRESH);
         labels.put("温馨治愈风", STYLE_ID_COZY);
+        labels.put("溫馨治癒風", STYLE_ID_COZY);
+        labels.put("Cozy", STYLE_ID_COZY);
         labels.put("现代高级极简风", STYLE_ID_MODERN_MINIMAL);
+        labels.put("現代高級極簡風", STYLE_ID_MODERN_MINIMAL);
+        labels.put("Modern minimal", STYLE_ID_MODERN_MINIMAL);
         labels.put("新粗野主义", STYLE_ID_NEO_BRUTALISM);
+        labels.put("新粗野主義", STYLE_ID_NEO_BRUTALISM);
+        labels.put("Neo brutalism", STYLE_ID_NEO_BRUTALISM);
         labels.put("Material You", STYLE_ID_MATERIAL_YOU);
         labels.put("拟物浮雕风", STYLE_ID_NEUMORPHISM);
+        labels.put("擬物浮雕風", STYLE_ID_NEUMORPHISM);
+        labels.put("Neumorphism", STYLE_ID_NEUMORPHISM);
         return labels;
     }
 

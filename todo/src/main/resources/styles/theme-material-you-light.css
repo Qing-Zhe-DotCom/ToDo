@@ -1,0 +1,57 @@
+.root {
+    -color-bg-base: #f7f5ff;
+    -color-bg-panel: #fcf9ff;
+    -color-bg-active: #e8defd;
+    -color-bg-hover: #f3eeff;
+    -color-text-main: #1f1b24;
+    -color-text-sub: #5f5a68;
+    -color-text-hint: #7a7485;
+    -color-border: #ddd5ea;
+    -color-border-dark: #b9b0c7;
+    -color-primary: #6750a4;
+    -color-primary-hover: #57428d;
+    -color-primary-pressed: #45346f;
+    -color-success: #3f7d5c;
+    -color-danger: #b3261e;
+    -color-warning: #b87333;
+    -color-timeline-track-even: #fcf9ff;
+    -color-timeline-track-odd: #f7f5ff;
+    -color-timeline-card-hover: #f2ecff;
+    -color-heatmap-0: #f5efff;
+    -color-heatmap-1: #ddd0ff;
+    -color-heatmap-2: #b7a2ff;
+    -color-heatmap-3: #8a6be6;
+    -color-heatmap-4: #5f43aa;
+}
+
+.settings-dialog-pane,
+.settings-shell,
+.settings-content-host {
+    -fx-background-color: #f7f5ff;
+}
+
+.sidebar,
+.settings-nav {
+    -fx-background-color: #fcf9ff;
+    -fx-border-color: #ddd5ea;
+}
+
+.settings-card,
+.info-panel,
+.schedule-dialog-pane .dialog-pane,
+.quick-add-shell,
+.heatmap-year-card {
+    -fx-background-color: #fcf9ff;
+    -fx-border-color: #ddd5ea;
+    -fx-background-radius: 28;
+    -fx-border-radius: 28;
+    -fx-effect: dropshadow(gaussian, rgba(103, 80, 164, 0.12), 24, 0.12, 0, 6);
+}
+
+.button,
+.button-secondary,
+.settings-style-chip,
+.timeline-range-pill {
+    -fx-background-radius: 20;
+    -fx-border-radius: 20;
+}

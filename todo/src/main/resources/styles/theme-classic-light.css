@@ -1,0 +1,49 @@
+.root {
+    -color-bg-base: #f5f7fb;
+    -color-bg-panel: #ffffff;
+    -color-bg-active: #e8f0ff;
+    -color-bg-hover: #f7faff;
+    -color-text-main: #18212f;
+    -color-text-sub: #56657a;
+    -color-text-hint: #7c899d;
+    -color-border: #dbe4f0;
+    -color-border-dark: #bdcbdd;
+    -color-primary: #3b82f6;
+    -color-primary-hover: #2563eb;
+    -color-primary-pressed: #1d4ed8;
+}
+
+.settings-dialog-pane,
+.settings-shell,
+.settings-content-host {
+    -fx-background-color: #f5f7fb;
+}
+
+.sidebar,
+.settings-nav,
+.settings-card,
+.info-panel,
+.schedule-dialog-pane .dialog-pane,
+.quick-add-shell,
+.heatmap-year-card {
+    -fx-background-radius: 18;
+    -fx-border-radius: 18;
+}
+
+.settings-card,
+.info-panel,
+.schedule-dialog-pane .dialog-pane,
+.quick-add-shell,
+.heatmap-year-card {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #dbe4f0;
+    -fx-effect: dropshadow(gaussian, rgba(24, 33, 47, 0.06), 18, 0, 0, 4);
+}
+
+.button,
+.button-secondary,
+.settings-style-chip,
+.timeline-range-pill {
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+}

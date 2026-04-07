@@ -85,15 +85,29 @@ class ThemeCssTest {
     }
 
     @Test
-    void newBuiltinThemeFilesArePresent() throws IOException {
+    void classicPaletteAndThemeFamilyFilesArePresent() throws IOException {
         String lavender = readCss("/styles/lavender-theme.css");
         String forest = readCss("/styles/forest-theme.css");
         String slate = readCss("/styles/slate-theme.css");
+        String classic = readCss("/styles/theme-classic-light.css");
+        String fresh = readCss("/styles/theme-fresh-light.css");
+        String cozy = readCss("/styles/theme-cozy-light.css");
+        String modernMinimal = readCss("/styles/theme-modern-minimal-light.css");
+        String neoBrutalism = readCss("/styles/theme-neo-brutalism-light.css");
+        String materialYou = readCss("/styles/theme-material-you-light.css");
+        String neumorphism = readCss("/styles/theme-neumorphism-light.css");
 
         assertAll(
             () -> assertTrue(lavender.contains("-color-primary")),
             () -> assertTrue(forest.contains("-color-primary")),
-            () -> assertTrue(slate.contains("-color-primary"))
+            () -> assertTrue(slate.contains("-color-primary")),
+            () -> assertTrue(classic.contains(".settings-card")),
+            () -> assertTrue(fresh.contains(".settings-card")),
+            () -> assertTrue(cozy.contains(".settings-card")),
+            () -> assertTrue(modernMinimal.contains(".settings-card")),
+            () -> assertTrue(neoBrutalism.contains(".settings-card")),
+            () -> assertTrue(materialYou.contains(".settings-card")),
+            () -> assertTrue(neumorphism.contains(".settings-card"))
         );
     }
 

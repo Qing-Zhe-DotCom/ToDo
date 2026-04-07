@@ -2,19 +2,22 @@ package com.example.config;
 
 public final class AppProperties {
     private final String appVersion;
-    private final String defaultTheme;
-    private final String defaultScheduleCardStyle;
+    private final String defaultThemeFamily;
+    private final String defaultThemeAppearance;
+    private final String defaultClassicPalette;
     private final String dataDirectoryOverride;
 
     public AppProperties(
         String appVersion,
-        String defaultTheme,
-        String defaultScheduleCardStyle,
+        String defaultThemeFamily,
+        String defaultThemeAppearance,
+        String defaultClassicPalette,
         String dataDirectoryOverride
     ) {
         this.appVersion = appVersion;
-        this.defaultTheme = defaultTheme;
-        this.defaultScheduleCardStyle = defaultScheduleCardStyle;
+        this.defaultThemeFamily = defaultThemeFamily;
+        this.defaultThemeAppearance = defaultThemeAppearance;
+        this.defaultClassicPalette = defaultClassicPalette;
         this.dataDirectoryOverride = dataDirectoryOverride;
     }
 
@@ -22,12 +25,16 @@ public final class AppProperties {
         return appVersion;
     }
 
-    public String getDefaultTheme() {
-        return defaultTheme;
+    public String getDefaultThemeFamily() {
+        return defaultThemeFamily;
     }
 
-    public String getDefaultScheduleCardStyle() {
-        return defaultScheduleCardStyle;
+    public String getDefaultThemeAppearance() {
+        return defaultThemeAppearance;
+    }
+
+    public String getDefaultClassicPalette() {
+        return defaultClassicPalette;
     }
 
     public String getDataDirectoryOverride() {

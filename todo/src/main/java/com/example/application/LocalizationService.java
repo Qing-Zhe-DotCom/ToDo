@@ -125,6 +125,16 @@ public final class LocalizationService {
         return text("theme." + themeId);
     }
 
+    public String themeFamilyLabel(ThemeFamily family) {
+        ThemeFamily resolved = family != null ? family : ThemeFamily.CLASSIC;
+        return text(resolved.getLabelKey());
+    }
+
+    public String classicPaletteLabel(ClassicThemePalette palette) {
+        ClassicThemePalette resolved = palette != null ? palette : ClassicThemePalette.LIGHT;
+        return text(resolved.getLabelKey());
+    }
+
     public String scheduleCardStyleLabel(String styleId) {
         return text(ScheduleCardStyleSupport.getLabelKey(styleId));
     }
