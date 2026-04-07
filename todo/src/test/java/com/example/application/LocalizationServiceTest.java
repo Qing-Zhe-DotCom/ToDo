@@ -69,6 +69,13 @@ class LocalizationServiceTest {
         assertTrue(en.contains("Every 2 weeks"));
     }
 
+    @Test
+    void generalSettingsTabLabelIsLocalized() {
+        assertEquals("\u901a\u7528", serviceFor(AppLanguage.SIMPLIFIED_CHINESE).text("settings.tab.details"));
+        assertEquals("\u901a\u7528", serviceFor(AppLanguage.TRADITIONAL_CHINESE).text("settings.tab.details"));
+        assertEquals("General", serviceFor(AppLanguage.ENGLISH).text("settings.tab.details"));
+    }
+
     private LocalizationService serviceFor(AppLanguage language) {
         return new LocalizationService(new MapPreferencesStore(Map.of("todo.language", language.getId())));
     }

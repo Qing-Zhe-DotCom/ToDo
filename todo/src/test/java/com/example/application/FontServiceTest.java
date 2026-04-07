@@ -1,6 +1,7 @@
 package com.example.application;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
@@ -19,18 +20,44 @@ class FontServiceTest {
     }
 
     @Test
+    void resolvesBundledFaceNamesForAllWeightsAndScripts() {
+        FontService service = new FontService(new MapPreferencesStore(Map.of()));
+
+        assertEquals("HarmonyOS Sans SC Thin", service.resolveFontName(AppLanguage.SIMPLIFIED_CHINESE, AppFontWeight.THIN));
+        assertEquals("HarmonyOS Sans SC", service.resolveFontName(AppLanguage.SIMPLIFIED_CHINESE, AppFontWeight.REGULAR));
+        assertEquals("HarmonyOS Sans SC Bold", service.resolveFontName(AppLanguage.SIMPLIFIED_CHINESE, AppFontWeight.BOLD));
+
+        assertEquals("HarmonyOS Sans TC Thin", service.resolveFontName(AppLanguage.TRADITIONAL_CHINESE, AppFontWeight.THIN));
+        assertEquals("HarmonyOS Sans TC", service.resolveFontName(AppLanguage.TRADITIONAL_CHINESE, AppFontWeight.REGULAR));
+        assertEquals("HarmonyOS Sans TC Bold", service.resolveFontName(AppLanguage.TRADITIONAL_CHINESE, AppFontWeight.BOLD));
+    }
+
+    @Test
     void fontServiceFallsBackToRegularForInvalidPreferenceAndBuildsInlineStyle() {
         FontService service = new FontService(new MapPreferencesStore(Map.of("todo.font.weight", "invalid")));
+
+        assertEquals(AppFontWeight.REGULAR, service.getCurrentFontWeight());
 
         String simplifiedStyle = service.getInlineStyle(AppLanguage.SIMPLIFIED_CHINESE);
         String traditionalStyle = service.getInlineStyle(AppLanguage.TRADITIONAL_CHINESE);
 
-        assertTrue(simplifiedStyle.contains("-fx-font-weight: 400"));
-        assertTrue(traditionalStyle.contains("-fx-font-weight: 400"));
-        assertTrue(simplifiedStyle.contains("-fx-font-family"));
-        assertTrue(traditionalStyle.contains("-fx-font-family"));
-        assertFalse(service.resolveFamily(AppLanguage.SIMPLIFIED_CHINESE).isBlank());
-        assertFalse(service.resolveFamily(AppLanguage.TRADITIONAL_CHINESE).isBlank());
+        assertTrue(simplifiedStyle.contains("-fx-font:"));
+        assertTrue(traditionalStyle.contains("-fx-font:"));
+        assertTrue(simplifiedStyle.contains("\"HarmonyOS Sans SC\""));
+        assertTrue(traditionalStyle.contains("\"HarmonyOS Sans TC\""));
+        assertFalse(service.resolveFontName(AppLanguage.SIMPLIFIED_CHINESE, AppFontWeight.REGULAR).isBlank());
+        assertFalse(service.resolveFontName(AppLanguage.TRADITIONAL_CHINESE, AppFontWeight.REGULAR).isBlank());
+    }
+
+    @Test
+    void inlineStyleTracksSelectedFontWeight() {
+        FontService service = new FontService(new MapPreferencesStore(Map.of()));
+
+        service.selectFontWeight(AppFontWeight.THIN);
+        assertTrue(service.getInlineStyle(AppLanguage.SIMPLIFIED_CHINESE).contains("\"HarmonyOS Sans SC Thin\""));
+
+        service.selectFontWeight(AppFontWeight.BOLD);
+        assertTrue(service.getInlineStyle(AppLanguage.SIMPLIFIED_CHINESE).contains("\"HarmonyOS Sans SC Bold\""));
     }
 
     private static final class MapPreferencesStore implements UserPreferencesStore {

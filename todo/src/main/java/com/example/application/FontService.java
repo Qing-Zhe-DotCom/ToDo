@@ -1,6 +1,8 @@
 package com.example.application;
 
 import java.io.InputStream;
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.Objects;
 
 import com.example.config.UserPreferencesStore;
@@ -10,14 +12,19 @@ import javafx.scene.text.Font;
 
 public final class FontService {
     private static final String PREF_FONT_WEIGHT_KEY = "todo.font.weight";
-    private static final String DEFAULT_SC_FAMILY = "HarmonyOS Sans SC";
-    private static final String DEFAULT_TC_FAMILY = "HarmonyOS Sans TC";
+    private static final String DEFAULT_SC_REGULAR_FACE = "HarmonyOS Sans SC";
+    private static final String DEFAULT_SC_THIN_FACE = "HarmonyOS Sans SC Thin";
+    private static final String DEFAULT_SC_BOLD_FACE = "HarmonyOS Sans SC Bold";
+    private static final String DEFAULT_TC_REGULAR_FACE = "HarmonyOS Sans TC";
+    private static final String DEFAULT_TC_THIN_FACE = "HarmonyOS Sans TC Thin";
+    private static final String DEFAULT_TC_BOLD_FACE = "HarmonyOS Sans TC Bold";
+    private static final double DEFAULT_FONT_SIZE = Font.getDefault().getSize();
 
     private final UserPreferencesStore preferencesStore;
+    private final Map<AppFontWeight, String> simplifiedFaceNames = new EnumMap<>(AppFontWeight.class);
+    private final Map<AppFontWeight, String> traditionalFaceNames = new EnumMap<>(AppFontWeight.class);
 
     private AppFontWeight currentFontWeight;
-    private String simplifiedFamily = DEFAULT_SC_FAMILY;
-    private String traditionalFamily = DEFAULT_TC_FAMILY;
 
     public FontService(UserPreferencesStore preferencesStore) {
         this.preferencesStore = Objects.requireNonNull(preferencesStore, "preferencesStore");
@@ -35,8 +42,8 @@ public final class FontService {
     }
 
     public String getInlineStyle(AppLanguage language) {
-        String family = resolveFamily(language);
-        return "-fx-font-family: \"" + family + "\"; -fx-font-weight: " + currentFontWeight.getCssWeight() + ";";
+        String fontName = resolveFontName(language, currentFontWeight);
+        return "-fx-font: " + formatFontSize(DEFAULT_FONT_SIZE) + "px \"" + escape(fontName) + "\";";
     }
 
     public void applyTo(Node node, AppLanguage language) {
@@ -47,28 +54,61 @@ public final class FontService {
     }
 
     public String resolveFamily(AppLanguage language) {
-        return language != null && language.usesTraditionalChineseFont() ? traditionalFamily : simplifiedFamily;
+        return resolveFontName(language, currentFontWeight);
+    }
+
+    String resolveFontName(AppLanguage language, AppFontWeight fontWeight) {
+        AppFontWeight resolvedWeight = fontWeight != null ? fontWeight : AppFontWeight.REGULAR;
+        Map<AppFontWeight, String> faceNames = language != null && language.usesTraditionalChineseFont()
+            ? traditionalFaceNames
+            : simplifiedFaceNames;
+        return faceNames.getOrDefault(resolvedWeight, defaultFaceName(language, resolvedWeight));
     }
 
     private void loadFonts() {
         for (AppFontWeight weight : AppFontWeight.supportedValues()) {
-            simplifiedFamily = loadFamily(AppLanguage.SIMPLIFIED_CHINESE, weight, simplifiedFamily);
-            traditionalFamily = loadFamily(AppLanguage.TRADITIONAL_CHINESE, weight, traditionalFamily);
+            simplifiedFaceNames.put(weight, loadFaceName(AppLanguage.SIMPLIFIED_CHINESE, weight));
+            traditionalFaceNames.put(weight, loadFaceName(AppLanguage.TRADITIONAL_CHINESE, weight));
         }
     }
 
-    private String loadFamily(AppLanguage language, AppFontWeight weight, String fallbackFamily) {
+    private String loadFaceName(AppLanguage language, AppFontWeight weight) {
         String resourcePath = weight.resolveResourcePath(language);
         try (InputStream inputStream = getClass().getResourceAsStream(resourcePath)) {
             if (inputStream == null) {
-                return fallbackFamily;
+                return defaultFaceName(language, weight);
             }
-            Font font = Font.loadFont(inputStream, 12);
-            return font != null && font.getFamily() != null && !font.getFamily().isBlank()
-                ? font.getFamily()
-                : fallbackFamily;
+            Font font = Font.loadFont(inputStream, DEFAULT_FONT_SIZE);
+            return font != null && font.getName() != null && !font.getName().isBlank()
+                ? font.getName()
+                : defaultFaceName(language, weight);
         } catch (Exception ignored) {
-            return fallbackFamily;
+            return defaultFaceName(language, weight);
         }
+    }
+
+    private String defaultFaceName(AppLanguage language, AppFontWeight weight) {
+        boolean traditional = language != null && language.usesTraditionalChineseFont();
+        AppFontWeight resolvedWeight = weight != null ? weight : AppFontWeight.REGULAR;
+        if (traditional) {
+            return switch (resolvedWeight) {
+                case THIN -> DEFAULT_TC_THIN_FACE;
+                case BOLD -> DEFAULT_TC_BOLD_FACE;
+                case REGULAR -> DEFAULT_TC_REGULAR_FACE;
+            };
+        }
+        return switch (resolvedWeight) {
+            case THIN -> DEFAULT_SC_THIN_FACE;
+            case BOLD -> DEFAULT_SC_BOLD_FACE;
+            case REGULAR -> DEFAULT_SC_REGULAR_FACE;
+        };
+    }
+
+    private String formatFontSize(double size) {
+        return size == Math.rint(size) ? Integer.toString((int) size) : Double.toString(size);
+    }
+
+    private String escape(String fontName) {
+        return fontName.replace("\"", "\\\"");
     }
 }

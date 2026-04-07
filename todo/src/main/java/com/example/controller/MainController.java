@@ -68,6 +68,7 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
@@ -1223,9 +1224,9 @@ public class MainController {
         navSubTitle.getStyleClass().add("label-hint");
 
         ToggleGroup categoryGroup = new ToggleGroup();
-        ToggleButton detailTab = new ToggleButton(text("settings.tab.details"));
-        detailTab.setGraphic(createSvgIcon("/icons/macaron_detail-v2_icon.svg", text("settings.tab.details"), 20));
-        detailTab.setGraphicTextGap(8);
+        ToggleButton generalTab = new ToggleButton(text("settings.tab.details"));
+        generalTab.setGraphic(createSvgIcon("/icons/macaron_detail-v2_icon.svg", text("settings.tab.details"), 20));
+        generalTab.setGraphicTextGap(8);
         
         ToggleButton themeTab = new ToggleButton(text("settings.tab.theme"));
         themeTab.setGraphic(createSvgIcon("/icons/macaron_theme-v1_icon.svg", text("settings.tab.theme"), 20));
@@ -1237,7 +1238,7 @@ public class MainController {
         ToggleButton dataTab = new ToggleButton(text("settings.tab.data"));
         dataTab.setGraphic(createSvgIcon("/icons/macaron-logo-folder.svg", text("settings.tab.data"), 20));
         dataTab.setGraphicTextGap(8);
-        for (ToggleButton tab : List.of(detailTab, themeTab, styleTab, dataTab)) {
+        for (ToggleButton tab : List.of(generalTab, themeTab, styleTab, dataTab)) {
             tab.getStyleClass().add("nav-button");
             tab.setMaxWidth(Double.MAX_VALUE);
             tab.setContentDisplay(ContentDisplay.LEFT);
@@ -1245,8 +1246,7 @@ public class MainController {
             tab.setWrapText(false);
             tab.setToggleGroup(categoryGroup);
         }
-        themeTab.setSelected(true);
-        navBar.getChildren().addAll(navTitle, navSubTitle, detailTab, themeTab, styleTab, dataTab);
+        navBar.getChildren().addAll(navTitle, navSubTitle, generalTab, themeTab, styleTab, dataTab);
 
         StackPane contentHost = new StackPane();
         contentHost.getStyleClass().add("settings-content-host");
@@ -1254,9 +1254,9 @@ public class MainController {
         String appVersion = applicationContext.getAppProperties().getAppVersion();
         String displayAppVersion = "v" + appVersion;
 
-        VBox detailPage = new VBox(18);
-        detailPage.getStyleClass().add("settings-page");
-        detailPage.setFillWidth(true);
+        VBox generalPage = new VBox(18);
+        generalPage.getStyleClass().add("settings-page");
+        generalPage.setFillWidth(true);
         VBox aboutCard = createSettingsCard(text("settings.about.title"), text("settings.about.subtitle"));
         Label aboutText = new Label(text("settings.about.body", displayAppVersion));
         aboutText.getStyleClass().add("settings-info-text");
@@ -1324,7 +1324,7 @@ public class MainController {
             createSettingRow(text("settings.preferences.language.label"), text("settings.preferences.language.description"), languageComboBox),
             createSettingRow(text("settings.preferences.font.label"), text("settings.preferences.font.description"), fontChipRow)
         );
-        detailPage.getChildren().addAll(aboutCard, currentCard, languageFontCard);
+        generalPage.getChildren().addAll(aboutCard, currentCard, languageFontCard);
 
         VBox themePage = new VBox(18);
         themePage.getStyleClass().add("settings-page");
@@ -1397,13 +1397,13 @@ public class MainController {
         trashCard.getChildren().addAll(trashSummary, trashItemsBox);
         dataPage.getChildren().add(trashCard);
 
-        ScrollPane detailPageScroll = createSettingsScrollPane(detailPage);
+        ScrollPane generalPageScroll = createSettingsScrollPane(generalPage);
         ScrollPane themePageScroll = createSettingsScrollPane(themePage);
         ScrollPane stylePageScroll = createSettingsScrollPane(stylePage);
         ScrollPane dataPageScroll = createSettingsScrollPane(dataPage);
 
         Map<ToggleButton, Node> pages = new LinkedHashMap<>();
-        pages.put(detailTab, detailPageScroll);
+        pages.put(generalTab, generalPageScroll);
         pages.put(themeTab, themePageScroll);
         pages.put(styleTab, stylePageScroll);
         pages.put(dataTab, dataPageScroll);
@@ -1417,26 +1417,23 @@ public class MainController {
             }
         };
 
-        Runnable switchPage = () -> {
-            for (Map.Entry<ToggleButton, Node> entry : pages.entrySet()) {
-                if (entry.getKey().isSelected()) {
-                    updateNavActive.run();
-                    switchSettingsPage(contentHost, entry.getValue());
-                    return;
-                }
+        ToggleButton[] lastSelectedTab = new ToggleButton[] { generalTab };
+        categoryGroup.selectedToggleProperty().addListener((obs, oldToggle, newToggle) -> {
+            if (newToggle == null) {
+                ToggleButton fallbackTab = lastSelectedTab[0] != null ? lastSelectedTab[0] : generalTab;
+                Platform.runLater(() -> fallbackTab.setSelected(true));
+                return;
+            }
+
+            ToggleButton selectedTab = (ToggleButton) newToggle;
+            lastSelectedTab[0] = selectedTab;
+            if (selectedTab == dataTab) {
+                populateTrashSettingsList(trashItemsBox, trashSummary);
             }
             updateNavActive.run();
-            switchSettingsPage(contentHost, detailPage);
-        };
-
-        detailTab.setOnAction(e -> switchPage.run());
-        themeTab.setOnAction(e -> switchPage.run());
-        styleTab.setOnAction(e -> switchPage.run());
-        dataTab.setOnAction(e -> {
-            populateTrashSettingsList(trashItemsBox, trashSummary);
-            switchPage.run();
+            switchSettingsPage(contentHost, resolveSettingsPage(selectedTab, pages, generalPageScroll));
         });
-        switchPage.run();
+        generalTab.setSelected(true);
 
         shell.setLeft(navBar);
         shell.setCenter(contentHost);
@@ -1486,6 +1483,11 @@ public class MainController {
         scrollPane.setPannable(true);
         scrollPane.setFocusTraversable(false);
         return scrollPane;
+    }
+
+    static <K, V> V resolveSettingsPage(K selectedKey, Map<K, V> pages, V generalPage) {
+        V page = pages.get(selectedKey);
+        return page != null ? page : generalPage;
     }
 
     private HBox createSettingRow(String title, String description, Node control) {
