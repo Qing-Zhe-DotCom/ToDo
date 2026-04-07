@@ -76,6 +76,13 @@ class LocalizationServiceTest {
         assertEquals("General", serviceFor(AppLanguage.ENGLISH).text("settings.tab.details"));
     }
 
+    @Test
+    void personalizationSettingsTabLabelIsLocalized() {
+        assertEquals("\u4e2a\u6027\u5316", serviceFor(AppLanguage.SIMPLIFIED_CHINESE).text("settings.tab.personalization"));
+        assertEquals("\u500b\u4eba\u5316", serviceFor(AppLanguage.TRADITIONAL_CHINESE).text("settings.tab.personalization"));
+        assertEquals("Personalization", serviceFor(AppLanguage.ENGLISH).text("settings.tab.personalization"));
+    }
+
     private LocalizationService serviceFor(AppLanguage language) {
         return new LocalizationService(new MapPreferencesStore(Map.of("todo.language", language.getId())));
     }

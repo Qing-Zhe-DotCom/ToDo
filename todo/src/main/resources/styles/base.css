@@ -3040,6 +3040,11 @@
     -fx-padding: 10 0;
 }
 
+.settings-row-stacked {
+    -fx-spacing: 10;
+    -fx-alignment: top-left;
+}
+
 .settings-row-title {
     -fx-font-size: 14px;
     -fx-font-weight: 800;
@@ -3095,6 +3100,9 @@
     -fx-font-size: 12px;
     -fx-font-weight: 700;
     -fx-padding: 8 14;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
+    -fx-min-height: 40;
 }
 
 .settings-style-chip:hover {

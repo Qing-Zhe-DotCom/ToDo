@@ -48,6 +48,7 @@ import javafx.animation.TranslateTransition;
 import javafx.fxml.FXML;
 import javafx.scene.Scene;
 import javafx.scene.Node;
+import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
@@ -77,6 +78,7 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.geometry.Side;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
@@ -1217,7 +1219,7 @@ public class MainController {
 
         VBox navBar = new VBox(8);
         navBar.getStyleClass().addAll("sidebar");
-        navBar.setPrefWidth(196);
+        navBar.setPrefWidth(220);
         Label navTitle = new Label(text("settings.title"));
         navTitle.getStyleClass().add("label-title");
         Label navSubTitle = new Label(text("settings.subtitle"));
@@ -1228,17 +1230,13 @@ public class MainController {
         generalTab.setGraphic(createSvgIcon("/icons/macaron_detail-v2_icon.svg", text("settings.tab.details"), 20));
         generalTab.setGraphicTextGap(8);
         
-        ToggleButton themeTab = new ToggleButton(text("settings.tab.theme"));
-        themeTab.setGraphic(createSvgIcon("/icons/macaron_theme-v1_icon.svg", text("settings.tab.theme"), 20));
-        themeTab.setGraphicTextGap(8);
-        
-        ToggleButton styleTab = new ToggleButton(text("settings.tab.style"));
-        styleTab.setGraphic(createSvgIcon("/icons/macaron_style-v1_icon.svg", text("settings.tab.style"), 20));
-        styleTab.setGraphicTextGap(8);
+        ToggleButton personalizationTab = new ToggleButton(text("settings.tab.personalization"));
+        personalizationTab.setGraphic(createSvgIcon("/icons/macaron_theme-v1_icon.svg", text("settings.tab.personalization"), 20));
+        personalizationTab.setGraphicTextGap(8);
         ToggleButton dataTab = new ToggleButton(text("settings.tab.data"));
         dataTab.setGraphic(createSvgIcon("/icons/macaron-logo-folder.svg", text("settings.tab.data"), 20));
         dataTab.setGraphicTextGap(8);
-        for (ToggleButton tab : List.of(generalTab, themeTab, styleTab, dataTab)) {
+        for (ToggleButton tab : List.of(generalTab, personalizationTab, dataTab)) {
             tab.getStyleClass().add("nav-button");
             tab.setMaxWidth(Double.MAX_VALUE);
             tab.setContentDisplay(ContentDisplay.LEFT);
@@ -1246,7 +1244,7 @@ public class MainController {
             tab.setWrapText(false);
             tab.setToggleGroup(categoryGroup);
         }
-        navBar.getChildren().addAll(navTitle, navSubTitle, generalTab, themeTab, styleTab, dataTab);
+        navBar.getChildren().addAll(navTitle, navSubTitle, generalTab, personalizationTab, dataTab);
 
         StackPane contentHost = new StackPane();
         contentHost.getStyleClass().add("settings-content-host");
@@ -1326,9 +1324,9 @@ public class MainController {
         );
         generalPage.getChildren().addAll(aboutCard, currentCard, languageFontCard);
 
-        VBox themePage = new VBox(18);
-        themePage.getStyleClass().add("settings-page");
-        themePage.setFillWidth(true);
+        VBox personalizationPage = new VBox(18);
+        personalizationPage.getStyleClass().add("settings-page");
+        personalizationPage.setFillWidth(true);
         VBox themeCard = createSettingsCard(text("settings.theme.title"), text("settings.theme.subtitle"));
         HBox swatchRow = new HBox(10);
         swatchRow.setAlignment(Pos.CENTER_LEFT);
@@ -1362,28 +1360,31 @@ public class MainController {
             createSettingRow(text("settings.theme.palette.label"), text("settings.theme.palette.description"), swatchRow),
             createSettingRow(text("settings.theme.external.label"), text("settings.theme.external.description"), importThemeButton)
         );
-        themePage.getChildren().add(themeCard);
 
         VBox styleCard = createSettingsCard(text("settings.style.title"), text("settings.style.subtitle"));
         ToggleGroup styleGroup = new ToggleGroup();
-        HBox styleChipRow = new HBox(8);
-        styleChipRow.setAlignment(Pos.CENTER_LEFT);
+        FlowPane styleChipFlow = new FlowPane();
+        styleChipFlow.getStyleClass().add("settings-chip-flow");
+        styleChipFlow.setHgap(8);
+        styleChipFlow.setVgap(10);
+        styleChipFlow.setAlignment(Pos.CENTER_LEFT);
+        styleChipFlow.setMaxWidth(Double.MAX_VALUE);
+        styleChipFlow.prefWrapLengthProperty().bind(Bindings.max(0.0, styleCard.widthProperty().subtract(44)));
         String[] selectedCardStyle = new String[] { currentScheduleCardStyle };
         for (String styleName : scheduleCardStyles) {
             ToggleButton styleChip = new ToggleButton(scheduleCardStyleDisplayName(styleName));
             styleChip.getStyleClass().add("settings-style-chip");
             styleChip.setToggleGroup(styleGroup);
+            styleChip.setWrapText(true);
+            styleChip.setTextOverrun(OverrunStyle.CLIP);
             if (styleName.equals(currentScheduleCardStyle)) {
                 styleChip.setSelected(true);
             }
             styleChip.setOnAction(e -> selectedCardStyle[0] = styleName);
-            styleChipRow.getChildren().add(styleChip);
+            styleChipFlow.getChildren().add(styleChip);
         }
-        styleCard.getChildren().add(createSettingRow(text("settings.style.option.label"), text("settings.style.option.description"), styleChipRow));
-        VBox stylePage = new VBox(18);
-        stylePage.getStyleClass().add("settings-page");
-        stylePage.setFillWidth(true);
-        stylePage.getChildren().add(styleCard);
+        styleCard.getChildren().add(createStackedSettingRow(text("settings.style.option.label"), text("settings.style.option.description"), styleChipFlow));
+        personalizationPage.getChildren().addAll(themeCard, styleCard);
         VBox dataPage = new VBox(18);
         dataPage.getStyleClass().add("settings-page");
         dataPage.setFillWidth(true);
@@ -1398,14 +1399,12 @@ public class MainController {
         dataPage.getChildren().add(trashCard);
 
         ScrollPane generalPageScroll = createSettingsScrollPane(generalPage);
-        ScrollPane themePageScroll = createSettingsScrollPane(themePage);
-        ScrollPane stylePageScroll = createSettingsScrollPane(stylePage);
+        ScrollPane personalizationPageScroll = createSettingsScrollPane(personalizationPage);
         ScrollPane dataPageScroll = createSettingsScrollPane(dataPage);
 
         Map<ToggleButton, Node> pages = new LinkedHashMap<>();
         pages.put(generalTab, generalPageScroll);
-        pages.put(themeTab, themePageScroll);
-        pages.put(styleTab, stylePageScroll);
+        pages.put(personalizationTab, personalizationPageScroll);
         pages.put(dataTab, dataPageScroll);
 
         Runnable updateNavActive = () -> {
@@ -1503,6 +1502,23 @@ public class MainController {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         row.getChildren().addAll(textBox, spacer, control);
+        return row;
+    }
+
+    private VBox createStackedSettingRow(String title, String description, Node control) {
+        VBox row = new VBox(10);
+        row.getStyleClass().addAll("settings-row", "settings-row-stacked");
+        VBox textBox = new VBox(4);
+        Label rowTitle = new Label(title);
+        rowTitle.getStyleClass().add("settings-row-title");
+        Label rowDesc = new Label(description);
+        rowDesc.getStyleClass().add("settings-row-desc");
+        rowDesc.setWrapText(true);
+        textBox.getChildren().addAll(rowTitle, rowDesc);
+        if (control instanceof Region region) {
+            region.setMaxWidth(Double.MAX_VALUE);
+        }
+        row.getChildren().addAll(textBox, control);
         return row;
     }
 

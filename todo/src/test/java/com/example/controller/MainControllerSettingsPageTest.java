@@ -14,7 +14,7 @@ class MainControllerSettingsPageTest {
     void fallsBackToGeneralScrollContainerWhenSelectionIsMissing() {
         Map<String, String> pages = new LinkedHashMap<>();
         pages.put("general", "general-scroll");
-        pages.put("theme", "theme-scroll");
+        pages.put("personalization", "personalization-scroll");
 
         String resolvedPage = MainController.resolveSettingsPage(null, pages, "general-scroll");
 
@@ -26,8 +26,8 @@ class MainControllerSettingsPageTest {
     void returnsMappedPageWhenSelectionExists() {
         Map<String, String> pages = new LinkedHashMap<>();
         pages.put("general", "general-scroll");
-        pages.put("theme", "theme-scroll");
+        pages.put("personalization", "personalization-scroll");
 
-        assertEquals("theme-scroll", MainController.resolveSettingsPage("theme", pages, "general-scroll"));
+        assertEquals("personalization-scroll", MainController.resolveSettingsPage("personalization", pages, "general-scroll"));
     }
 }
