@@ -14,10 +14,11 @@ import javafx.scene.layout.StackPane;
 class ScheduleCardStyleSupportTest {
 
     @Test
-    void normalizeStyleNameFallsBackToDefault() {
-        assertEquals("温馨治愈风", ScheduleCardStyleSupport.normalizeStyleName("不存在的样式"));
-        assertEquals("温馨治愈风", ScheduleCardStyleSupport.normalizeStyleName(null));
-        assertEquals("Material You", ScheduleCardStyleSupport.normalizeStyleName("Material You"));
+    void normalizeStyleIdFallsBackToDefaultAndMigratesLegacyLabels() {
+        assertEquals(ScheduleCardStyleSupport.getDefaultStyleId(), ScheduleCardStyleSupport.normalizeStyleId("不存在的样式"));
+        assertEquals(ScheduleCardStyleSupport.getDefaultStyleId(), ScheduleCardStyleSupport.normalizeStyleId(null));
+        assertEquals(ScheduleCardStyleSupport.STYLE_ID_MATERIAL_YOU, ScheduleCardStyleSupport.normalizeStyleId("Material You"));
+        assertEquals(ScheduleCardStyleSupport.STYLE_ID_CLASSIC, ScheduleCardStyleSupport.normalizeStyleId("经典实体卡片"));
     }
 
     @Test
@@ -30,7 +31,7 @@ class ScheduleCardStyleSupportTest {
         ScheduleCardStyleSupport.applyCardPresentation(
             card,
             schedule,
-            "经典实体卡片",
+            ScheduleCardStyleSupport.STYLE_ID_CLASSIC,
             "schedule-card-role-test"
         );
 

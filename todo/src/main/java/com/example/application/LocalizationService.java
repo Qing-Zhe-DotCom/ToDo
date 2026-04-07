@@ -5,9 +5,22 @@ import java.time.DayOfWeek;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.time.temporal.TemporalAccessor;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.Objects;
+import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 
 import com.example.config.UserPreferencesStore;
@@ -21,6 +34,7 @@ public final class LocalizationService {
     private final UserPreferencesStore preferencesStore;
     private final AppLanguage activeLanguage;
     private final ResourceBundle activeBundle;
+    private final Map<AppLanguage, ResourceBundle> bundleCache = new EnumMap<>(AppLanguage.class);
 
     private AppLanguage preferredLanguage;
 
@@ -29,6 +43,7 @@ public final class LocalizationService {
         this.preferredLanguage = AppLanguage.fromPreference(preferencesStore.get(PREF_LANGUAGE_KEY, AppLanguage.detectDefault().getId()));
         this.activeLanguage = preferredLanguage;
         this.activeBundle = loadBundle(activeLanguage);
+        this.bundleCache.put(activeLanguage, activeBundle);
     }
 
     public AppLanguage getActiveLanguage() {
@@ -50,7 +65,7 @@ public final class LocalizationService {
     }
 
     public String text(AppLanguage language, String key, Object... args) {
-        ResourceBundle bundle = language == activeLanguage ? activeBundle : loadBundle(language);
+        ResourceBundle bundle = bundleCache.computeIfAbsent(language, this::loadBundle);
         return format(bundle.getString(key), language.getLocale(), args);
     }
 
@@ -129,7 +144,88 @@ public final class LocalizationService {
     }
 
     private ResourceBundle loadBundle(AppLanguage language) {
-        return ResourceBundle.getBundle(BUNDLE_BASE_NAME, language.getLocale());
+        Locale locale = language.getLocale();
+        Map<String, Object> entries = new LinkedHashMap<>();
+        boolean loadedAny = false;
+
+        for (String resourceName : bundleResourceNames(locale)) {
+            Map<String, Object> resourceEntries = loadBundleEntries(resourceName);
+            if (resourceEntries.isEmpty()) {
+                continue;
+            }
+            loadedAny = true;
+            entries.putAll(resourceEntries);
+        }
+
+        if (!loadedAny) {
+            throw new MissingResourceException(
+                "Can't find bundle for base name " + BUNDLE_BASE_NAME + ", locale " + locale,
+                LocalizationService.class.getName(),
+                BUNDLE_BASE_NAME
+            );
+        }
+
+        return new MapResourceBundle(entries);
+    }
+
+    private List<String> bundleResourceNames(Locale locale) {
+        List<String> resourceNames = new ArrayList<>();
+        resourceNames.add(bundleResourceName(""));
+
+        String language = locale.getLanguage();
+        if (language.isEmpty()) {
+            return resourceNames;
+        }
+
+        LinkedHashSet<String> suffixes = new LinkedHashSet<>();
+        String script = locale.getScript();
+        String country = locale.getCountry();
+        String variant = locale.getVariant();
+
+        suffixes.add("_" + language);
+
+        if (!script.isEmpty()) {
+            suffixes.add("_" + language + "_" + script);
+        }
+        if (!country.isEmpty()) {
+            suffixes.add("_" + language + "_" + country);
+        }
+        if (!script.isEmpty() && !country.isEmpty()) {
+            suffixes.add("_" + language + "_" + script + "_" + country);
+        }
+        if (!variant.isEmpty() && !country.isEmpty()) {
+            suffixes.add("_" + language + "_" + country + "_" + variant);
+        }
+        if (!variant.isEmpty() && !script.isEmpty() && !country.isEmpty()) {
+            suffixes.add("_" + language + "_" + script + "_" + country + "_" + variant);
+        }
+
+        for (String suffix : suffixes) {
+            resourceNames.add(bundleResourceName(suffix));
+        }
+        return resourceNames;
+    }
+
+    private String bundleResourceName(String suffix) {
+        return BUNDLE_BASE_NAME.replace('.', '/') + suffix + ".properties";
+    }
+
+    private Map<String, Object> loadBundleEntries(String resourceName) {
+        try (InputStream stream = LocalizationService.class.getModule().getResourceAsStream(resourceName)) {
+            if (stream == null) {
+                return Collections.emptyMap();
+            }
+
+            InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8);
+            PropertyResourceBundle bundle = new PropertyResourceBundle(reader);
+            Map<String, Object> entries = new LinkedHashMap<>();
+            for (String key : bundle.keySet()) {
+                entries.put(key, bundle.getObject(key));
+            }
+            return entries;
+        } catch (IOException exception) {
+            throw new IllegalStateException("Failed to load localization bundle resource: " + resourceName, exception);
+        }
     }
 
     private String format(String pattern, Locale locale, Object... args) {
@@ -138,5 +234,23 @@ public final class LocalizationService {
         }
         MessageFormat messageFormat = new MessageFormat(pattern, locale);
         return messageFormat.format(args);
+    }
+
+    private static final class MapResourceBundle extends ResourceBundle {
+        private final Map<String, Object> entries;
+
+        private MapResourceBundle(Map<String, Object> entries) {
+            this.entries = Map.copyOf(entries);
+        }
+
+        @Override
+        protected Object handleGetObject(String key) {
+            return entries.get(key);
+        }
+
+        @Override
+        public Enumeration<String> getKeys() {
+            return Collections.enumeration(entries.keySet());
+        }
     }
 }
