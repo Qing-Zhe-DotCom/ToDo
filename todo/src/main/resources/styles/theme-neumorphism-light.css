@@ -1,56 +1,234 @@
 .root {
-    -color-bg-base: #edf2f7;
-    -color-bg-panel: #f1f5f9;
-    -color-bg-active: #dfe8f2;
-    -color-bg-hover: #f6f9fc;
-    -color-text-main: #2b3542;
-    -color-text-sub: #5e6b79;
-    -color-text-hint: #7d8b9a;
-    -color-border: #d7dee7;
-    -color-border-dark: #bcc8d4;
+    -color-bg-base: #e9eef4;
+    -color-bg-panel: #eef3f8;
+    -color-bg-active: #dfe7f0;
+    -color-bg-hover: #f5f8fb;
+    -color-text-main: #2a3342;
+    -color-text-sub: #5f6c79;
+    -color-text-hint: #7f8c9a;
+    -color-text-muted: #9aa8b7;
+    -color-border: #d9e0e8;
+    -color-border-dark: #bfc9d4;
     -color-primary: #6b7cff;
     -color-primary-hover: #5668e6;
     -color-primary-pressed: #4454c6;
-    -color-success: #4a9b76;
-    -color-danger: #d36060;
-    -color-warning: #d59b46;
-    -color-timeline-track-even: #f3f7fb;
-    -color-timeline-track-odd: #eaf0f6;
-    -color-timeline-card-hover: #eef4fa;
-    -color-heatmap-0: #eff4f8;
-    -color-heatmap-1: #d9e4ef;
-    -color-heatmap-2: #b3c7de;
-    -color-heatmap-3: #7e9ec0;
-    -color-heatmap-4: #53739b;
+    -color-primary-soft: rgba(107, 124, 255, 0.16);
+    -color-primary-glow: rgba(107, 124, 255, 0.24);
+    -color-success: #4b9f7a;
+    -color-success-hover: #39825f;
+    -color-success-pressed: #2c6449;
+    -color-success-bg: #ddeee7;
+    -color-success-soft: rgba(75, 159, 122, 0.16);
+    -color-shadow-soft: rgba(160, 179, 198, 0.18);
+    -color-shadow-medium: rgba(160, 179, 198, 0.28);
+    -color-shadow-strong: rgba(160, 179, 198, 0.36);
 }
 
 .settings-dialog-pane,
 .settings-shell,
-.settings-content-host {
-    -fx-background-color: #edf2f7;
+.settings-content-host,
+.main-content,
+.timeline-container,
+.timeline-pane {
+    -fx-background-color: -color-bg-base;
+}
+
+.timeline-scroll > .viewport,
+.heatmap-scroll > .viewport,
+.heatmap-main-pane {
+    -fx-background-color: -color-bg-base;
 }
 
 .sidebar,
 .settings-nav,
 .settings-card,
 .info-panel,
+.heatmap-day-panel,
+.heatmap-year-card,
+.heatmap-day-card,
+.timeline-range-pill,
+.timeline-state,
+.dialog-pane,
 .schedule-dialog-pane .dialog-pane,
 .quick-add-shell,
-.heatmap-year-card,
-.button,
-.button-secondary,
-.settings-style-chip,
-.timeline-range-pill {
+.info-panel-description-card,
+.info-panel-time-trigger,
+.ios-wheel-popup,
+.combo-box-popup .list-view,
+.date-picker-popup,
+.schedule-card-surface,
+.timeline-schedule-card,
+.heatmap-sidebar,
+.heatmap-day-rail {
+    -fx-background-color: -color-bg-panel;
+    -fx-border-color: transparent;
+    -fx-border-width: 1;
     -fx-background-radius: 26;
     -fx-border-radius: 26;
+    -fx-effect: dropshadow(gaussian, -color-shadow-medium, 18, 0.20, 7, 7);
 }
 
-.settings-card,
-.info-panel,
-.schedule-dialog-pane .dialog-pane,
-.quick-add-shell,
-.heatmap-year-card {
-    -fx-background-color: #f1f5f9;
-    -fx-border-color: #d7dee7;
-    -fx-effect: dropshadow(gaussian, rgba(157, 176, 196, 0.32), 22, 0.18, 6, 6);
+.search-field,
+.quick-add-input,
+.text-field,
+.text-area,
+.password-field,
+.combo-box,
+.info-panel-inline-editor,
+.info-panel-borderless-combo,
+.info-panel-notes-input,
+.info-panel-title-input,
+.timeline-range-group,
+.timeline-range-picker,
+.timeline-range-icon-wrap {
+    -fx-background-color: -color-bg-panel;
+    -fx-border-color: transparent;
+    -fx-background-radius: 22;
+    -fx-border-radius: 22;
+    -fx-effect: innershadow(gaussian, rgba(255, 255, 255, 0.84), 10, 0.22, -3, -3);
+}
+
+.nav-button,
+.sidebar-bottom-actions .sidebar-action-button,
+.button,
+.button-secondary,
+.toggle-button,
+.timeline-range-reset,
+.info-panel-primary-button,
+.ios-wheel-save-button,
+.settings-style-chip,
+.info-panel-chip,
+.info-panel-toolbar-button,
+.info-panel-icon-button,
+.heatmap-sidebar-toggle,
+.quick-add-badge,
+.heatmap-day-rail-badge {
+    -fx-background-radius: 22;
+    -fx-border-radius: 22;
+    -fx-border-color: transparent;
+}
+
+.nav-button,
+.sidebar-bottom-actions .sidebar-action-button,
+.button-secondary,
+.toggle-button,
+.settings-style-chip,
+.info-panel-chip,
+.info-panel-toolbar-button,
+.info-panel-icon-button,
+.heatmap-sidebar-toggle,
+.quick-add-badge,
+.heatmap-day-rail-badge {
+    -fx-background-color: -color-bg-panel;
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 12, 0.16, 4, 4);
+}
+
+.nav-button:hover,
+.sidebar-bottom-actions .sidebar-action-button:hover,
+.sidebar-bottom-actions .sidebar-action-button:focused {
+    -fx-background-color: -color-bg-hover;
+}
+
+.nav-button.active {
+    -fx-background-color: -color-bg-active;
+    -fx-text-fill: -color-primary-hover;
+}
+
+.button,
+.info-panel-primary-button,
+.ios-wheel-save-button {
+    -fx-effect: dropshadow(gaussian, -color-shadow-strong, 12, 0.18, 5, 5);
+}
+
+.settings-nav-title,
+.settings-card-title,
+.info-panel-heading,
+.info-panel-section-title,
+.timeline-group-header,
+.timeline-card-title,
+.heatmap-day-title,
+.heatmap-year-title,
+.quick-add-title,
+.schedule-card-title-text {
+    -fx-text-fill: #2b3441;
+    -fx-font-weight: 700;
+}
+
+.settings-nav-subtitle,
+.settings-card-subtitle,
+.settings-row-desc,
+.info-panel-meta-label,
+.info-panel-description-placeholder,
+.timeline-range-label,
+.heatmap-completed-zone-label,
+.schedule-card-subtitle-text {
+    -fx-text-fill: #8593a2;
+}
+
+.settings-shell,
+.timeline-header,
+.heatmap-meta-bar,
+.heatmap-sidebar-shell,
+.info-panel-header,
+.quick-add-section {
+    -fx-background-color: -color-bg-panel;
+    -fx-border-color: transparent;
+    -fx-border-width: 1;
+    -fx-background-radius: 28;
+    -fx-border-radius: 28;
+    -fx-effect: dropshadow(gaussian, rgba(255, 255, 255, 0.86), 10, 0.18, -4, -4);
+}
+
+.timeline-track-bg {
+    -fx-fill: #dfe7ef;
+}
+
+.timeline-grid-line,
+.timeline-track-sep {
+    -fx-stroke: #d0d9e2;
+    -fx-opacity: 0.72;
+}
+
+.timeline-axis-line,
+.timeline-range-connector {
+    -fx-stroke: #95a4b5;
+}
+
+.timeline-node {
+    -fx-background-color: #6b7cff;
+    -fx-background-radius: 999;
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 12, 0.18, 0, 0);
+}
+
+.heatmap-year-cell {
+    -fx-stroke: #c7d0da;
+    -fx-stroke-width: 0.9;
+}
+
+.heatmap-cell-selected {
+    -fx-background-color: -color-bg-active;
+    -fx-border-color: transparent;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-effect: dropshadow(gaussian, rgba(255, 255, 255, 0.82), 8, 0.18, -2, -2);
+}
+
+.settings-style-chip:selected,
+.settings-inline-value,
+.info-panel-status-ongoing,
+.heatmap-day-card-selected {
+    -fx-background-color: -color-primary-soft;
+}
+
+.timeline-schedule-selected,
+.settings-theme-swatch:selected {
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 14, 0.20, 0, 0);
+}
+
+.heatmap-completed-zone {
+    -fx-background-color: linear-gradient(to right, rgba(75, 159, 122, 0.18), rgba(75, 159, 122, 0.06));
+    -fx-border-color: transparent;
+    -fx-background-radius: 24;
+    -fx-border-radius: 24;
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 12, 0.14, 4, 4);
 }

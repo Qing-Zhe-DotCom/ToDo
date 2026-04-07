@@ -112,6 +112,27 @@ class ThemeCssTest {
     }
 
     @Test
+    void themeFamilyFilesStyleWholeAppShellSelectors() throws IOException {
+        String classic = readCss("/styles/theme-classic-light.css");
+        String fresh = readCss("/styles/theme-fresh-light.css");
+        String cozy = readCss("/styles/theme-cozy-light.css");
+        String modernMinimal = readCss("/styles/theme-modern-minimal-light.css");
+        String neoBrutalism = readCss("/styles/theme-neo-brutalism-light.css");
+        String materialYou = readCss("/styles/theme-material-you-light.css");
+        String neumorphism = readCss("/styles/theme-neumorphism-light.css");
+
+        assertAll("theme family files whole app shell selectors",
+            () -> assertThemeFamilyFileThemesWholeShell(classic),
+            () -> assertThemeFamilyFileThemesWholeShell(fresh),
+            () -> assertThemeFamilyFileThemesWholeShell(cozy),
+            () -> assertThemeFamilyFileThemesWholeShell(modernMinimal),
+            () -> assertThemeFamilyFileThemesWholeShell(neoBrutalism),
+            () -> assertThemeFamilyFileThemesWholeShell(materialYou),
+            () -> assertThemeFamilyFileThemesWholeShell(neumorphism)
+        );
+    }
+
+    @Test
     void baseCssContainsSharedScheduleCardStyleSelectors() throws IOException {
         String baseContent = readCss("/styles/base.css");
 
@@ -257,5 +278,16 @@ class ThemeCssTest {
             return null;
         }
         return content.substring(start, end + 1);
+    }
+
+    private void assertThemeFamilyFileThemesWholeShell(String content) {
+        assertAll(
+            () -> assertTrue(content.contains(".settings-nav-title")),
+            () -> assertTrue(content.contains(".info-panel-header")),
+            () -> assertTrue(content.contains(".timeline-header")),
+            () -> assertTrue(content.contains(".heatmap-meta-bar")),
+            () -> assertTrue(content.contains(".schedule-card-surface")),
+            () -> assertTrue(content.contains(".quick-add-badge"))
+        );
     }
 }

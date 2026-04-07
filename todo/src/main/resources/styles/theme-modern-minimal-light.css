@@ -1,57 +1,229 @@
 .root {
-    -color-bg-base: #f6f7f9;
+    -color-bg-base: #f5f6f8;
     -color-bg-panel: #ffffff;
     -color-bg-active: #eceff3;
     -color-bg-hover: #f4f6f8;
-    -color-text-main: #16181d;
-    -color-text-sub: #525864;
-    -color-text-hint: #7f8794;
+    -color-text-main: #15181c;
+    -color-text-sub: #4f5763;
+    -color-text-hint: #7a8390;
+    -color-text-muted: #a0a8b4;
     -color-border: #d8dde5;
-    -color-border-dark: #aeb7c3;
+    -color-border-dark: #aeb8c3;
     -color-primary: #111827;
     -color-primary-hover: #000000;
     -color-primary-pressed: #000000;
-    -color-success: #0f766e;
-    -color-danger: #b91c1c;
-    -color-warning: #b45309;
-    -color-timeline-track-even: #fafafa;
-    -color-timeline-track-odd: #f1f3f5;
-    -color-timeline-card-hover: #f5f7f9;
-    -color-heatmap-0: #eef1f4;
-    -color-heatmap-1: #d0d8df;
-    -color-heatmap-2: #9fb0bc;
-    -color-heatmap-3: #667786;
-    -color-heatmap-4: #27313b;
+    -color-primary-soft: rgba(17, 24, 39, 0.08);
+    -color-primary-glow: rgba(17, 24, 39, 0.14);
+    -color-shadow-soft: rgba(15, 23, 42, 0.02);
+    -color-shadow-medium: rgba(15, 23, 42, 0.06);
+    -color-shadow-strong: rgba(15, 23, 42, 0.10);
 }
 
 .settings-dialog-pane,
 .settings-shell,
-.settings-content-host {
-    -fx-background-color: #f6f7f9;
+.settings-content-host,
+.main-content,
+.timeline-container,
+.timeline-pane {
+    -fx-background-color: -color-bg-base;
+}
+
+.timeline-scroll > .viewport,
+.heatmap-scroll > .viewport,
+.heatmap-main-pane {
+    -fx-background-color: -color-bg-base;
 }
 
 .sidebar,
-.settings-nav {
-    -fx-background-color: #ffffff;
-    -fx-border-color: #d8dde5;
-}
-
+.settings-nav,
 .settings-card,
 .info-panel,
+.heatmap-day-panel,
+.heatmap-year-card,
+.heatmap-day-card,
+.timeline-range-pill,
+.timeline-state,
+.dialog-pane,
 .schedule-dialog-pane .dialog-pane,
 .quick-add-shell,
-.heatmap-year-card {
-    -fx-background-color: #ffffff;
-    -fx-border-color: #d8dde5;
+.info-panel-description-card,
+.info-panel-time-trigger,
+.ios-wheel-popup,
+.combo-box-popup .list-view,
+.date-picker-popup,
+.schedule-card-surface,
+.timeline-schedule-card {
+    -fx-background-color: -color-bg-panel;
+    -fx-border-color: -color-border;
+    -fx-border-width: 1;
     -fx-background-radius: 10;
     -fx-border-radius: 10;
     -fx-effect: none;
 }
 
+.nav-button,
+.sidebar-bottom-actions .sidebar-action-button,
 .button,
 .button-secondary,
+.toggle-button,
+.timeline-range-reset,
+.info-panel-primary-button,
+.ios-wheel-save-button,
 .settings-style-chip,
-.timeline-range-pill {
+.info-panel-chip,
+.info-panel-toolbar-button,
+.info-panel-icon-button,
+.heatmap-sidebar-toggle,
+.search-field,
+.quick-add-input,
+.text-field,
+.text-area,
+.password-field,
+.combo-box,
+.quick-add-badge,
+.heatmap-day-rail-badge {
     -fx-background-radius: 8;
     -fx-border-radius: 8;
+}
+
+.nav-button,
+.sidebar-bottom-actions .sidebar-action-button {
+    -fx-font-weight: 700;
+}
+
+.nav-button:hover,
+.sidebar-bottom-actions .sidebar-action-button:hover,
+.sidebar-bottom-actions .sidebar-action-button:focused {
+    -fx-background-color: -color-bg-hover;
+}
+
+.nav-button.active {
+    -fx-background-color: -color-bg-panel;
+    -fx-border-color: -color-primary;
+    -fx-border-width: 0 0 0 2;
+}
+
+.button-secondary,
+.toggle-button,
+.settings-style-chip,
+.info-panel-chip,
+.info-panel-toolbar-button,
+.info-panel-icon-button,
+.timeline-range-pill {
+    -fx-background-color: -color-bg-panel;
+    -fx-border-color: -color-border;
+    -fx-border-width: 1;
+}
+
+.settings-nav-title,
+.settings-card-title,
+.info-panel-heading,
+.info-panel-section-title,
+.timeline-group-header,
+.timeline-card-title,
+.heatmap-day-title,
+.heatmap-year-title,
+.quick-add-title,
+.schedule-card-title-text {
+    -fx-text-fill: #11161d;
+    -fx-font-weight: 700;
+}
+
+.settings-nav-subtitle,
+.settings-card-subtitle,
+.settings-row-desc,
+.info-panel-meta-label,
+.info-panel-description-placeholder,
+.timeline-range-label,
+.heatmap-completed-zone-label,
+.schedule-card-subtitle-text {
+    -fx-text-fill: #7f8792;
+}
+
+.settings-shell,
+.timeline-header,
+.heatmap-meta-bar,
+.heatmap-sidebar-shell,
+.info-panel-header,
+.quick-add-section {
+    -fx-background-color: rgba(255, 255, 255, 0.78);
+    -fx-border-color: #e3e7ed;
+    -fx-border-width: 1;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+}
+
+.info-panel-inline-editor,
+.info-panel-borderless-combo,
+.info-panel-notes-input,
+.info-panel-title-input,
+.timeline-range-group,
+.timeline-range-picker,
+.timeline-range-icon-wrap,
+.heatmap-sidebar,
+.heatmap-day-rail {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #e3e7ed;
+    -fx-border-width: 1;
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+}
+
+.timeline-track-bg {
+    -fx-fill: #f8fafb;
+}
+
+.timeline-grid-line,
+.timeline-track-sep {
+    -fx-stroke: #dce2e8;
+    -fx-opacity: 0.7;
+}
+
+.timeline-axis-line,
+.timeline-range-connector {
+    -fx-stroke: #111827;
+    -fx-opacity: 0.45;
+}
+
+.timeline-node {
+    -fx-background-color: #111827;
+    -fx-background-radius: 5;
+}
+
+.heatmap-year-cell {
+    -fx-stroke: #d5dbe3;
+    -fx-stroke-width: 0.9;
+}
+
+.heatmap-cell-selected {
+    -fx-background-color: #eceff3;
+    -fx-border-color: #111827;
+    -fx-border-width: 1.5;
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+}
+
+.quick-add-badge,
+.heatmap-day-rail-badge {
+    -fx-background-color: #f0f2f5;
+    -fx-border-color: #d8dde5;
+    -fx-border-width: 1;
+}
+
+.settings-style-chip:selected,
+.settings-inline-value,
+.info-panel-status-ongoing,
+.heatmap-day-card-selected {
+    -fx-background-color: -color-bg-active;
+    -fx-border-color: -color-primary;
+}
+
+.timeline-schedule-selected,
+.settings-theme-swatch:selected {
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 8, 0.16, 0, 0);
+}
+
+.heatmap-completed-zone {
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
 }

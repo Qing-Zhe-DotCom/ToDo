@@ -970,11 +970,11 @@
     -fx-background-radius: 8;
     -fx-border-radius: 8;
     -fx-cursor: hand;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 4, 0, 0, 2);
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 4, 0, 0, 2);
 }
 .button:hover {
     -fx-background-color: -color-primary-hover;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 6, 0, 0, 3);
+    -fx-effect: dropshadow(gaussian, -color-shadow-medium, 6, 0, 0, 3);
 }
 .button:pressed {
     -fx-background-color: -color-primary-pressed;
@@ -989,7 +989,7 @@
     -fx-border-width: 1;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.02), 2, 0, 0, 1);
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 2, 0, 0, 1);
 }
 .button-secondary:hover {
     -fx-background-color: -color-bg-hover;
@@ -1021,7 +1021,7 @@
     -fx-border-radius: 8;
     -fx-background-radius: 8;
     -fx-cursor: hand;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.02), 2, 0, 0, 1);
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 2, 0, 0, 1);
 }
 .toggle-button:hover {
     -fx-background-color: -color-bg-hover;
@@ -1030,7 +1030,7 @@
     -fx-background-color: -color-primary;
     -fx-text-fill: -color-bg-panel;
     -fx-border-color: -color-primary;
-    -fx-effect: dropshadow(gaussian, -color-primary, 4, 0.2, 0, 0);
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 6, 0.18, 0, 0);
 }
 
 /* FAB 按钮 (Floating Action Button) */
@@ -1043,17 +1043,17 @@
     -fx-background-radius: 24;
     -fx-border-radius: 24;
     -fx-cursor: hand;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 10, 0, 0, 4);
+    -fx-effect: dropshadow(gaussian, -color-shadow-medium, 10, 0, 0, 4);
     -fx-translate-y: 0;
 }
 .fab-button:hover {
     -fx-background-color: -color-primary-hover;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 15, 0, 0, 6);
+    -fx-effect: dropshadow(gaussian, -color-shadow-strong, 15, 0, 0, 6);
     -fx-translate-y: -2;
 }
 .fab-button:pressed {
     -fx-background-color: -color-primary-pressed;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 5, 0, 0, 2);
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 5, 0, 0, 2);
     -fx-translate-y: 1;
 }
 .fab-button:disabled {
@@ -1135,7 +1135,7 @@
 .quick-add-input:focused {
     -fx-background-color: -color-bg-panel;
     -fx-border-color: -color-primary;
-    -fx-effect: dropshadow(gaussian, rgba(59, 130, 246, 0.12), 10, 0.12, 0, 0);
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 10, 0.12, 0, 0);
 }
 
 .icon-button {
@@ -1178,11 +1178,11 @@
     -fx-background-radius: 8;
     -fx-padding: 8 12;
     -fx-font-size: 13px;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.02), 2, 0, 0, 1);
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 2, 0, 0, 1);
 }
 .text-field:focused, .text-area:focused, .password-field:focused {
     -fx-border-color: -color-primary;
-    -fx-effect: dropshadow(gaussian, -color-primary, 4, 0.2, 0, 0);
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 6, 0.18, 0, 0);
 }
 
 /* 下拉框 */
@@ -1192,11 +1192,11 @@
     -fx-border-radius: 8;
     -fx-background-radius: 8;
     -fx-padding: 4 8;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.02), 2, 0, 0, 1);
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 2, 0, 0, 1);
 }
 .combo-box:focused {
     -fx-border-color: -color-primary;
-    -fx-effect: dropshadow(gaussian, -color-primary, 4, 0.2, 0, 0);
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 6, 0.18, 0, 0);
 }
 .combo-box .list-cell {
     -fx-background-color: transparent;
@@ -1208,7 +1208,7 @@
     -fx-border-color: -color-border;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 8, 0, 0, 4);
+    -fx-effect: dropshadow(gaussian, -color-shadow-medium, 8, 0, 0, 4);
 }
 .combo-box-popup .list-cell:hover, .combo-box-popup .list-cell:filled:selected {
     -fx-background-color: -color-bg-active;
@@ -1221,7 +1221,7 @@
     -fx-border-color: -color-border;
     -fx-border-radius: 12;
     -fx-background-radius: 12;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 15, 0, 0, 5);
+    -fx-effect: dropshadow(gaussian, -color-shadow-medium, 15, 0, 0, 5);
 }
 
 /* 隐藏头部多余的背景色和渐变 */
@@ -1282,7 +1282,7 @@
 /* 星期表头：降噪，小号浅灰色 */
 .date-picker-popup > .calendar-grid > .day-name-cell {
     -fx-font-size: 11px;
-    -fx-text-fill: #9ca3af;
+    -fx-text-fill: -color-text-muted;
     -fx-background-color: transparent;
     -fx-padding: 5 0 10 0;
 }
@@ -1321,7 +1321,7 @@
 
 /* 今天 (弱高亮，保留主题色文字) */
 .date-picker-popup > .calendar-grid > .today {
-    -fx-background-color: #eff6ff;
+    -fx-background-color: -color-primary-soft;
     -fx-text-fill: -color-primary;
     -fx-font-weight: bold;
     -fx-background-radius: 8px;
@@ -1334,7 +1334,7 @@
 /* 上个月/下个月的非当前月日期：极淡灰色 */
 .date-picker-popup > .calendar-grid > .previous-month,
 .date-picker-popup > .calendar-grid > .next-month {
-    -fx-text-fill: #d1d5db;
+    -fx-text-fill: -color-text-muted;
 }
 
 /* 周数栏（如果在某些系统中开启了）：直接隐藏掉，增加干净度 */
@@ -1415,7 +1415,7 @@
 
     -fx-font-weight: 700;
 
-    -fx-text-fill: #5f6368;
+    -fx-text-fill: -color-text-sub;
 
 }
 
@@ -1535,7 +1535,7 @@
 
     -fx-border-radius: 999;
 
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 10, 0, 0, 2);
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 10, 0, 0, 2);
 
 }
 
@@ -1733,7 +1733,7 @@
 
 .timeline-state {
 
-    -fx-background-color: rgba(255, 255, 255, 0.96);
+    -fx-background-color: -color-bg-panel;
 
     -fx-border-color: -color-border;
 
@@ -1849,7 +1849,7 @@
 
 .timeline-schedule-selected {
 
-    -fx-effect: dropshadow(gaussian, rgba(33, 150, 243, 0.55), 14, 0.35, 0, 0);
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 14, 0.35, 0, 0);
 
 }
 
@@ -1931,7 +1931,7 @@
 
 .heatmap-cell-selected {
 
-    -fx-background-color: rgba(33, 150, 243, 0.12);
+    -fx-background-color: -color-primary-soft;
 
     -fx-border-color: -color-primary;
 
@@ -2101,7 +2101,7 @@
 
     -fx-cursor: hand;
 
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.03), 3, 0, 0, 1);
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 3, 0, 0, 1);
 }
 
 .heatmap-day-card-top,
@@ -2140,7 +2140,7 @@
 
     -fx-border-color: derive(-schedule-card-accent, -10%);
 
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 6, 0, 0, 2);
+    -fx-effect: dropshadow(gaussian, -color-shadow-medium, 6, 0, 0, 2);
 
 }
 
@@ -2248,9 +2248,9 @@
 
     -fx-padding: 8 10;
 
-    -fx-background-color: linear-gradient(to right, rgba(129, 199, 132, 0.16), rgba(129, 199, 132, 0.05));
+    -fx-background-color: linear-gradient(to right, -color-success-soft 0%, transparent 100%);
 
-    -fx-border-color: rgba(129, 199, 132, 0.42);
+    -fx-border-color: -color-success;
 
     -fx-border-width: 1;
 
@@ -2366,7 +2366,7 @@
 
     -fx-text-fill: -color-text-main;
 
-    -fx-border-color: #d0d7de;
+    -fx-border-color: -color-border;
 
 }
 
@@ -2384,7 +2384,7 @@
 
 .schedule-dialog-pane .button-bar .button:hover {
 
-    -fx-background-color: #1e88e5;
+    -fx-background-color: -color-primary-hover;
 
 }
 
@@ -2834,13 +2834,13 @@
     -fx-text-fill: -color-text-main;
 }
 .hero-title-input:focused {
-    -fx-border-color: transparent transparent #e5e7eb transparent;
+    -fx-border-color: transparent transparent -color-border transparent;
     -fx-border-width: 0 0 1 0;
 }
 
 .hero-desc-input {
     -fx-font-size: 14px;
-    -fx-background-color: #f9fafb;
+    -fx-background-color: -color-bg-hover;
     -fx-border-color: transparent;
     -fx-background-radius: 8;
     -fx-padding: 12;
@@ -2851,17 +2851,17 @@
 }
 .hero-desc-input:focused {
     -fx-border-color: transparent;
-    -fx-background-color: #f3f4f6;
+    -fx-background-color: -color-bg-active;
 }
 
 .field-label {
     -fx-font-size: 12px;
-    -fx-text-fill: #9ca3af;
+    -fx-text-fill: -color-text-muted;
 }
 
 .modern-input {
     -fx-background-color: transparent;
-    -fx-border-color: #e5e7eb;
+    -fx-border-color: -color-border;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
     -fx-padding: 8 12;
@@ -2870,15 +2870,15 @@
 .modern-input:focused {
     -fx-border-color: -color-primary;
     -fx-border-radius: 8;
-    -fx-effect: dropshadow(gaussian, rgba(33, 150, 243, 0.2), 4, 0, 0, 0);
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 4, 0, 0, 0);
 }
 
 .error-border {
-    -fx-border-color: #F44336 !important;
+    -fx-border-color: -color-danger !important;
 }
 
 .error-label {
-    -fx-text-fill: #F44336;
+    -fx-text-fill: -color-danger;
     -fx-font-size: 11px;
 }
 
@@ -2898,18 +2898,18 @@
 }
 
 .segment-high:selected {
-    -fx-background-color: #fce8e8;
-    -fx-text-fill: #c62828;
+    -fx-background-color: -color-danger-soft;
+    -fx-text-fill: -color-danger-pressed;
     -fx-font-weight: bold;
 }
 .segment-mid:selected {
-    -fx-background-color: #fef3c7;
-    -fx-text-fill: #b45309;
+    -fx-background-color: -color-warning-soft;
+    -fx-text-fill: -color-warning-dark;
     -fx-font-weight: bold;
 }
 .segment-low:selected {
-    -fx-background-color: #d1fae5;
-    -fx-text-fill: #1b5e20;
+    -fx-background-color: -color-success-soft;
+    -fx-text-fill: -color-success-pressed;
     -fx-font-weight: bold;
 }
 
@@ -2918,12 +2918,12 @@
     -fx-stroke-width: 3;
 }
 .color-dot-selected {
-    -fx-stroke: #d1d5db;
+    -fx-stroke: -color-border-dark;
     -fx-stroke-type: outside;
 }
 
 .modern-toggle-switch {
-    -fx-background-color: #e5e7eb, white;
+    -fx-background-color: -color-border, -color-bg-panel;
     -fx-background-insets: 0, 2 18 2 2;
     -fx-background-radius: 12, 10;
     -fx-text-fill: transparent;
@@ -2952,45 +2952,45 @@
 
 .ghost-cancel-button {
     -fx-background-color: transparent !important;
-    -fx-text-fill: #9ca3af !important;
+    -fx-text-fill: -color-text-muted !important;
     -fx-border-color: transparent !important;
 }
 .ghost-cancel-button:hover {
-    -fx-background-color: #f3f4f6 !important;
-    -fx-text-fill: #4b5563 !important;
+    -fx-background-color: -color-bg-hover !important;
+    -fx-text-fill: -color-text-sub !important;
 }
 
 .settings-dialog-pane {
-    -fx-background-color: #f6f7fb;
+    -fx-background-color: -color-bg-base;
 }
 
 .settings-shell {
-    -fx-background-color: #f6f7fb;
+    -fx-background-color: -color-bg-base;
 }
 
 .settings-nav {
-    -fx-background-color: #ffffff;
+    -fx-background-color: -color-bg-panel;
     -fx-padding: 20;
     -fx-spacing: 10;
-    -fx-border-color: #e9edf3;
+    -fx-border-color: -color-border;
     -fx-border-width: 0 1 0 0;
 }
 
 .settings-nav-title {
     -fx-font-size: 22px;
     -fx-font-weight: 800;
-    -fx-text-fill: #111827;
+    -fx-text-fill: -color-text-main;
 }
 
 .settings-nav-subtitle {
     -fx-font-size: 12px;
-    -fx-text-fill: #97a3b6;
+    -fx-text-fill: -color-text-hint;
     -fx-padding: 0 0 10 0;
 }
 
 .settings-content-host {
     -fx-padding: 24;
-    -fx-background-color: #f6f7fb;
+    -fx-background-color: -color-bg-base;
 }
 
 .settings-page-scroll {
@@ -3014,25 +3014,25 @@
 }
 
 .settings-card {
-    -fx-background-color: white;
+    -fx-background-color: -color-bg-panel;
     -fx-background-radius: 16;
     -fx-padding: 20 22;
     -fx-spacing: 12;
-    -fx-border-color: #e8edf5;
+    -fx-border-color: -color-border;
     -fx-border-width: 1;
     -fx-border-radius: 16;
-    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.03), 8, 0, 0, 1);
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 8, 0, 0, 1);
 }
 
 .settings-card-title {
     -fx-font-size: 16px;
     -fx-font-weight: 800;
-    -fx-text-fill: #111827;
+    -fx-text-fill: -color-text-main;
 }
 
 .settings-card-subtitle {
     -fx-font-size: 12px;
-    -fx-text-fill: #94a3b8;
+    -fx-text-fill: -color-text-hint;
 }
 
 .settings-row {
@@ -3048,25 +3048,25 @@
 .settings-row-title {
     -fx-font-size: 14px;
     -fx-font-weight: 800;
-    -fx-text-fill: #1e293b;
+    -fx-text-fill: -color-text-main;
 }
 
 .settings-row-desc {
     -fx-font-size: 12px;
-    -fx-text-fill: #95a0b3;
+    -fx-text-fill: -color-text-hint;
 }
 
 .settings-info-text {
     -fx-font-size: 13px;
-    -fx-text-fill: #475569;
+    -fx-text-fill: -color-text-sub;
     -fx-line-spacing: 4;
 }
 
 .settings-inline-value {
     -fx-font-size: 12px;
     -fx-font-weight: 700;
-    -fx-text-fill: #2563eb;
-    -fx-background-color: #eff6ff;
+    -fx-text-fill: -color-primary-hover;
+    -fx-background-color: -color-primary-soft;
     -fx-padding: 6 10;
     -fx-background-radius: 999;
 }
@@ -3082,20 +3082,20 @@
     -fx-background-radius: 15;
     -fx-border-radius: 15;
     -fx-border-width: 2;
-    -fx-border-color: #ffffff;
+    -fx-border-color: -color-bg-panel;
 }
 
 .settings-theme-swatch:selected {
-    -fx-border-color: #2563eb;
-    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.2), 6, 0, 0, 0);
+    -fx-border-color: -color-primary;
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 6, 0, 0, 0);
 }
 
 .settings-style-chip {
-    -fx-background-color: #f8fafc;
-    -fx-text-fill: #475569;
+    -fx-background-color: -color-bg-hover;
+    -fx-text-fill: -color-text-sub;
     -fx-background-radius: 12;
     -fx-border-radius: 12;
-    -fx-border-color: #e2e8f0;
+    -fx-border-color: -color-border;
     -fx-border-width: 1;
     -fx-font-size: 12px;
     -fx-font-weight: 700;
@@ -3106,26 +3106,26 @@
 }
 
 .settings-style-chip:hover {
-    -fx-background-color: #eef2ff;
+    -fx-background-color: derive(-color-bg-active, 12%);
 }
 
 .settings-style-chip:selected {
-    -fx-background-color: #dbeafe;
-    -fx-text-fill: #1d4ed8;
-    -fx-border-color: #93c5fd;
+    -fx-background-color: -color-bg-active;
+    -fx-text-fill: -color-primary-hover;
+    -fx-border-color: -color-primary;
 }
 
 .settings-danger-card {
-    -fx-border-color: #fecaca;
+    -fx-border-color: -color-danger-bg;
     -fx-border-width: 1;
     -fx-border-radius: 18;
 }
 
 .settings-danger-button {
     -fx-background-color: transparent;
-    -fx-text-fill: #dc2626;
+    -fx-text-fill: -color-danger-hover;
     -fx-font-weight: 800;
-    -fx-border-color: #fca5a5;
+    -fx-border-color: -color-danger;
     -fx-border-width: 1.2;
     -fx-border-radius: 10;
     -fx-background-radius: 10;
@@ -3133,8 +3133,8 @@
 }
 
 .settings-danger-button:hover {
-    -fx-background-color: #fef2f2;
-    -fx-border-color: #ef4444;
+    -fx-background-color: -color-danger-soft;
+    -fx-border-color: -color-danger-hover;
 }
 
 .info-panel-date-primary {
@@ -3226,7 +3226,7 @@
     -fx-border-radius: 20;
     -fx-padding: 18;
     -fx-spacing: 16;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.12), 22, 0.18, 0, 8);
+    -fx-effect: dropshadow(gaussian, -color-shadow-medium, 22, 0.18, 0, 8);
 }
 
 .ios-wheel-header {
@@ -3322,8 +3322,8 @@
 }
 
 .ios-wheel-selection-box {
-    -fx-background-color: rgba(0, 0, 0, 0.045);
-    -fx-border-color: rgba(0, 0, 0, 0.04);
+    -fx-background-color: -color-primary-soft;
+    -fx-border-color: -color-primary-soft;
     -fx-border-width: 1 0;
     -fx-background-radius: 14;
     -fx-border-radius: 14;
@@ -3610,12 +3610,12 @@
     -fx-background-radius: 14;
     -fx-border-radius: 14;
     -fx-cursor: hand;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 10, 0, 0, 3);
+    -fx-effect: dropshadow(gaussian, -color-shadow-medium, 10, 0, 0, 3);
 }
 
 .info-panel-primary-button:hover {
     -fx-background-color: -color-success-hover;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.12), 12, 0, 0, 4);
+    -fx-effect: dropshadow(gaussian, -color-shadow-strong, 12, 0, 0, 4);
 }
 
 .info-panel-primary-button:pressed {
@@ -3680,11 +3680,11 @@
 }
 
 .info-panel-icon-button-danger:hover {
-    -fx-background-color: rgba(220, 38, 38, 0.1);
+    -fx-background-color: -color-danger-soft;
 }
 
 .info-panel-icon-button-danger:pressed {
-    -fx-background-color: rgba(220, 38, 38, 0.15);
+    -fx-background-color: derive(-color-danger-soft, 12%);
 }
 
 .info-panel-title-input {
@@ -3846,7 +3846,7 @@
 }
 
 .info-panel-delete-button:hover {
-    -fx-background-color: rgba(220, 38, 38, 0.1);
+    -fx-background-color: -color-danger-soft;
     -fx-border-color: transparent;
 }
 

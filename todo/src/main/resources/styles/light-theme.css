@@ -19,20 +19,30 @@
     -color-primary: #2196f3;
     -color-primary-hover: #1976d2;
     -color-primary-pressed: #1565c0;
+    -color-primary-soft: rgba(33, 150, 243, 0.14);
+    -color-primary-glow: rgba(33, 150, 243, 0.24);
 
     -color-success: #4caf50;
     -color-success-hover: #388e3c;
     -color-success-pressed: #2e7d32;
     -color-success-bg: #e8f5e9;
+    -color-success-soft: rgba(76, 175, 80, 0.14);
 
     -color-danger: #f44336;
     -color-danger-hover: #d32f2f;
     -color-danger-pressed: #c62828;
     -color-danger-bg: #ffebee;
+    -color-danger-soft: rgba(244, 67, 54, 0.14);
 
     -color-warning: #ff9800;
     -color-warning-dark: #ef6c00;
     -color-warning-bg: #fff3e0;
+    -color-warning-soft: rgba(255, 152, 0, 0.16);
+
+    -color-shadow-soft: rgba(15, 23, 42, 0.05);
+    -color-shadow-medium: rgba(15, 23, 42, 0.10);
+    -color-shadow-strong: rgba(15, 23, 42, 0.18);
+    -color-shadow-hard: rgba(15, 23, 42, 0.28);
 
     -color-timeline-track-even: #fbfbfc;
     -color-timeline-track-odd: #f5f7f9;

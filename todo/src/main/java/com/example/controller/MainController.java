@@ -1159,12 +1159,12 @@ public class MainController {
         shell.setPrefSize(940, 600);
 
         VBox navBar = new VBox(8);
-        navBar.getStyleClass().addAll("sidebar");
+        navBar.getStyleClass().addAll("sidebar", "settings-nav");
         navBar.setPrefWidth(220);
         Label navTitle = new Label(text("settings.title"));
-        navTitle.getStyleClass().add("label-title");
+        navTitle.getStyleClass().addAll("label-title", "settings-nav-title");
         Label navSubTitle = new Label(text("settings.subtitle"));
-        navSubTitle.getStyleClass().add("label-hint");
+        navSubTitle.getStyleClass().addAll("label-hint", "settings-nav-subtitle");
 
         ToggleGroup categoryGroup = new ToggleGroup();
         ToggleButton generalTab = new ToggleButton(text("settings.tab.details"));

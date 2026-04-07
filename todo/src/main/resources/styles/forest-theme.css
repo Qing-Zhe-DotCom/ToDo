@@ -1,5 +1,7 @@
 .root {
     -color-primary: #388e3c; 
+    -color-primary-soft: rgba(56, 142, 60, 0.15);
+    -color-primary-glow: rgba(56, 142, 60, 0.24);
     -color-bg-active: #e8f5e9; 
     -color-bg-panel: #f1f8e9;
     -color-heatmap-0: #f1f8e9;
