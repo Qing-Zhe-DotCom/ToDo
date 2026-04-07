@@ -2993,6 +2993,22 @@
     -fx-background-color: #f6f7fb;
 }
 
+.settings-page-scroll {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+    -fx-border-color: transparent;
+    -fx-fit-to-width: true;
+}
+
+.settings-page-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.settings-page-scroll > .corner {
+    -fx-background-color: transparent;
+}
+
 .settings-page {
     -fx-spacing: 18;
 }

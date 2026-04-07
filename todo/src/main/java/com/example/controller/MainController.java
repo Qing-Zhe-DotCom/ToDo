@@ -62,6 +62,7 @@ import javafx.scene.control.Labeled;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ButtonType;
@@ -1255,6 +1256,7 @@ public class MainController {
 
         VBox detailPage = new VBox(18);
         detailPage.getStyleClass().add("settings-page");
+        detailPage.setFillWidth(true);
         VBox aboutCard = createSettingsCard(text("settings.about.title"), text("settings.about.subtitle"));
         Label aboutText = new Label(text("settings.about.body", displayAppVersion));
         aboutText.getStyleClass().add("settings-info-text");
@@ -1326,6 +1328,7 @@ public class MainController {
 
         VBox themePage = new VBox(18);
         themePage.getStyleClass().add("settings-page");
+        themePage.setFillWidth(true);
         VBox themeCard = createSettingsCard(text("settings.theme.title"), text("settings.theme.subtitle"));
         HBox swatchRow = new HBox(10);
         swatchRow.setAlignment(Pos.CENTER_LEFT);
@@ -1379,9 +1382,11 @@ public class MainController {
         styleCard.getChildren().add(createSettingRow(text("settings.style.option.label"), text("settings.style.option.description"), styleChipRow));
         VBox stylePage = new VBox(18);
         stylePage.getStyleClass().add("settings-page");
+        stylePage.setFillWidth(true);
         stylePage.getChildren().add(styleCard);
         VBox dataPage = new VBox(18);
         dataPage.getStyleClass().add("settings-page");
+        dataPage.setFillWidth(true);
         VBox trashCard = createSettingsCard(text("settings.data.title"), text("settings.data.subtitle"));
         Label trashSummary = new Label();
         trashSummary.getStyleClass().add("settings-row-desc");
@@ -1392,11 +1397,16 @@ public class MainController {
         trashCard.getChildren().addAll(trashSummary, trashItemsBox);
         dataPage.getChildren().add(trashCard);
 
-        Map<ToggleButton, VBox> pages = new LinkedHashMap<>();
-        pages.put(detailTab, detailPage);
-        pages.put(themeTab, themePage);
-        pages.put(styleTab, stylePage);
-        pages.put(dataTab, dataPage);
+        ScrollPane detailPageScroll = createSettingsScrollPane(detailPage);
+        ScrollPane themePageScroll = createSettingsScrollPane(themePage);
+        ScrollPane stylePageScroll = createSettingsScrollPane(stylePage);
+        ScrollPane dataPageScroll = createSettingsScrollPane(dataPage);
+
+        Map<ToggleButton, Node> pages = new LinkedHashMap<>();
+        pages.put(detailTab, detailPageScroll);
+        pages.put(themeTab, themePageScroll);
+        pages.put(styleTab, stylePageScroll);
+        pages.put(dataTab, dataPageScroll);
 
         Runnable updateNavActive = () -> {
             for (ToggleButton tab : pages.keySet()) {
@@ -1408,7 +1418,7 @@ public class MainController {
         };
 
         Runnable switchPage = () -> {
-            for (Map.Entry<ToggleButton, VBox> entry : pages.entrySet()) {
+            for (Map.Entry<ToggleButton, Node> entry : pages.entrySet()) {
                 if (entry.getKey().isSelected()) {
                     updateNavActive.run();
                     switchSettingsPage(contentHost, entry.getValue());
@@ -1464,6 +1474,18 @@ public class MainController {
         subtitleLabel.setWrapText(true);
         card.getChildren().addAll(titleLabel, subtitleLabel);
         return card;
+    }
+
+    private ScrollPane createSettingsScrollPane(VBox page) {
+        ScrollPane scrollPane = new ScrollPane(page);
+        scrollPane.getStyleClass().add("settings-page-scroll");
+        scrollPane.setFitToWidth(true);
+        scrollPane.setFitToHeight(false);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setPannable(true);
+        scrollPane.setFocusTraversable(false);
+        return scrollPane;
     }
 
     private HBox createSettingRow(String title, String description, Node control) {
