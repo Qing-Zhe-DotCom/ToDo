@@ -20,7 +20,9 @@ import com.example.application.ApplicationContext;
 import com.example.application.AppFontWeight;
 import com.example.application.AppLanguage;
 import com.example.application.ClassicThemePalette;
+import com.example.application.ExperimentalFeaturesService;
 import com.example.application.FontService;
+import com.example.application.GlassBackdropCoordinator;
 import com.example.application.LocalizationService;
 import com.example.application.MainViewModel;
 import com.example.application.NavigationService;
@@ -76,6 +78,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.geometry.Side;
+import javafx.scene.Cursor;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
@@ -116,11 +119,14 @@ public class MainController {
     private final ScheduleItemService scheduleItemService;
     private final NavigationService navigationService;
     private final ThemeService themeService;
+    private final ExperimentalFeaturesService experimentalFeaturesService;
     private final LocalizationService localizationService;
     private final FontService fontService;
 
     @FXML
-    private BorderPane root;
+    private StackPane root;
+    private BorderPane appShell;
+    private Pane macaronBackgroundLayer;
     private Scene scene;
     
     // 各个视图
@@ -172,6 +178,7 @@ public class MainController {
         this.scheduleItemService = applicationContext.getScheduleItemService();
         this.navigationService = mainViewModel.getNavigationService();
         this.themeService = mainViewModel.getThemeService();
+        this.experimentalFeaturesService = applicationContext.getExperimentalFeaturesService();
         this.localizationService = mainViewModel.getLocalizationService();
         this.fontService = mainViewModel.getFontService();
         this.availableThemeFamilies = List.copyOf(themeService.getThemeFamilies());
@@ -212,10 +219,20 @@ public class MainController {
             return;
         }
         if (root == null) {
-            root = new BorderPane();
+            root = new StackPane();
         }
         if (!root.getStyleClass().contains("root")) {
             root.getStyleClass().add("root");
+        }
+        if (appShell == null) {
+            appShell = new BorderPane();
+            appShell.getStyleClass().add("app-shell");
+        }
+        if (macaronBackgroundLayer == null) {
+            macaronBackgroundLayer = createMacaronBackgroundLayer();
+        }
+        if (root.getChildren().isEmpty()) {
+            root.getChildren().setAll(macaronBackgroundLayer, appShell);
         }
 
         // 创建左侧导航栏
@@ -233,7 +250,76 @@ public class MainController {
         
         // 默认显示日程列表视图
         showView(scheduleListView);
+        updateMacaronPresentation();
         uiInitialized = true;
+    }
+
+    private Pane createMacaronBackgroundLayer() {
+        Pane backgroundLayer = new Pane();
+        backgroundLayer.getStyleClass().add("macaron-background-layer");
+        backgroundLayer.setManaged(false);
+        backgroundLayer.setMouseTransparent(true);
+        backgroundLayer.prefWidthProperty().bind(root.widthProperty());
+        backgroundLayer.prefHeightProperty().bind(root.heightProperty());
+
+        Region wash = createMacaronBackdropRegion("macaron-background-wash");
+        wash.prefWidthProperty().bind(root.widthProperty());
+        wash.prefHeightProperty().bind(root.heightProperty());
+
+        Region blueOrb = createMacaronBackdropRegion("macaron-blob", "macaron-blob-blue");
+        blueOrb.setPrefSize(520, 360);
+        blueOrb.layoutXProperty().bind(root.widthProperty().multiply(-0.06));
+        blueOrb.layoutYProperty().bind(root.heightProperty().multiply(-0.08));
+
+        Region pinkOrb = createMacaronBackdropRegion("macaron-blob", "macaron-blob-pink");
+        pinkOrb.setPrefSize(430, 320);
+        pinkOrb.layoutXProperty().bind(root.widthProperty().multiply(0.56));
+        pinkOrb.layoutYProperty().bind(root.heightProperty().multiply(0.05));
+
+        Region mintOrb = createMacaronBackdropRegion("macaron-blob", "macaron-blob-mint");
+        mintOrb.setPrefSize(360, 280);
+        mintOrb.layoutXProperty().bind(root.widthProperty().multiply(0.18));
+        mintOrb.layoutYProperty().bind(root.heightProperty().multiply(0.52));
+
+        Region purpleOrb = createMacaronBackdropRegion("macaron-blob", "macaron-blob-purple");
+        purpleOrb.setPrefSize(300, 240);
+        purpleOrb.layoutXProperty().bind(root.widthProperty().multiply(0.72));
+        purpleOrb.layoutYProperty().bind(root.heightProperty().multiply(0.48));
+
+        Region creamOrb = createMacaronBackdropRegion("macaron-blob", "macaron-blob-cream");
+        creamOrb.setPrefSize(260, 220);
+        creamOrb.layoutXProperty().bind(root.widthProperty().multiply(0.42));
+        creamOrb.layoutYProperty().bind(root.heightProperty().multiply(-0.04));
+
+        Region ribbonLeft = createMacaronBackdropRegion("macaron-ribbon", "macaron-ribbon-left");
+        ribbonLeft.setPrefSize(760, 220);
+        ribbonLeft.layoutXProperty().bind(root.widthProperty().multiply(-0.18));
+        ribbonLeft.layoutYProperty().bind(root.heightProperty().multiply(0.34));
+
+        Region ribbonRight = createMacaronBackdropRegion("macaron-ribbon", "macaron-ribbon-right");
+        ribbonRight.setPrefSize(620, 200);
+        ribbonRight.layoutXProperty().bind(root.widthProperty().multiply(0.44));
+        ribbonRight.layoutYProperty().bind(root.heightProperty().multiply(0.68));
+
+        backgroundLayer.getChildren().addAll(
+            wash,
+            blueOrb,
+            pinkOrb,
+            mintOrb,
+            purpleOrb,
+            creamOrb,
+            ribbonLeft,
+            ribbonRight
+        );
+        return backgroundLayer;
+    }
+
+    private Region createMacaronBackdropRegion(String... styleClasses) {
+        Region region = new Region();
+        region.setManaged(false);
+        region.setMouseTransparent(true);
+        region.getStyleClass().addAll(styleClasses);
+        return region;
     }
 
     private void createSidebar() {
@@ -331,7 +417,7 @@ public class MainController {
         );
 
         updateSidebarCollapseState();
-        root.setLeft(sidebar);
+        appShell.setLeft(sidebar);
     }
 
     private ToggleButton createNavButton(String iconPath, String text, ToggleGroup group) {
@@ -725,14 +811,15 @@ public class MainController {
     private void createInfoPanel() {
         infoPanelView = new InfoPanelView(this);
         infoPanelView.hideImmediately();
-        root.setRight(infoPanelView.getView());
+        appShell.setRight(infoPanelView.getView());
     }
     
     private void showView(View view) {
         currentView = view;
         navigationService.setCurrentScreen(resolveScreen(view));
-        root.setCenter(view.getView());
+        appShell.setCenter(view.getView());
         view.refresh();
+        requestGlassRefresh();
     }
     
     public void showScheduleDetails(Schedule schedule) {
@@ -755,6 +842,7 @@ public class MainController {
         navigationService.setSelectedSchedule(detailsSchedule);
         infoPanelView.setSchedule(detailsSchedule);
         infoPanelView.showWithAnimation();
+        requestGlassRefresh();
     }
 
     public void showScheduleDetailsAndFocusTitle(Schedule schedule) {
@@ -764,6 +852,7 @@ public class MainController {
 
     public void closeScheduleDetails() {
         infoPanelView.hideWithAnimation();
+        requestGlassRefresh();
     }
 
     public boolean isScheduleSelected(Schedule schedule) {
@@ -819,6 +908,7 @@ public class MainController {
         }
         infoPanelView.refresh();
         updatePendingCountBadge();
+        requestGlassRefresh();
     }
 
     public void refreshCurrentViewAndPendingCount() {
@@ -826,6 +916,7 @@ public class MainController {
             currentView.refresh();
         }
         updatePendingCountBadge();
+        requestGlassRefresh();
     }
 
     public void refreshDataViews() {
@@ -842,6 +933,7 @@ public class MainController {
             currentView.refresh();
         }
         updatePendingCountBadge();
+        requestGlassRefresh();
     }
 
     public String createSchedule(Schedule schedule) throws SQLException {
@@ -1025,6 +1117,7 @@ public class MainController {
         scene.getStylesheets().addAll(stylesheets);
         refreshAllViews();
         updateThemeIconState();
+        updateMacaronPresentation();
     }
 
     private void previewThemeSelection(
@@ -1048,13 +1141,14 @@ public class MainController {
         if (dialogPane != null) {
             dialogPane.getStylesheets().setAll(stylesheets);
             fontService.applyTo(dialogPane, localizationService.getActiveLanguage());
+            updateDialogGlass(dialogPane);
         }
     }
 
     private void showThemeMenu(Button anchor) {
         ContextMenu menu = new ContextMenu();
 
-        for (ThemeFamily family : availableThemeFamilies) {
+        for (ThemeFamily family : getSelectableThemeFamilies()) {
             String prefix = family == currentThemeFamily ? text("common.selected.prefix") : "";
             MenuItem item = new MenuItem(prefix + text("theme.menu.use", themeFamilyDisplayName(family)));
             item.setOnAction(e -> switchTheme(family));
@@ -1065,12 +1159,13 @@ public class MainController {
     }
 
     private void togglePrimaryTheme() {
-        int currentIndex = availableThemeFamilies.indexOf(currentThemeFamily);
-        int nextIndex = (currentIndex + 1) % availableThemeFamilies.size();
+        List<ThemeFamily> selectableThemeFamilies = getSelectableThemeFamilies();
+        int currentIndex = selectableThemeFamilies.indexOf(currentThemeFamily);
+        int nextIndex = (currentIndex + 1) % selectableThemeFamilies.size();
         if (currentIndex < 0) {
             nextIndex = 0;
         }
-        switchTheme(availableThemeFamilies.get(nextIndex));
+        switchTheme(selectableThemeFamilies.get(nextIndex));
     }
 
     private void loadThemePreference() {
@@ -1088,6 +1183,70 @@ public class MainController {
         }
         syncThemeState();
         applyThemeStylesheets(getCurrentThemeStylesheets());
+    }
+
+    private void updateMacaronPresentation() {
+        boolean macaronActive = currentThemeFamily == ThemeFamily.MACARON;
+        if (macaronBackgroundLayer != null) {
+            macaronBackgroundLayer.setVisible(macaronActive);
+            macaronBackgroundLayer.setOpacity(macaronActive ? 1.0 : 0.0);
+        }
+        updateSceneGlass(scene);
+    }
+
+    private List<ThemeFamily> getSelectableThemeFamilies() {
+        return filterThemeFamilies(availableThemeFamilies, experimentalFeaturesService.isLabsEnabled());
+    }
+
+    static List<ThemeFamily> filterThemeFamilies(List<ThemeFamily> families, boolean labsEnabled) {
+        List<ThemeFamily> filtered = new ArrayList<>();
+        for (ThemeFamily family : families) {
+            if (labsEnabled || family != ThemeFamily.MACARON) {
+                filtered.add(family);
+            }
+        }
+        return filtered;
+    }
+
+    private void updateSceneGlass(Scene targetScene) {
+        if (targetScene == null) {
+            return;
+        }
+        GlassBackdropCoordinator coordinator = GlassBackdropCoordinator.install(targetScene);
+        coordinator.setActive(currentThemeFamily == ThemeFamily.MACARON);
+        if (currentThemeFamily == ThemeFamily.MACARON) {
+            coordinator.requestBurstRefresh(Duration.millis(420));
+        }
+    }
+
+    private void requestGlassRefresh() {
+        requestGlassRefresh(scene);
+    }
+
+    private void requestGlassRefresh(Scene targetScene) {
+        if (targetScene == null || currentThemeFamily != ThemeFamily.MACARON) {
+            return;
+        }
+        GlassBackdropCoordinator.install(targetScene).requestBurstRefresh(Duration.millis(260));
+    }
+
+    private void updateDialogGlass(DialogPane pane) {
+        if (pane == null) {
+            return;
+        }
+        Object marker = pane.getProperties().putIfAbsent("todo.macaron.glass.bound", Boolean.TRUE);
+        if (marker != null) {
+            updateSceneGlass(pane.getScene());
+            return;
+        }
+        pane.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                updateSceneGlass(newScene);
+            }
+        });
+        if (pane.getScene() != null) {
+            updateSceneGlass(pane.getScene());
+        }
     }
 
     private void updateThemeIconState() {
@@ -1152,11 +1311,15 @@ public class MainController {
         dialog.getDialogPane().getStyleClass().add("settings-dialog-pane");
         applyDialogPreferences(dialog.getDialogPane());
         dialog.getDialogPane().setPrefWidth(940);
-        dialog.getDialogPane().setPrefHeight(600);
+        dialog.getDialogPane().setPrefHeight(720);
+        dialog.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
 
         BorderPane shell = new BorderPane();
         shell.getStyleClass().add("settings-shell");
-        shell.setPrefSize(940, 600);
+        shell.setPrefWidth(940);
+        shell.setPrefHeight(640);
+        shell.setMinHeight(640);
+        shell.setMaxHeight(640);
 
         VBox navBar = new VBox(8);
         navBar.getStyleClass().addAll("sidebar", "settings-nav");
@@ -1189,16 +1352,21 @@ public class MainController {
 
         StackPane contentHost = new StackPane();
         contentHost.getStyleClass().add("settings-content-host");
+        contentHost.setMinHeight(0);
+        contentHost.setPrefHeight(0);
+        contentHost.setMaxHeight(Double.MAX_VALUE);
 
         String appVersion = applicationContext.getAppProperties().getAppVersion();
         String displayAppVersion = "v" + appVersion;
         ThemeFamily originalThemeFamily = currentThemeFamily;
         ThemeAppearance originalThemeAppearance = currentThemeAppearance;
         ClassicThemePalette originalClassicPalette = currentClassicPalette;
+        boolean originalLabsEnabled = experimentalFeaturesService.isLabsEnabled();
 
         VBox generalPage = new VBox(18);
         generalPage.getStyleClass().add("settings-page");
         generalPage.setFillWidth(true);
+        generalPage.setMinHeight(0);
         VBox aboutCard = createSettingsCard(text("settings.about.title"), text("settings.about.subtitle"));
         Label aboutText = new Label(text("settings.about.body", displayAppVersion));
         aboutText.getStyleClass().add("settings-info-text");
@@ -1222,6 +1390,7 @@ public class MainController {
         AppFontWeight originalFontWeight = fontService.getCurrentFontWeight();
         AppLanguage[] selectedLanguage = new AppLanguage[] { originalPreferredLanguage };
         AppFontWeight[] selectedFontWeight = new AppFontWeight[] { originalFontWeight };
+        boolean[] selectedLabsEnabled = new boolean[] { originalLabsEnabled };
 
         VBox languageFontCard = createSettingsCard(text("settings.preferences.title"), text("settings.preferences.subtitle"));
         ComboBox<AppLanguage> languageComboBox = new ComboBox<>();
@@ -1270,11 +1439,27 @@ public class MainController {
             createSettingRow(text("settings.preferences.language.label"), text("settings.preferences.language.description"), languageComboBox),
             createSettingRow(text("settings.preferences.font.label"), text("settings.preferences.font.description"), fontChipRow)
         );
-        generalPage.getChildren().addAll(aboutCard, currentCard, languageFontCard);
+        VBox labsCard = createSettingsCard(text("settings.labs.title"), text("settings.labs.subtitle"));
+        ToggleButton labsToggle = new ToggleButton();
+        labsToggle.getStyleClass().add("modern-toggle-switch");
+        labsToggle.setCursor(Cursor.HAND);
+        labsToggle.setSelected(originalLabsEnabled);
+        if (originalLabsEnabled) {
+            labsToggle.getStyleClass().add("on");
+        }
+        Label labsFootnote = new Label(text("settings.labs.note"));
+        labsFootnote.getStyleClass().add("settings-row-desc");
+        labsFootnote.setWrapText(true);
+        labsCard.getChildren().addAll(
+            createSettingRow(text("settings.labs.toggle.label"), text("settings.labs.toggle.description"), labsToggle),
+            labsFootnote
+        );
+        generalPage.getChildren().addAll(aboutCard, currentCard, languageFontCard, labsCard);
 
         VBox personalizationPage = new VBox(18);
         personalizationPage.getStyleClass().add("settings-page");
         personalizationPage.setFillWidth(true);
+        personalizationPage.setMinHeight(0);
         VBox themeCard = createSettingsCard(text("settings.theme.title"), text("settings.theme.subtitle"));
         ToggleGroup themeFamilyGroup = new ToggleGroup();
         FlowPane familyChipFlow = new FlowPane();
@@ -1283,6 +1468,7 @@ public class MainController {
         familyChipFlow.setVgap(10);
         familyChipFlow.setAlignment(Pos.CENTER_LEFT);
         familyChipFlow.setMaxWidth(Double.MAX_VALUE);
+        Map<ThemeFamily, ToggleButton> familyChips = new LinkedHashMap<>();
         for (ThemeFamily family : availableThemeFamilies) {
             ToggleButton familyChip = new ToggleButton(themeFamilyDisplayName(family));
             familyChip.getStyleClass().add("settings-style-chip");
@@ -1293,6 +1479,7 @@ public class MainController {
             if (family == selectedThemeFamily[0]) {
                 familyChip.setSelected(true);
             }
+            familyChips.put(family, familyChip);
             familyChipFlow.getChildren().add(familyChip);
         }
 
@@ -1327,6 +1514,13 @@ public class MainController {
             paletteRow.setManaged(visible);
             paletteRow.setVisible(visible);
         };
+        Runnable updateLabsThemeVisibility = () -> {
+            for (Map.Entry<ThemeFamily, ToggleButton> entry : familyChips.entrySet()) {
+                boolean visible = selectedLabsEnabled[0] || entry.getKey() != ThemeFamily.MACARON;
+                entry.getValue().setManaged(visible);
+                entry.getValue().setVisible(visible);
+            }
+        };
         Runnable previewTheme = () -> {
             previewThemeSelection(selectedThemeFamily[0], ThemeAppearance.LIGHT, selectedClassicPalette[0], dialog.getDialogPane());
             updateThemeSummary.run();
@@ -1354,6 +1548,43 @@ public class MainController {
             }
         }
 
+        labsToggle.selectedProperty().addListener((obs, oldValue, newValue) -> {
+            boolean labsEnabled = Boolean.TRUE.equals(newValue);
+            selectedLabsEnabled[0] = labsEnabled;
+            if (labsEnabled) {
+                labsToggle.getStyleClass().add("on");
+            } else {
+                labsToggle.getStyleClass().remove("on");
+            }
+
+            if (!labsEnabled && selectedThemeFamily[0] == ThemeFamily.MACARON) {
+                selectedThemeFamily[0] = ThemeFamily.CLASSIC;
+                selectedClassicPalette[0] = ClassicThemePalette.LIGHT;
+                ToggleButton classicChip = familyChips.get(ThemeFamily.CLASSIC);
+                if (classicChip != null) {
+                    classicChip.setSelected(true);
+                }
+                for (Node node : paletteFlow.getChildren()) {
+                    if (node instanceof ToggleButton swatch
+                        && swatch.getUserData() == ClassicThemePalette.LIGHT) {
+                        swatch.setSelected(true);
+                        break;
+                    }
+                }
+                updateLabsThemeVisibility.run();
+                previewTheme.run();
+                showInfo(
+                    text("settings.labs.disabled.title"),
+                    text("settings.labs.disabled.message")
+                );
+                return;
+            }
+
+            updateLabsThemeVisibility.run();
+            updateThemeSummary.run();
+        });
+
+        updateLabsThemeVisibility.run();
         updatePaletteVisibility.run();
         themeCard.getChildren().addAll(
             createStackedSettingRow(text("settings.theme.family.label"), text("settings.theme.family.description"), familyChipFlow),
@@ -1363,6 +1594,7 @@ public class MainController {
         VBox dataPage = new VBox(18);
         dataPage.getStyleClass().add("settings-page");
         dataPage.setFillWidth(true);
+        dataPage.setMinHeight(0);
         VBox trashCard = createSettingsCard(text("settings.data.title"), text("settings.data.subtitle"));
         Label trashSummary = new Label();
         trashSummary.getStyleClass().add("settings-row-desc");
@@ -1412,6 +1644,34 @@ public class MainController {
         shell.setLeft(navBar);
         shell.setCenter(contentHost);
         dialog.getDialogPane().setContent(shell);
+        Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveButtonType);
+        Button cancelButton = (Button) dialog.getDialogPane().lookupButton(cancelButtonType);
+        if (saveButton != null) {
+            saveButton.getStyleClass().add("primary-save-button");
+            saveButton.setDefaultButton(true);
+            saveButton.setCursor(Cursor.HAND);
+        }
+        if (cancelButton != null) {
+            cancelButton.getStyleClass().add("ghost-cancel-button");
+            cancelButton.setCancelButton(true);
+            cancelButton.setCursor(Cursor.HAND);
+        }
+        dialog.setOnShown(event -> {
+            Node buttonBar = dialog.getDialogPane().lookup(".button-bar");
+            if (buttonBar != null) {
+                buttonBar.toFront();
+                buttonBar.setMouseTransparent(false);
+            }
+            if (saveButton != null) {
+                saveButton.toFront();
+                saveButton.setMouseTransparent(false);
+            }
+            if (cancelButton != null) {
+                cancelButton.toFront();
+                cancelButton.setMouseTransparent(false);
+            }
+            requestGlassRefresh(dialog.getDialogPane().getScene());
+        });
 
         Optional<ButtonType> result = dialog.showAndWait();
         if (result.isEmpty() || result.get() != saveButtonType) {
@@ -1421,6 +1681,9 @@ public class MainController {
             return;
         }
 
+        if (selectedLabsEnabled[0] != originalLabsEnabled) {
+            experimentalFeaturesService.setLabsEnabled(selectedLabsEnabled[0]);
+        }
         if (selectedThemeFamily[0] != originalThemeFamily || selectedClassicPalette[0] != originalClassicPalette) {
             saveThemePreference();
         }
@@ -1454,6 +1717,8 @@ public class MainController {
         scrollPane.getStyleClass().add("settings-page-scroll");
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(false);
+        scrollPane.setMinHeight(0);
+        scrollPane.setMaxHeight(Double.MAX_VALUE);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         scrollPane.setPannable(true);
@@ -1668,6 +1933,7 @@ public class MainController {
         }
         pane.getStylesheets().setAll(getCurrentThemeStylesheets());
         fontService.applyTo(pane, localizationService.getActiveLanguage());
+        updateDialogGlass(pane);
     }
 
     private void applyCurrentFont() {
@@ -1696,6 +1962,7 @@ public class MainController {
             moveIn.setFromX(8);
             moveIn.setToX(0);
             new ParallelTransition(fadeIn, moveIn).play();
+            requestGlassRefresh(host.getScene());
             return;
         }
         Node current = host.getChildren().get(0);
@@ -1719,9 +1986,12 @@ public class MainController {
             TranslateTransition moveIn = new TranslateTransition(Duration.millis(180), page);
             moveIn.setFromX(8);
             moveIn.setToX(0);
-            new ParallelTransition(fadeIn, moveIn).play();
+            ParallelTransition in = new ParallelTransition(fadeIn, moveIn);
+            in.setOnFinished(event -> requestGlassRefresh(host.getScene()));
+            in.play();
         });
         out.play();
+        requestGlassRefresh(host.getScene());
     }
 
     public void showError(String title, String message) {
@@ -1742,7 +2012,7 @@ public class MainController {
         alert.showAndWait();
     }
     
-    public BorderPane getRoot() {
+    public StackPane getRoot() {
         return root;
     }
 
@@ -1771,6 +2041,7 @@ public class MainController {
         this.scene = scene;
         applySavedThemeIfNeeded();
         applyCurrentFont();
+        updateMacaronPresentation();
         setupGlobalInfoPanelInteractions();
     }
 

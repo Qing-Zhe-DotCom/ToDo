@@ -92,6 +92,7 @@ class ThemeCssTest {
         String classic = readCss("/styles/theme-classic-light.css");
         String fresh = readCss("/styles/theme-fresh-light.css");
         String cozy = readCss("/styles/theme-cozy-light.css");
+        String macaron = readCss("/styles/theme-macaron-light.css");
         String modernMinimal = readCss("/styles/theme-modern-minimal-light.css");
         String neoBrutalism = readCss("/styles/theme-neo-brutalism-light.css");
         String materialYou = readCss("/styles/theme-material-you-light.css");
@@ -104,6 +105,7 @@ class ThemeCssTest {
             () -> assertTrue(classic.contains(".settings-card")),
             () -> assertTrue(fresh.contains(".settings-card")),
             () -> assertTrue(cozy.contains(".settings-card")),
+            () -> assertTrue(macaron.contains(".settings-card")),
             () -> assertTrue(modernMinimal.contains(".settings-card")),
             () -> assertTrue(neoBrutalism.contains(".settings-card")),
             () -> assertTrue(materialYou.contains(".settings-card")),
@@ -116,6 +118,7 @@ class ThemeCssTest {
         String classic = readCss("/styles/theme-classic-light.css");
         String fresh = readCss("/styles/theme-fresh-light.css");
         String cozy = readCss("/styles/theme-cozy-light.css");
+        String macaron = readCss("/styles/theme-macaron-light.css");
         String modernMinimal = readCss("/styles/theme-modern-minimal-light.css");
         String neoBrutalism = readCss("/styles/theme-neo-brutalism-light.css");
         String materialYou = readCss("/styles/theme-material-you-light.css");
@@ -125,6 +128,7 @@ class ThemeCssTest {
             () -> assertThemeFamilyFileThemesWholeShell(classic),
             () -> assertThemeFamilyFileThemesWholeShell(fresh),
             () -> assertThemeFamilyFileThemesWholeShell(cozy),
+            () -> assertThemeFamilyFileThemesWholeShell(macaron),
             () -> assertThemeFamilyFileThemesWholeShell(modernMinimal),
             () -> assertThemeFamilyFileThemesWholeShell(neoBrutalism),
             () -> assertThemeFamilyFileThemesWholeShell(materialYou),

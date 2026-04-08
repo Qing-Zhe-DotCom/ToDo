@@ -118,8 +118,11 @@ class LocalizationServiceTest {
         assertEquals("Personalization", english.text("settings.tab.personalization"));
 
         assertEquals("\u7ecf\u5178", simplified.themeFamilyLabel(ThemeFamily.CLASSIC));
+        assertEquals("\u9a6c\u5361\u9f99\u73bb\u7483\u98ce", simplified.themeFamilyLabel(ThemeFamily.MACARON));
         assertEquals("\u73fe\u4ee3\u9ad8\u7d1a\u6975\u7c21\u98a8", traditional.themeFamilyLabel(ThemeFamily.MODERN_MINIMAL));
+        assertEquals("\u99ac\u5361\u9f8d\u73bb\u7483\u98a8", traditional.themeFamilyLabel(ThemeFamily.MACARON));
         assertEquals("Material You", english.themeFamilyLabel(ThemeFamily.MATERIAL_YOU));
+        assertEquals("Macaron Glass", english.themeFamilyLabel(ThemeFamily.MACARON));
     }
 
     private LocalizationService serviceFor(AppLanguage language) {

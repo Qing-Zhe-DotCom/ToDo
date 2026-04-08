@@ -45,12 +45,17 @@ class ThemeServiceTest {
             ThemeService.LEGACY_PREF_THEME_KEY, "imported",
             ThemeService.LEGACY_PREF_SCHEDULE_CARD_STYLE_KEY, "classic"
         ));
+        ThemeService macaron = serviceFor(Map.of(
+            ThemeService.LEGACY_PREF_THEME_KEY, "macaron",
+            ThemeService.LEGACY_PREF_SCHEDULE_CARD_STYLE_KEY, "classic"
+        ));
         ThemeService invalid = serviceFor(Map.of(
             ThemeService.LEGACY_PREF_THEME_KEY, "not-a-theme",
             ThemeService.LEGACY_PREF_SCHEDULE_CARD_STYLE_KEY, "classic"
         ));
 
         assertEquals(ClassicThemePalette.LIGHT, imported.getCurrentClassicPalette());
+        assertEquals(ClassicThemePalette.LIGHT, macaron.getCurrentClassicPalette());
         assertEquals(ClassicThemePalette.LIGHT, invalid.getCurrentClassicPalette());
     }
 
@@ -65,6 +70,27 @@ class ThemeServiceTest {
         assertEquals(ThemeFamily.CLASSIC, service.getCurrentThemeFamily());
         assertEquals(ThemeAppearance.LIGHT, service.getCurrentAppearance());
         assertEquals(ClassicThemePalette.LIGHT, service.getCurrentClassicPalette());
+    }
+
+    @Test
+    void macaronPreferenceFallsBackToClassicWhenLabsAreDisabled() {
+        ThemeService service = serviceFor(
+            Map.of(ThemeService.PREF_THEME_FAMILY_KEY, "macaron"),
+            false
+        );
+
+        assertEquals(ThemeFamily.CLASSIC, service.getCurrentThemeFamily());
+        assertEquals(ClassicThemePalette.LIGHT, service.getCurrentClassicPalette());
+    }
+
+    @Test
+    void macaronPreferenceIsKeptWhenLabsAreEnabled() {
+        ThemeService service = serviceFor(
+            Map.of(ThemeService.PREF_THEME_FAMILY_KEY, "macaron"),
+            true
+        );
+
+        assertEquals(ThemeFamily.MACARON, service.getCurrentThemeFamily());
     }
 
     @Test
@@ -87,12 +113,33 @@ class ThemeServiceTest {
         List<String> freshStylesheets = fresh.resolveStylesheets(getClass());
         assertContains(freshStylesheets, "theme-fresh-light.css");
         assertTrue(freshStylesheets.stream().noneMatch(path -> path.contains("mint-theme.css")));
+
+        ThemeService macaron = serviceFor(
+            Map.of(
+                ThemeService.PREF_THEME_FAMILY_KEY, "macaron",
+                ThemeService.PREF_THEME_APPEARANCE_KEY, "dark",
+                ThemeService.PREF_THEME_CLASSIC_PALETTE_KEY, "sunset"
+            ),
+            true
+        );
+
+        List<String> macaronStylesheets = macaron.resolveStylesheets(getClass());
+        assertContains(macaronStylesheets, "theme-macaron-light.css");
+        assertTrue(macaronStylesheets.stream().noneMatch(path -> path.contains("sunset-theme.css")));
     }
 
     private ThemeService serviceFor(Map<String, String> preferences) {
+        return serviceFor(preferences, false);
+    }
+
+    private ThemeService serviceFor(Map<String, String> preferences, boolean labsEnabled) {
+        MapPreferencesStore store = new MapPreferencesStore(preferences);
+        ExperimentalFeaturesService experimentalFeaturesService = new ExperimentalFeaturesService(store);
+        experimentalFeaturesService.setLabsEnabled(labsEnabled);
         return new ThemeService(
-            new MapPreferencesStore(preferences),
-            new AppProperties("test", "classic", "light", "light", null, null)
+            store,
+            new AppProperties("test", "classic", "light", "light", null, null),
+            experimentalFeaturesService
         );
     }
 
