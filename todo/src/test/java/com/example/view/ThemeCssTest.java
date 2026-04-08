@@ -133,6 +133,42 @@ class ThemeCssTest {
     }
 
     @Test
+    void baseCssUsesBorderlessInputsAndDialogFields() throws IOException {
+        String baseContent = readCss("/styles/base.css");
+        String searchFieldBlock = extractCssBlock(baseContent, ".search-field");
+        String textFieldBlock = extractCssBlock(baseContent, ".text-field, .text-area, .password-field");
+        String comboBoxBlock = extractCssBlock(baseContent, ".combo-box");
+        String timelineRangePillBlock = extractCssBlock(baseContent, ".timeline-range-pill");
+        String modernInputBlock = extractCssBlock(baseContent, ".modern-input");
+        String infoPanelInlineEditorBlock = extractCssBlock(baseContent, ".info-panel-inline-editor");
+        String infoPanelInlineEditorActiveBlock = extractCssBlock(baseContent, ".info-panel-inline-editor-active");
+        String heroTitleFocusBlock = extractCssBlock(baseContent, ".hero-title-input:focused");
+        String quickAddInputBlock = extractCssBlock(baseContent, ".quick-add-input");
+        String errorBorderBlock = extractCssBlock(baseContent, ".error-border");
+        String scheduleDialogFieldBlock = extractBlockByAnchor(baseContent, ".schedule-dialog-pane .combo-box,");
+
+        assertAll("base.css borderless input and dialog fields",
+            () -> assertTrue(searchFieldBlock != null && searchFieldBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(searchFieldBlock != null && searchFieldBlock.contains("-fx-border-width: 0")),
+            () -> assertTrue(textFieldBlock != null && textFieldBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(textFieldBlock != null && textFieldBlock.contains("-fx-border-width: 0")),
+            () -> assertTrue(comboBoxBlock != null && comboBoxBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(comboBoxBlock != null && comboBoxBlock.contains("-fx-border-width: 0")),
+            () -> assertTrue(timelineRangePillBlock != null && timelineRangePillBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(timelineRangePillBlock != null && timelineRangePillBlock.contains("-fx-border-width: 0")),
+            () -> assertTrue(modernInputBlock != null && modernInputBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(modernInputBlock != null && modernInputBlock.contains("-fx-border-width: 0")),
+            () -> assertTrue(infoPanelInlineEditorBlock != null && infoPanelInlineEditorBlock.contains("-fx-border-width: 0")),
+            () -> assertTrue(infoPanelInlineEditorActiveBlock != null && infoPanelInlineEditorActiveBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(heroTitleFocusBlock != null && heroTitleFocusBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(quickAddInputBlock != null && quickAddInputBlock.contains("-fx-border-width: 0")),
+            () -> assertTrue(scheduleDialogFieldBlock != null && scheduleDialogFieldBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(scheduleDialogFieldBlock != null && scheduleDialogFieldBlock.contains("-fx-border-width: 0")),
+            () -> assertTrue(errorBorderBlock != null && errorBorderBlock.contains("-fx-border-width: 1.5"))
+        );
+    }
+
+    @Test
     void baseCssContainsSharedScheduleCardStyleSelectors() throws IOException {
         String baseContent = readCss("/styles/base.css");
 
@@ -270,6 +306,18 @@ class ThemeCssTest {
 
     private String extractCssBlock(String content, String selector) {
         int start = content.indexOf(selector + " {");
+        if (start < 0) {
+            return null;
+        }
+        int end = content.indexOf("}", start);
+        if (end < 0) {
+            return null;
+        }
+        return content.substring(start, end + 1);
+    }
+
+    private String extractBlockByAnchor(String content, String anchor) {
+        int start = content.indexOf(anchor);
         if (start < 0) {
             return null;
         }

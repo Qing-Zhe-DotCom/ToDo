@@ -985,15 +985,15 @@
 .button-secondary {
     -fx-background-color: -color-bg-panel;
     -fx-text-fill: -color-text-main;
-    -fx-border-color: -color-border;
-    -fx-border-width: 1;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
-    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 2, 0, 0, 1);
+    -fx-effect: none;
 }
 .button-secondary:hover {
     -fx-background-color: -color-bg-hover;
-    -fx-border-color: -color-border-dark;
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 6, 0.08, 0, 1);
 }
 
 .button-success {
@@ -1126,15 +1126,15 @@
     -fx-pref-height: 42px;
     -fx-background-radius: 14;
     -fx-border-radius: 14;
-    -fx-border-color: derive(-color-primary, 35%);
-    -fx-border-width: 1;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
     -fx-background-insets: 0;
     -fx-prompt-text-fill: -color-text-hint;
 }
 
 .quick-add-input:focused {
-    -fx-background-color: -color-bg-panel;
-    -fx-border-color: -color-primary;
+    -fx-background-color: derive(-color-bg-hover, 6%);
+    -fx-border-color: transparent;
     -fx-effect: dropshadow(gaussian, -color-primary-glow, 10, 0.12, 0, 0);
 }
 
@@ -1173,30 +1173,34 @@
 /* 文本输入框 */
 .text-field, .text-area, .password-field {
     -fx-background-color: -color-bg-panel;
-    -fx-border-color: -color-border;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
     -fx-padding: 8 12;
     -fx-font-size: 13px;
-    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 2, 0, 0, 1);
+    -fx-effect: none;
 }
 .text-field:focused, .text-area:focused, .password-field:focused {
-    -fx-border-color: -color-primary;
-    -fx-effect: dropshadow(gaussian, -color-primary-glow, 6, 0.18, 0, 0);
+    -fx-background-color: derive(-color-bg-hover, 5%);
+    -fx-border-color: transparent;
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 8, 0.14, 0, 0);
 }
 
 /* 下拉框 */
 .combo-box {
     -fx-background-color: -color-bg-panel;
-    -fx-border-color: -color-border;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
     -fx-padding: 4 8;
-    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 2, 0, 0, 1);
+    -fx-effect: none;
 }
 .combo-box:focused {
-    -fx-border-color: -color-primary;
-    -fx-effect: dropshadow(gaussian, -color-primary-glow, 6, 0.18, 0, 0);
+    -fx-border-color: transparent;
+    -fx-background-color: derive(-color-bg-hover, 5%);
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 8, 0.14, 0, 0);
 }
 .combo-box .list-cell {
     -fx-background-color: transparent;
@@ -1205,7 +1209,8 @@
 }
 .combo-box-popup .list-view {
     -fx-background-color: -color-bg-panel;
-    -fx-border-color: -color-border;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
     -fx-effect: dropshadow(gaussian, -color-shadow-medium, 8, 0, 0, 4);
@@ -1218,7 +1223,8 @@
 /* 日期选择器下拉面板样式深度定制 (Clean & Borderless Calendar) */
 .date-picker-popup {
     -fx-background-color: -color-bg-panel;
-    -fx-border-color: -color-border;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
     -fx-border-radius: 12;
     -fx-background-radius: 12;
     -fx-effect: dropshadow(gaussian, -color-shadow-medium, 15, 0, 0, 5);
@@ -1447,7 +1453,9 @@
 
     -fx-background-color: -color-bg-panel;
 
-    -fx-border-color: -color-border;
+    -fx-border-color: transparent;
+
+    -fx-border-width: 0;
 
     -fx-border-radius: 20;
 
@@ -1461,7 +1469,11 @@
 
 .search-field:focused {
 
-    -fx-border-color: -color-primary;
+    -fx-border-color: transparent;
+
+    -fx-background-color: derive(-color-bg-hover, 6%);
+
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 8, 0.12, 0, 0);
 
 }
 
@@ -1529,9 +1541,9 @@
 
     -fx-background-radius: 999;
 
-    -fx-border-color: -color-border;
+    -fx-border-color: transparent;
 
-    -fx-border-width: 1;
+    -fx-border-width: 0;
 
     -fx-border-radius: 999;
 
@@ -1543,7 +1555,9 @@
 
 .timeline-range-pill:hover {
 
-    -fx-border-color: -color-border-dark;
+    -fx-background-color: derive(-color-bg-hover, 3%);
+
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 12, 0.08, 0, 2);
 
 }
 
@@ -1735,9 +1749,9 @@
 
     -fx-background-color: -color-bg-panel;
 
-    -fx-border-color: -color-border;
+    -fx-border-color: transparent;
 
-    -fx-border-width: 1;
+    -fx-border-width: 0;
 
     -fx-border-radius: 6;
 
@@ -2366,7 +2380,9 @@
 
     -fx-text-fill: -color-text-main;
 
-    -fx-border-color: -color-border;
+    -fx-border-color: transparent;
+
+    -fx-border-width: 0;
 
 }
 
@@ -2813,13 +2829,13 @@
     -fx-background-color: transparent;
 }
 .schedule-dialog-root {
-    -fx-background-color: -color-bg-panel;
+    -fx-background-color: transparent;
 }
 .schedule-dialog-pane .scroll-pane {
     -fx-background-color: transparent;
     -fx-background-radius: 12;
     -fx-border-radius: 12;
-    -fx-background: -color-bg-panel;
+    -fx-background: transparent;
 }
 .schedule-dialog-pane .scroll-pane > .viewport {
     -fx-background-color: transparent;
@@ -2829,19 +2845,24 @@
     -fx-font-size: 26px;
     -fx-font-weight: bold;
     -fx-background-color: transparent;
-    -fx-border-color: transparent transparent transparent transparent;
+    -fx-border-color: transparent;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
     -fx-padding: 5 0 10 0;
     -fx-text-fill: -color-text-main;
 }
 .hero-title-input:focused {
-    -fx-border-color: transparent transparent -color-border transparent;
-    -fx-border-width: 0 0 1 0;
+    -fx-background-color: derive(-color-bg-hover, 5%);
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 8, 0.10, 0, 0);
 }
 
 .hero-desc-input {
     -fx-font-size: 14px;
     -fx-background-color: -color-bg-hover;
     -fx-border-color: transparent;
+    -fx-border-width: 0;
     -fx-background-radius: 8;
     -fx-padding: 12;
     -fx-text-fill: -color-text-main;
@@ -2852,6 +2873,7 @@
 .hero-desc-input:focused {
     -fx-border-color: transparent;
     -fx-background-color: -color-bg-active;
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 8, 0.10, 0, 0);
 }
 
 .field-label {
@@ -2860,21 +2882,25 @@
 }
 
 .modern-input {
-    -fx-background-color: transparent;
-    -fx-border-color: -color-border;
+    -fx-background-color: -color-bg-hover;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
     -fx-padding: 8 12;
     -fx-text-fill: -color-text-main;
 }
 .modern-input:focused {
-    -fx-border-color: -color-primary;
+    -fx-background-color: derive(-color-bg-active, 2%);
+    -fx-border-color: transparent;
     -fx-border-radius: 8;
-    -fx-effect: dropshadow(gaussian, -color-primary-glow, 4, 0, 0, 0);
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 8, 0.12, 0, 0);
 }
 
 .error-border {
     -fx-border-color: -color-danger !important;
+    -fx-border-width: 1.5 !important;
+    -fx-effect: dropshadow(gaussian, -color-danger-soft, 8, 0.14, 0, 0);
 }
 
 .error-label {
@@ -3165,8 +3191,8 @@
 
 .info-panel-time-trigger {
     -fx-background-color: -color-bg-hover;
-    -fx-border-color: -color-border;
-    -fx-border-width: 1;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
     -fx-background-radius: 14;
     -fx-border-radius: 14;
     -fx-padding: 6 10;
@@ -3184,17 +3210,19 @@
 
 .info-panel-time-trigger:hover {
     -fx-background-color: derive(-color-bg-hover, 4%);
-    -fx-border-color: derive(-color-border, -10%);
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 8, 0.08, 0, 1);
 }
 
 .info-panel-time-trigger:focused {
-    -fx-border-color: -color-primary;
+    -fx-border-color: transparent;
+    -fx-background-color: derive(-color-bg-active, 4%);
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 8, 0.12, 0, 0);
 }
 
 .info-panel-time-trigger:disabled {
     -fx-opacity: 1;
     -fx-background-color: -color-bg-base;
-    -fx-border-color: derive(-color-border, 10%);
+    -fx-border-color: transparent;
     -fx-cursor: default;
 }
 
@@ -3782,7 +3810,7 @@
     -fx-background-radius: 14;
     -fx-border-radius: 14;
     -fx-border-color: transparent;
-    -fx-border-width: 1;
+    -fx-border-width: 0;
 }
 
 .info-panel-inline-editor-hover {
@@ -3791,7 +3819,8 @@
 
 .info-panel-inline-editor-active {
     -fx-background-color: derive(-color-bg-hover, 8%);
-    -fx-border-color: -color-border;
+    -fx-border-color: transparent;
+    -fx-effect: dropshadow(gaussian, -color-shadow-soft, 8, 0.08, 0, 1);
 }
 
 .info-panel-borderless-field,
