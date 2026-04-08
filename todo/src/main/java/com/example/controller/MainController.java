@@ -1,10 +1,7 @@
 package com.example.controller;
 
 import java.sql.SQLException;
-import java.io.File;
 import java.io.InputStream;
-import java.net.URI;
-import java.nio.file.Path;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -22,12 +19,15 @@ import java.util.function.IntConsumer;
 import com.example.application.ApplicationContext;
 import com.example.application.AppFontWeight;
 import com.example.application.AppLanguage;
+import com.example.application.ClassicThemePalette;
 import com.example.application.FontService;
 import com.example.application.LocalizationService;
 import com.example.application.MainViewModel;
 import com.example.application.NavigationService;
 import com.example.application.RecurrenceSummaryFormatter;
 import com.example.application.ScheduleItemService;
+import com.example.application.ThemeAppearance;
+import com.example.application.ThemeFamily;
 import com.example.application.ThemeService;
 import com.example.model.ScheduleItem;
 import com.example.model.Schedule;
@@ -48,7 +48,6 @@ import javafx.animation.TranslateTransition;
 import javafx.fxml.FXML;
 import javafx.scene.Scene;
 import javafx.scene.Node;
-import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
@@ -105,7 +104,6 @@ import javafx.scene.text.TextBoundsType;
 import javafx.geometry.VPos;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
-import javafx.stage.FileChooser;
 import javafx.util.Duration;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
@@ -150,9 +148,8 @@ public class MainController {
     private boolean featurePanelExpanded = false;
     private boolean uiInitialized = false;
     private final Map<Labeled, String[]> collapsibleLabels = new LinkedHashMap<>();
-    private String importedThemeStylesheet;
-    private final Map<String, String> builtinThemes;
-    private final List<String> scheduleCardStyles;
+    private final List<ThemeFamily> availableThemeFamilies;
+    private final List<ClassicThemePalette> classicThemePalettes;
     private static final String DEFAULT_SCHEDULE_CARD_STYLE = ScheduleCardStyleSupport.getDefaultStyleId();
     private final ExecutorService scheduleCompletionExecutor;
     private final ScheduleCompletionCoordinator scheduleCompletionCoordinator;
@@ -160,7 +157,9 @@ public class MainController {
     private int lastKnownPendingCount = -1;
     
     // 主题管理
-    private String currentTheme = "light";
+    private ThemeFamily currentThemeFamily = ThemeFamily.CLASSIC;
+    private ThemeAppearance currentThemeAppearance = ThemeAppearance.LIGHT;
+    private ClassicThemePalette currentClassicPalette = ClassicThemePalette.LIGHT;
     private String currentScheduleCardStyle = DEFAULT_SCHEDULE_CARD_STYLE;
     
     public MainController() {
@@ -175,8 +174,8 @@ public class MainController {
         this.themeService = mainViewModel.getThemeService();
         this.localizationService = mainViewModel.getLocalizationService();
         this.fontService = mainViewModel.getFontService();
-        this.builtinThemes = new LinkedHashMap<>(themeService.getBuiltinThemes());
-        this.scheduleCardStyles = List.copyOf(themeService.getScheduleCardStyles());
+        this.availableThemeFamilies = List.copyOf(themeService.getThemeFamilies());
+        this.classicThemePalettes = List.copyOf(themeService.getClassicPalettes());
         syncThemeState();
         scheduleCompletionExecutor = Executors.newSingleThreadExecutor(createCompletionThreadFactory());
         scheduleCompletionCoordinator = new ScheduleCompletionCoordinator(
@@ -1006,15 +1005,14 @@ public class MainController {
     }
 
     private void syncThemeState() {
-        currentTheme = themeService.getCurrentTheme();
-        importedThemeStylesheet = themeService.getImportedThemeStylesheet();
+        currentThemeFamily = themeService.getCurrentThemeFamily();
+        currentThemeAppearance = themeService.getCurrentAppearance();
+        currentClassicPalette = themeService.getCurrentClassicPalette();
         currentScheduleCardStyle = themeService.getCurrentScheduleCardStyle();
     }
     
-    private void switchTheme(String theme) {
-        importedThemeStylesheet = null;
-        currentTheme = theme;
-        applyThemeStylesheets(resolveBuiltinThemeStylesheets(theme));
+    private void switchTheme(ThemeFamily family) {
+        previewThemeSelection(family, currentThemeAppearance, currentClassicPalette, null);
         saveThemePreference();
         updateThemeIconState();
     }
@@ -1029,106 +1027,58 @@ public class MainController {
         updateThemeIconState();
     }
 
-    private List<String> resolveBuiltinThemeStylesheets(String theme) {
-        List<String> stylesheets = new ArrayList<>();
-        stylesheets.add(resolveResourceStylesheet("/styles/base.css"));
+    private void previewThemeSelection(
+        ThemeFamily family,
+        ThemeAppearance appearance,
+        ClassicThemePalette classicPalette,
+        DialogPane dialogPane
+    ) {
+        currentThemeFamily = family != null ? family : ThemeFamily.CLASSIC;
+        currentThemeAppearance = appearance != null ? appearance : ThemeAppearance.LIGHT;
+        currentClassicPalette = classicPalette != null ? classicPalette : ClassicThemePalette.LIGHT;
+        currentScheduleCardStyle = currentThemeFamily.getBoundScheduleCardStyle();
 
-        stylesheets.add(resolveResourceStylesheet("/styles/light-theme.css"));
-        if ("mint".equals(theme)) {
-            stylesheets.add(resolveResourceStylesheet("/styles/mint-theme.css"));
-        } else if ("ocean".equals(theme)) {
-            stylesheets.add(resolveResourceStylesheet("/styles/ocean-theme.css"));
-        } else if ("sunset".equals(theme)) {
-            stylesheets.add(resolveResourceStylesheet("/styles/sunset-theme.css"));
-        } else if ("lavender".equals(theme)) {
-            stylesheets.add(resolveResourceStylesheet("/styles/lavender-theme.css"));
-        } else if ("forest".equals(theme)) {
-            stylesheets.add(resolveResourceStylesheet("/styles/forest-theme.css"));
-        } else if ("slate".equals(theme)) {
-            stylesheets.add(resolveResourceStylesheet("/styles/slate-theme.css"));
-        } else if ("macaron".equals(theme)) {
-            stylesheets.add(resolveResourceStylesheet("/styles/macaron-theme.css"));
+        List<String> stylesheets = themeService.resolveStylesheets(
+            getClass(),
+            currentThemeFamily,
+            currentThemeAppearance,
+            currentClassicPalette
+        );
+        applyThemeStylesheets(stylesheets);
+        if (dialogPane != null) {
+            dialogPane.getStylesheets().setAll(stylesheets);
+            fontService.applyTo(dialogPane, localizationService.getActiveLanguage());
         }
-        return stylesheets;
-    }
-
-    private List<String> resolveImportedThemeStylesheets() {
-        List<String> stylesheets = resolveBuiltinThemeStylesheets("light");
-        if (importedThemeStylesheet != null && !importedThemeStylesheet.isBlank()) {
-            stylesheets.add(importedThemeStylesheet);
-        }
-        return stylesheets;
-    }
-
-    private String resolveResourceStylesheet(String resourcePath) {
-        return getClass().getResource(resourcePath).toExternalForm();
     }
 
     private void showThemeMenu(Button anchor) {
         ContextMenu menu = new ContextMenu();
 
-        for (Map.Entry<String, String> entry : builtinThemes.entrySet()) {
-            String prefix = entry.getKey().equals(currentTheme) ? text("common.selected.prefix") : "";
-            MenuItem item = new MenuItem(prefix + text("theme.menu.use", themeDisplayName(entry.getKey())));
-            item.setOnAction(e -> switchTheme(entry.getKey()));
+        for (ThemeFamily family : availableThemeFamilies) {
+            String prefix = family == currentThemeFamily ? text("common.selected.prefix") : "";
+            MenuItem item = new MenuItem(prefix + text("theme.menu.use", themeFamilyDisplayName(family)));
+            item.setOnAction(e -> switchTheme(family));
             menu.getItems().add(item);
         }
-
-        menu.getItems().add(new SeparatorMenuItem());
-        MenuItem importItem = new MenuItem(text("theme.menu.import"));
-        importItem.setOnAction(e -> importThemeFromFile());
-        menu.getItems().add(importItem);
 
         menu.show(anchor, Side.RIGHT, 0, 0);
     }
 
-    private boolean importThemeFromFile() {
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle(text("theme.import.fileChooser.title"));
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(text("theme.import.fileChooser.css"), "*.css"));
-        File selected = chooser.showOpenDialog(root.getScene() != null ? root.getScene().getWindow() : null);
-        if (selected == null) {
-            return false;
-        }
-
-        importedThemeStylesheet = selected.toURI().toString();
-        currentTheme = "imported";
-        applyThemeStylesheets(resolveImportedThemeStylesheets());
-        saveThemePreference();
-        updateThemeIconState();
-        showInfo(text("theme.import.success.title"), text("theme.import.success.message", selected.getAbsolutePath()));
-        return true;
-    }
-
     private void togglePrimaryTheme() {
-        List<String> keys = new ArrayList<>(builtinThemes.keySet());
-        int currentIndex = keys.indexOf(currentTheme);
-        int nextIndex = (currentIndex + 1) % keys.size();
+        int currentIndex = availableThemeFamilies.indexOf(currentThemeFamily);
+        int nextIndex = (currentIndex + 1) % availableThemeFamilies.size();
         if (currentIndex < 0) {
             nextIndex = 0;
         }
-        switchTheme(keys.get(nextIndex));
+        switchTheme(availableThemeFamilies.get(nextIndex));
     }
 
     private void loadThemePreference() {
         syncThemeState();
     }
 
-    private void loadScheduleCardStylePreference() {
-        syncThemeState();
-    }
-
     private void saveThemePreference() {
-        if ("imported".equals(currentTheme) && importedThemeStylesheet != null && !importedThemeStylesheet.isBlank()) {
-            themeService.importTheme(Path.of(URI.create(importedThemeStylesheet)));
-        } else {
-            themeService.selectBuiltinTheme(currentTheme);
-        }
-        syncThemeState();
-    }
-
-    private void saveScheduleCardStylePreference() {
-        themeService.setScheduleCardStyle(currentScheduleCardStyle);
+        themeService.selectTheme(currentThemeFamily, currentThemeAppearance, currentClassicPalette);
         syncThemeState();
     }
 
@@ -1136,17 +1086,8 @@ public class MainController {
         if (scene == null) {
             return;
         }
-        if ("imported".equals(currentTheme) && importedThemeStylesheet != null && !importedThemeStylesheet.isBlank()) {
-            try {
-                applyThemeStylesheets(resolveImportedThemeStylesheets());
-                return;
-            } catch (Exception ignored) {
-                currentTheme = "light";
-                importedThemeStylesheet = null;
-                saveThemePreference();
-            }
-        }
-        applyThemeStylesheets(resolveBuiltinThemeStylesheets(currentTheme));
+        syncThemeState();
+        applyThemeStylesheets(getCurrentThemeStylesheets());
     }
 
     private void updateThemeIconState() {
@@ -1218,12 +1159,12 @@ public class MainController {
         shell.setPrefSize(940, 600);
 
         VBox navBar = new VBox(8);
-        navBar.getStyleClass().addAll("sidebar");
+        navBar.getStyleClass().addAll("sidebar", "settings-nav");
         navBar.setPrefWidth(220);
         Label navTitle = new Label(text("settings.title"));
-        navTitle.getStyleClass().add("label-title");
+        navTitle.getStyleClass().addAll("label-title", "settings-nav-title");
         Label navSubTitle = new Label(text("settings.subtitle"));
-        navSubTitle.getStyleClass().add("label-hint");
+        navSubTitle.getStyleClass().addAll("label-hint", "settings-nav-subtitle");
 
         ToggleGroup categoryGroup = new ToggleGroup();
         ToggleButton generalTab = new ToggleButton(text("settings.tab.details"));
@@ -1251,6 +1192,9 @@ public class MainController {
 
         String appVersion = applicationContext.getAppProperties().getAppVersion();
         String displayAppVersion = "v" + appVersion;
+        ThemeFamily originalThemeFamily = currentThemeFamily;
+        ThemeAppearance originalThemeAppearance = currentThemeAppearance;
+        ClassicThemePalette originalClassicPalette = currentClassicPalette;
 
         VBox generalPage = new VBox(18);
         generalPage.getStyleClass().add("settings-page");
@@ -1261,20 +1205,19 @@ public class MainController {
         aboutText.setWrapText(true);
         aboutCard.getChildren().add(aboutText);
         VBox currentCard = createSettingsCard(text("settings.current.title"), text("settings.current.subtitle"));
-        Label themeValue = new Label("imported".equals(currentTheme) ? text("settings.current.importedTheme") : themeDisplayName(currentTheme));
+        Label themeValue = new Label(currentThemeDisplayName(currentThemeFamily, currentClassicPalette));
         themeValue.getStyleClass().add("settings-inline-value");
-        Label styleValue = new Label(scheduleCardStyleDisplayName(currentScheduleCardStyle));
-        styleValue.getStyleClass().add("settings-inline-value");
         Label languageValue = new Label(localizationService.languageLabel(localizationService.getPreferredLanguage()));
         languageValue.getStyleClass().add("settings-inline-value");
         Label fontValue = new Label(localizationService.fontWeightLabel(fontService.getCurrentFontWeight()));
         fontValue.getStyleClass().add("settings-inline-value");
         currentCard.getChildren().addAll(
             createSettingRow(text("settings.current.theme.label"), text("settings.current.theme.description"), themeValue),
-            createSettingRow(text("settings.current.style.label"), text("settings.current.style.description"), styleValue),
             createSettingRow(text("settings.current.language.label"), text("settings.current.language.description"), languageValue),
             createSettingRow(text("settings.current.font.label"), text("settings.current.font.description"), fontValue)
         );
+        ThemeFamily[] selectedThemeFamily = new ThemeFamily[] { originalThemeFamily };
+        ClassicThemePalette[] selectedClassicPalette = new ClassicThemePalette[] { originalClassicPalette };
         AppLanguage originalPreferredLanguage = localizationService.getPreferredLanguage();
         AppFontWeight originalFontWeight = fontService.getCurrentFontWeight();
         AppLanguage[] selectedLanguage = new AppLanguage[] { originalPreferredLanguage };
@@ -1300,8 +1243,10 @@ public class MainController {
             }
         });
         languageComboBox.valueProperty().addListener((obs, oldValue, newValue) ->
-            selectedLanguage[0] = newValue != null ? newValue : originalPreferredLanguage
-        );
+        {
+            selectedLanguage[0] = newValue != null ? newValue : originalPreferredLanguage;
+            languageValue.setText(localizationService.languageLabel(selectedLanguage[0]));
+        });
 
         ToggleGroup fontWeightGroup = new ToggleGroup();
         HBox fontChipRow = new HBox(8);
@@ -1314,7 +1259,10 @@ public class MainController {
             if (fontWeight == originalFontWeight) {
                 chip.setSelected(true);
             }
-            chip.setOnAction(event -> selectedFontWeight[0] = fontWeight);
+            chip.setOnAction(event -> {
+                selectedFontWeight[0] = fontWeight;
+                fontValue.setText(localizationService.fontWeightLabel(fontWeight));
+            });
             fontChipRow.getChildren().add(chip);
         }
 
@@ -1328,63 +1276,90 @@ public class MainController {
         personalizationPage.getStyleClass().add("settings-page");
         personalizationPage.setFillWidth(true);
         VBox themeCard = createSettingsCard(text("settings.theme.title"), text("settings.theme.subtitle"));
-        HBox swatchRow = new HBox(10);
-        swatchRow.setAlignment(Pos.CENTER_LEFT);
-        ToggleGroup themeGroup = new ToggleGroup();
-        String selectedThemeKey = builtinThemes.containsKey(currentTheme) ? currentTheme : "light";
-        Map<String, String> themeColorMap = new LinkedHashMap<>();
-        themeColorMap.put("light", "#cfd8dc");
-        themeColorMap.put("mint", "#98d8c8");
-        themeColorMap.put("ocean", "#64b5f6");
-        themeColorMap.put("sunset", "#ffab91");
-        themeColorMap.put("lavender", "#ce93d8");
-        themeColorMap.put("forest", "#81c784");
-        themeColorMap.put("slate", "#90a4ae");
-        themeColorMap.put("macaron", "#f8bbd0");
-        for (Map.Entry<String, String> entry : themeColorMap.entrySet()) {
+        ToggleGroup themeFamilyGroup = new ToggleGroup();
+        FlowPane familyChipFlow = new FlowPane();
+        familyChipFlow.getStyleClass().add("settings-chip-flow");
+        familyChipFlow.setHgap(8);
+        familyChipFlow.setVgap(10);
+        familyChipFlow.setAlignment(Pos.CENTER_LEFT);
+        familyChipFlow.setMaxWidth(Double.MAX_VALUE);
+        for (ThemeFamily family : availableThemeFamilies) {
+            ToggleButton familyChip = new ToggleButton(themeFamilyDisplayName(family));
+            familyChip.getStyleClass().add("settings-style-chip");
+            familyChip.setToggleGroup(themeFamilyGroup);
+            familyChip.setWrapText(true);
+            familyChip.setTextOverrun(OverrunStyle.CLIP);
+            familyChip.setUserData(family);
+            if (family == selectedThemeFamily[0]) {
+                familyChip.setSelected(true);
+            }
+            familyChipFlow.getChildren().add(familyChip);
+        }
+
+        FlowPane paletteFlow = new FlowPane();
+        paletteFlow.getStyleClass().add("settings-chip-flow");
+        paletteFlow.setHgap(10);
+        paletteFlow.setVgap(10);
+        paletteFlow.setAlignment(Pos.CENTER_LEFT);
+        ToggleGroup paletteGroup = new ToggleGroup();
+        for (ClassicThemePalette palette : classicThemePalettes) {
             ToggleButton swatch = new ToggleButton();
-            swatch.setToggleGroup(themeGroup);
+            swatch.setToggleGroup(paletteGroup);
             swatch.getStyleClass().add("settings-theme-swatch");
-            swatch.setStyle("-fx-background-color: " + entry.getValue() + ";");
-            swatch.setTooltip(new Tooltip(text("theme.menu.use", themeDisplayName(entry.getKey()))));
-            if (entry.getKey().equals(selectedThemeKey)) {
+            swatch.setStyle("-fx-background-color: " + palette.getPreviewColor() + ";");
+            swatch.setTooltip(new Tooltip(classicPaletteDisplayName(palette)));
+            swatch.setUserData(palette);
+            if (palette == selectedClassicPalette[0]) {
                 swatch.setSelected(true);
             }
-            swatch.setOnAction(e -> switchTheme(entry.getKey()));
-            swatchRow.getChildren().add(swatch);
+            paletteFlow.getChildren().add(swatch);
         }
-        Button importThemeButton = new Button(text("settings.theme.importButton"));
-        importThemeButton.getStyleClass().add("button-secondary");
-        importThemeButton.setOnAction(e -> importThemeFromFile());
-        themeCard.getChildren().addAll(
-            createSettingRow(text("settings.theme.palette.label"), text("settings.theme.palette.description"), swatchRow),
-            createSettingRow(text("settings.theme.external.label"), text("settings.theme.external.description"), importThemeButton)
+        VBox paletteRow = createStackedSettingRow(
+            text("settings.theme.palette.label"),
+            text("settings.theme.palette.description"),
+            paletteFlow
         );
 
-        VBox styleCard = createSettingsCard(text("settings.style.title"), text("settings.style.subtitle"));
-        ToggleGroup styleGroup = new ToggleGroup();
-        FlowPane styleChipFlow = new FlowPane();
-        styleChipFlow.getStyleClass().add("settings-chip-flow");
-        styleChipFlow.setHgap(8);
-        styleChipFlow.setVgap(10);
-        styleChipFlow.setAlignment(Pos.CENTER_LEFT);
-        styleChipFlow.setMaxWidth(Double.MAX_VALUE);
-        styleChipFlow.prefWrapLengthProperty().bind(Bindings.max(0.0, styleCard.widthProperty().subtract(44)));
-        String[] selectedCardStyle = new String[] { currentScheduleCardStyle };
-        for (String styleName : scheduleCardStyles) {
-            ToggleButton styleChip = new ToggleButton(scheduleCardStyleDisplayName(styleName));
-            styleChip.getStyleClass().add("settings-style-chip");
-            styleChip.setToggleGroup(styleGroup);
-            styleChip.setWrapText(true);
-            styleChip.setTextOverrun(OverrunStyle.CLIP);
-            if (styleName.equals(currentScheduleCardStyle)) {
-                styleChip.setSelected(true);
+        Runnable updateThemeSummary = () ->
+            themeValue.setText(currentThemeDisplayName(selectedThemeFamily[0], selectedClassicPalette[0]));
+        Runnable updatePaletteVisibility = () -> {
+            boolean visible = selectedThemeFamily[0] != null && selectedThemeFamily[0].supportsClassicPalette();
+            paletteRow.setManaged(visible);
+            paletteRow.setVisible(visible);
+        };
+        Runnable previewTheme = () -> {
+            previewThemeSelection(selectedThemeFamily[0], ThemeAppearance.LIGHT, selectedClassicPalette[0], dialog.getDialogPane());
+            updateThemeSummary.run();
+            updatePaletteVisibility.run();
+        };
+
+        for (javafx.scene.Node node : familyChipFlow.getChildren()) {
+            if (node instanceof ToggleButton chip) {
+                chip.setOnAction(event -> {
+                    selectedThemeFamily[0] = (ThemeFamily) ((ToggleButton) event.getSource()).getUserData();
+                    previewTheme.run();
+                });
             }
-            styleChip.setOnAction(e -> selectedCardStyle[0] = styleName);
-            styleChipFlow.getChildren().add(styleChip);
         }
-        styleCard.getChildren().add(createStackedSettingRow(text("settings.style.option.label"), text("settings.style.option.description"), styleChipFlow));
-        personalizationPage.getChildren().addAll(themeCard, styleCard);
+        for (javafx.scene.Node node : paletteFlow.getChildren()) {
+            if (node instanceof ToggleButton swatch) {
+                swatch.setOnAction(event -> {
+                    selectedClassicPalette[0] = (ClassicThemePalette) ((ToggleButton) event.getSource()).getUserData();
+                    if (selectedThemeFamily[0] != null && selectedThemeFamily[0].supportsClassicPalette()) {
+                        previewTheme.run();
+                    } else {
+                        updateThemeSummary.run();
+                    }
+                });
+            }
+        }
+
+        updatePaletteVisibility.run();
+        themeCard.getChildren().addAll(
+            createStackedSettingRow(text("settings.theme.family.label"), text("settings.theme.family.description"), familyChipFlow),
+            paletteRow
+        );
+        personalizationPage.getChildren().add(themeCard);
         VBox dataPage = new VBox(18);
         dataPage.getStyleClass().add("settings-page");
         dataPage.setFillWidth(true);
@@ -1440,12 +1415,14 @@ public class MainController {
 
         Optional<ButtonType> result = dialog.showAndWait();
         if (result.isEmpty() || result.get() != saveButtonType) {
+            if (currentThemeFamily != originalThemeFamily || currentClassicPalette != originalClassicPalette) {
+                previewThemeSelection(originalThemeFamily, originalThemeAppearance, originalClassicPalette, null);
+            }
             return;
         }
 
-        if (selectedCardStyle[0] != null && scheduleCardStyles.contains(selectedCardStyle[0]) && !selectedCardStyle[0].equals(currentScheduleCardStyle)) {
-            currentScheduleCardStyle = selectedCardStyle[0];
-            saveScheduleCardStylePreference();
+        if (selectedThemeFamily[0] != originalThemeFamily || selectedClassicPalette[0] != originalClassicPalette) {
+            saveThemePreference();
         }
         if (selectedLanguage[0] != null && selectedLanguage[0] != originalPreferredLanguage) {
             localizationService.saveLanguagePreference(selectedLanguage[0]);
@@ -1621,15 +1598,24 @@ public class MainController {
         return localizationService.format(patternKey, value);
     }
 
-    public String themeDisplayName(String themeId) {
-        if (themeId == null || themeId.isBlank()) {
-            return "";
+    public String themeFamilyDisplayName(ThemeFamily family) {
+        return localizationService.themeFamilyLabel(family);
+    }
+
+    public String classicPaletteDisplayName(ClassicThemePalette palette) {
+        return localizationService.classicPaletteLabel(palette);
+    }
+
+    public String currentThemeDisplayName(ThemeFamily family, ClassicThemePalette palette) {
+        ThemeFamily resolvedFamily = family != null ? family : ThemeFamily.CLASSIC;
+        if (resolvedFamily.supportsClassicPalette()) {
+            return text(
+                "settings.current.theme.classicValue",
+                themeFamilyDisplayName(resolvedFamily),
+                classicPaletteDisplayName(palette)
+            );
         }
-        if ("imported".equals(themeId)) {
-            return text("settings.current.importedTheme");
-        }
-        String labelKey = builtinThemes.get(themeId);
-        return labelKey != null ? text(labelKey) : themeId;
+        return themeFamilyDisplayName(resolvedFamily);
     }
 
     public String scheduleCardStyleDisplayName(String styleId) {
@@ -1761,7 +1747,7 @@ public class MainController {
     }
 
     public String getCurrentTheme() {
-        return currentTheme;
+        return currentThemeFamily.getId();
     }
 
     public String getCurrentScheduleCardStyle() {
@@ -1773,13 +1759,7 @@ public class MainController {
     }
 
     public List<String> getCurrentThemeStylesheets() {
-        if (scene != null && !scene.getStylesheets().isEmpty()) {
-            return new ArrayList<>(scene.getStylesheets());
-        }
-        if ("imported".equals(currentTheme)) {
-            return resolveImportedThemeStylesheets();
-        }
-        return resolveBuiltinThemeStylesheets(currentTheme);
+        return themeService.resolveStylesheets(getClass(), currentThemeFamily, currentThemeAppearance, currentClassicPalette);
     }
 
     public void setPendingCountListener(IntConsumer listener) {

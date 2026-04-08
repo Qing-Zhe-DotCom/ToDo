@@ -1,7 +1,5 @@
 package com.example.application;
 
-import java.util.List;
-
 import com.example.MainApp;
 import com.example.config.AppDataPaths;
 import com.example.config.AppProperties;
@@ -18,8 +16,6 @@ import com.example.data.SqlDialect;
 import com.example.data.SqlScheduleItemRepository;
 import com.example.data.SqliteConnectionFactory;
 import com.example.data.SqliteStageBSchemaManager;
-import com.example.view.ScheduleCardStyleSupport;
-
 public final class ApplicationContext {
     private final AppProperties appProperties;
     private final DatabaseProperties databaseProperties;
@@ -69,7 +65,10 @@ public final class ApplicationContext {
         AppProperties appProperties = ConfigurationLoader.loadAppProperties();
         DatabaseProperties databaseProperties = ConfigurationLoader.loadDatabaseProperties();
         UserPreferencesStore preferencesStore = new JavaPreferencesStore(MainApp.class);
-        LocalizationService localizationService = new LocalizationService(preferencesStore);
+        LocalizationService localizationService = new LocalizationService(
+            preferencesStore,
+            appProperties.getDefaultLanguage()
+        );
         FontService fontService = new FontService(preferencesStore);
 
         AppDataPaths appDataPaths = null;
@@ -101,11 +100,7 @@ public final class ApplicationContext {
             throw new IllegalStateException("Failed to initialize stage-B data runtime", exception);
         }
         NavigationService navigationService = new NavigationService();
-        ThemeService themeService = new ThemeService(
-            preferencesStore,
-            appProperties,
-            List.copyOf(ScheduleCardStyleSupport.getStyleIds())
-        );
+        ThemeService themeService = new ThemeService(preferencesStore, appProperties);
         MainViewModel mainViewModel = new MainViewModel(
             navigationService,
             themeService,

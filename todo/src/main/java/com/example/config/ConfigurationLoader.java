@@ -10,23 +10,37 @@ import java.util.Properties;
 public final class ConfigurationLoader {
     private static final String DEFAULTS_RESOURCE = "/application-defaults.properties";
     private static final String EXTERNAL_CONFIG_ENV = "TODO_CONFIG_FILE";
+    private static final String APPDATA_ENV = "APPDATA";
+    private static final String APPDATA_CONFIG_PATH_SEGMENT_1 = "ToDo";
+    private static final String APPDATA_CONFIG_PATH_SEGMENT_2 = "config";
+    private static final String APPDATA_CONFIG_FILE_NAME = "application.properties";
 
     private ConfigurationLoader() {
     }
 
     public static AppProperties loadAppProperties() {
-        Properties properties = loadMergedProperties();
+        return loadAppProperties(System.getenv(), Path.of("").toAbsolutePath().normalize());
+    }
+
+    static AppProperties loadAppProperties(Map<String, String> environment, Path workingDirectory) {
+        Properties properties = loadMergedProperties(environment, workingDirectory);
         return new AppProperties(
-            resolve(properties, "todo.app.version", "TODO_APP_VERSION", "dev"),
-            resolve(properties, "todo.app.default-theme", "TODO_APP_DEFAULT_THEME", "light"),
-            resolve(properties, "todo.app.default-schedule-card-style", "TODO_APP_DEFAULT_SCHEDULE_CARD_STYLE", "Classic"),
-            resolveNullable(properties, "todo.app.data-dir", "TODO_APP_DATA_DIR")
+            resolve(properties, environment, "todo.app.version", "TODO_APP_VERSION", "dev"),
+            resolve(properties, environment, "todo.app.default-theme-family", "TODO_APP_DEFAULT_THEME_FAMILY", "classic"),
+            resolve(properties, environment, "todo.app.default-theme-appearance", "TODO_APP_DEFAULT_THEME_APPEARANCE", "light"),
+            resolve(properties, environment, "todo.app.default-theme-classic-palette", "TODO_APP_DEFAULT_THEME_CLASSIC_PALETTE", "light"),
+            resolveNullable(properties, environment, "todo.app.default-language", "TODO_APP_DEFAULT_LANGUAGE"),
+            resolveNullable(properties, environment, "todo.app.data-dir", "TODO_APP_DATA_DIR")
         );
     }
 
     public static DatabaseProperties loadDatabaseProperties() {
-        Properties properties = loadMergedProperties();
-        String mode = resolve(properties, "todo.db.mode", "TODO_DB_MODE", "sqlite");
+        return loadDatabaseProperties(System.getenv(), Path.of("").toAbsolutePath().normalize());
+    }
+
+    static DatabaseProperties loadDatabaseProperties(Map<String, String> environment, Path workingDirectory) {
+        Properties properties = loadMergedProperties(environment, workingDirectory);
+        String mode = resolve(properties, environment, "todo.db.mode", "TODO_DB_MODE", "sqlite");
         String driverFallback = "sqlite".equalsIgnoreCase(mode)
             ? "org.sqlite.JDBC"
             : "com.mysql.cj.jdbc.Driver";
@@ -36,19 +50,26 @@ public final class ConfigurationLoader {
         String userFallback = "sqlite".equalsIgnoreCase(mode) ? "" : "root";
         return new DatabaseProperties(
             mode,
-            resolve(properties, "todo.db.driver", "TODO_DB_DRIVER", driverFallback),
-            resolve(properties, "todo.db.url", "TODO_DB_URL", urlFallback),
-            resolve(properties, "todo.db.user", "TODO_DB_USER", userFallback),
-            resolve(properties, "todo.db.password", "TODO_DB_PASSWORD", ""),
-            resolveNullable(properties, "todo.db.sqlite.path", "TODO_DB_SQLITE_PATH")
+            resolve(properties, environment, "todo.db.driver", "TODO_DB_DRIVER", driverFallback),
+            resolve(properties, environment, "todo.db.url", "TODO_DB_URL", urlFallback),
+            resolve(properties, environment, "todo.db.user", "TODO_DB_USER", userFallback),
+            resolve(properties, environment, "todo.db.password", "TODO_DB_PASSWORD", ""),
+            resolveNullable(properties, environment, "todo.db.sqlite.path", "TODO_DB_SQLITE_PATH")
         );
     }
 
-    private static Properties loadMergedProperties() {
+    private static Properties loadMergedProperties(Map<String, String> environment, Path workingDirectory) {
         Properties properties = new Properties();
         loadClasspathDefaults(properties);
-        loadExternalOverrides(properties);
+        loadExternalOverrides(properties, environment, normalizeWorkingDirectory(workingDirectory));
         return properties;
+    }
+
+    private static Path normalizeWorkingDirectory(Path workingDirectory) {
+        if (workingDirectory == null) {
+            return Path.of("").toAbsolutePath().normalize();
+        }
+        return workingDirectory.toAbsolutePath().normalize();
     }
 
     private static void loadClasspathDefaults(Properties properties) {
@@ -60,16 +81,22 @@ public final class ConfigurationLoader {
         }
     }
 
-    private static void loadExternalOverrides(Properties properties) {
-        Path explicitConfig = resolveExternalConfigPath();
+    private static void loadExternalOverrides(Properties properties, Map<String, String> environment, Path workingDirectory) {
+        Path explicitConfig = resolveExternalConfigPath(environment, workingDirectory);
         if (explicitConfig != null) {
             loadFileInto(properties, explicitConfig);
             return;
         }
 
+        Path appDataConfig = resolveAppDataConfigPath(environment);
+        if (appDataConfig != null && Files.isRegularFile(appDataConfig)) {
+            loadFileInto(properties, appDataConfig);
+            return;
+        }
+
         Path[] fallbackCandidates = {
-            Path.of("application.properties"),
-            Path.of("config", "application.properties")
+            workingDirectory.resolve("application.properties"),
+            workingDirectory.resolve("config").resolve("application.properties")
         };
         for (Path candidate : fallbackCandidates) {
             if (Files.isRegularFile(candidate)) {
@@ -79,12 +106,29 @@ public final class ConfigurationLoader {
         }
     }
 
-    private static Path resolveExternalConfigPath() {
-        String configuredPath = System.getenv(EXTERNAL_CONFIG_ENV);
+    private static Path resolveExternalConfigPath(Map<String, String> environment, Path workingDirectory) {
+        String configuredPath = environment.get(EXTERNAL_CONFIG_ENV);
         if (configuredPath == null || configuredPath.isBlank()) {
             return null;
         }
-        return Path.of(configuredPath.trim());
+        Path candidate = Path.of(configuredPath.trim());
+        if (candidate.isAbsolute()) {
+            return candidate.toAbsolutePath().normalize();
+        }
+        return workingDirectory.resolve(candidate).toAbsolutePath().normalize();
+    }
+
+    private static Path resolveAppDataConfigPath(Map<String, String> environment) {
+        String appData = environment.get(APPDATA_ENV);
+        if (appData == null || appData.isBlank()) {
+            return null;
+        }
+        return Path.of(
+            appData.trim(),
+            APPDATA_CONFIG_PATH_SEGMENT_1,
+            APPDATA_CONFIG_PATH_SEGMENT_2,
+            APPDATA_CONFIG_FILE_NAME
+        ).toAbsolutePath().normalize();
     }
 
     private static void loadFileInto(Properties properties, Path path) {
@@ -94,9 +138,14 @@ public final class ConfigurationLoader {
         }
     }
 
-    private static String resolve(Properties properties, String propertyKey, String envKey, String fallback) {
-        Map<String, String> env = System.getenv();
-        String envValue = env.get(envKey);
+    private static String resolve(
+        Properties properties,
+        Map<String, String> environment,
+        String propertyKey,
+        String envKey,
+        String fallback
+    ) {
+        String envValue = environment.get(envKey);
         if (envValue != null && !envValue.isBlank()) {
             return envValue.trim();
         }
@@ -107,9 +156,13 @@ public final class ConfigurationLoader {
         return fallback;
     }
 
-    private static String resolveNullable(Properties properties, String propertyKey, String envKey) {
-        Map<String, String> env = System.getenv();
-        String envValue = env.get(envKey);
+    private static String resolveNullable(
+        Properties properties,
+        Map<String, String> environment,
+        String propertyKey,
+        String envKey
+    ) {
+        String envValue = environment.get(envKey);
         if (envValue != null && !envValue.isBlank()) {
             return envValue.trim();
         }

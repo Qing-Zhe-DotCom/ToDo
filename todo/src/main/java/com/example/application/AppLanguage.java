@@ -40,16 +40,21 @@ public enum AppLanguage {
         return List.of(values());
     }
 
-    public static AppLanguage fromPreference(String value) {
+    public static AppLanguage fromId(String value) {
         if (value == null || value.isBlank()) {
-            return detectDefault();
+            return null;
         }
         for (AppLanguage language : values()) {
             if (language.id.equalsIgnoreCase(value)) {
                 return language;
             }
         }
-        return detectDefault();
+        return null;
+    }
+
+    public static AppLanguage fromPreference(String value) {
+        AppLanguage resolved = fromId(value);
+        return resolved != null ? resolved : detectDefault();
     }
 
     public static AppLanguage detectDefault() {

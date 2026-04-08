@@ -1,0 +1,312 @@
+.root {
+    -color-bg-base: #effaf6;
+    -color-bg-panel: #f9fffd;
+    -color-bg-active: #d7f5ea;
+    -color-bg-hover: #eefcf7;
+    -color-text-main: #11382d;
+    -color-text-sub: #386056;
+    -color-text-hint: #638278;
+    -color-text-muted: #8da89f;
+    -color-border: #c7e7db;
+    -color-border-dark: #94cbb8;
+    -color-primary: #10b981;
+    -color-primary-hover: #0e9b6d;
+    -color-primary-pressed: #0b7f59;
+    -color-primary-soft: rgba(16, 185, 129, 0.14);
+    -color-primary-glow: rgba(16, 185, 129, 0.20);
+    -color-shadow-soft: rgba(15, 90, 68, 0.03);
+    -color-shadow-medium: rgba(15, 90, 68, 0.08);
+    -color-shadow-strong: rgba(15, 90, 68, 0.14);
+}
+
+.settings-dialog-pane,
+.settings-shell,
+.settings-content-host,
+.main-content,
+.timeline-container,
+.timeline-pane {
+    -fx-background-color: -color-bg-base;
+}
+
+.timeline-scroll > .viewport,
+.heatmap-scroll > .viewport,
+.heatmap-main-pane {
+    -fx-background-color: -color-bg-base;
+}
+
+.sidebar,
+.settings-nav {
+    -fx-background-color: -color-bg-panel;
+    -fx-border-color: -color-border;
+    -fx-border-width: 0 1 0 0;
+    -fx-background-radius: 22;
+    -fx-border-radius: 22;
+    -fx-effect: none;
+}
+
+.settings-card,
+.info-panel,
+.heatmap-day-panel,
+.heatmap-year-card,
+.heatmap-day-card,
+.timeline-range-pill,
+.timeline-state,
+.dialog-pane,
+.schedule-dialog-pane .dialog-pane,
+.quick-add-shell,
+.info-panel-description-card,
+.info-panel-time-trigger,
+.schedule-card-surface,
+.timeline-schedule-card,
+.date-picker-popup,
+.combo-box-popup .list-view,
+.ios-wheel-popup {
+    -fx-background-color: -color-bg-panel;
+    -fx-border-color: -color-border;
+    -fx-border-width: 1;
+    -fx-background-radius: 22;
+    -fx-border-radius: 22;
+    -fx-effect: none;
+}
+
+.search-field,
+.quick-add-input,
+.text-field,
+.text-area,
+.password-field,
+.combo-box {
+    -fx-background-radius: 18;
+    -fx-border-radius: 18;
+    -fx-effect: none;
+}
+
+.nav-button,
+.sidebar-bottom-actions .sidebar-action-button {
+    -fx-background-radius: 16;
+    -fx-border-radius: 16;
+    -fx-border-width: 0;
+    -fx-font-weight: 700;
+}
+
+.nav-button:hover,
+.sidebar-bottom-actions .sidebar-action-button:hover,
+.sidebar-bottom-actions .sidebar-action-button:focused {
+    -fx-background-color: derive(-color-bg-active, 10%);
+}
+
+.nav-button.active {
+    -fx-background-color: -color-bg-active;
+    -fx-border-width: 0;
+    -fx-text-fill: -color-primary-hover;
+}
+
+.button,
+.button-secondary,
+.toggle-button,
+.timeline-range-reset,
+.info-panel-primary-button,
+.ios-wheel-save-button,
+.settings-style-chip,
+.info-panel-chip,
+.info-panel-toolbar-button,
+.info-panel-icon-button,
+.heatmap-sidebar-toggle,
+.quick-add-badge,
+.heatmap-day-rail-badge {
+    -fx-background-radius: 16;
+    -fx-border-radius: 16;
+    -fx-effect: none;
+}
+
+.button,
+.info-panel-primary-button,
+.ios-wheel-save-button {
+    -fx-background-color: -color-primary;
+}
+
+.button:hover,
+.info-panel-primary-button:hover,
+.ios-wheel-save-button:hover {
+    -fx-background-color: -color-primary-hover;
+}
+
+.settings-nav-title,
+.settings-card-title,
+.info-panel-heading,
+.info-panel-section-title,
+.timeline-group-header,
+.timeline-card-title,
+.heatmap-day-title,
+.heatmap-year-title,
+.quick-add-title,
+.schedule-card-title-text {
+    -fx-text-fill: #0f3128;
+    -fx-font-weight: 700;
+}
+
+.settings-nav-subtitle,
+.settings-card-subtitle,
+.settings-row-desc,
+.info-panel-meta-label,
+.info-panel-description-placeholder,
+.timeline-range-label,
+.heatmap-completed-zone-label,
+.schedule-card-subtitle-text {
+    -fx-text-fill: #6b8c81;
+}
+
+.settings-shell,
+.timeline-header,
+.heatmap-meta-bar,
+.heatmap-sidebar-shell,
+.info-panel-header,
+.quick-add-section {
+    -fx-background-color: rgba(255, 255, 255, 0.70);
+    -fx-border-color: rgba(16, 185, 129, 0.14);
+    -fx-border-width: 1;
+    -fx-background-radius: 20;
+    -fx-border-radius: 20;
+}
+
+.info-panel-inline-editor,
+.info-panel-borderless-combo,
+.info-panel-notes-input,
+.info-panel-title-input,
+.timeline-range-group,
+.timeline-range-picker,
+.timeline-range-icon-wrap,
+.heatmap-sidebar,
+.heatmap-day-rail {
+    -fx-background-color: rgba(255, 255, 255, 0.90);
+    -fx-border-color: #cfe7dd;
+    -fx-border-width: 1;
+    -fx-background-radius: 16;
+    -fx-border-radius: 16;
+}
+
+.timeline-track-bg {
+    -fx-fill: #e8f7f1;
+}
+
+.timeline-grid-line,
+.timeline-track-sep {
+    -fx-stroke: #d6ece4;
+    -fx-opacity: 0.72;
+}
+
+.timeline-axis-line,
+.timeline-range-connector {
+    -fx-stroke: #43b68a;
+}
+
+.timeline-node {
+    -fx-background-color: #10b981;
+    -fx-background-radius: 999;
+}
+
+.heatmap-year-cell {
+    -fx-stroke: #b6dccd;
+    -fx-stroke-width: 0.9;
+}
+
+.heatmap-cell-selected {
+    -fx-background-color: rgba(16, 185, 129, 0.12);
+    -fx-border-color: #10b981;
+    -fx-border-width: 2;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+}
+
+.quick-add-badge,
+.heatmap-day-rail-badge,
+.settings-style-chip:selected,
+.settings-inline-value,
+.info-panel-status-ongoing,
+.heatmap-day-card-selected {
+    -fx-background-color: -color-bg-active;
+}
+
+.heatmap-completed-zone {
+    -fx-background-color: linear-gradient(to right, rgba(31, 157, 106, 0.14), rgba(31, 157, 106, 0.04));
+    -fx-border-color: rgba(31, 157, 106, 0.32);
+    -fx-background-radius: 16;
+    -fx-border-radius: 16;
+}
+
+.timeline-schedule-selected,
+.settings-theme-swatch:selected {
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 10, 0.18, 0, 0);
+}
+
+/* Bone Border Cleanup */
+.settings-shell,
+.timeline-header,
+.heatmap-meta-bar,
+.heatmap-sidebar-shell,
+.info-panel-header,
+.quick-add-section,
+.quick-add-shell,
+.info-panel-description-card,
+.info-panel-time-trigger,
+.heatmap-day-card,
+.timeline-state,
+.timeline-schedule-card,
+.info-panel-inline-editor,
+.info-panel-borderless-combo,
+.info-panel-notes-input,
+.info-panel-title-input,
+.timeline-range-group,
+.timeline-range-picker,
+.timeline-range-icon-wrap,
+.heatmap-sidebar,
+.heatmap-day-rail,
+.search-field,
+.quick-add-input,
+.text-field,
+.text-area,
+.password-field,
+.combo-box,
+.button-secondary,
+.toggle-button,
+.settings-style-chip,
+.settings-style-chip:selected,
+.info-panel-chip,
+.info-panel-toolbar-button,
+.info-panel-icon-button,
+.heatmap-sidebar-toggle,
+.quick-add-badge,
+.heatmap-day-rail-badge,
+.settings-inline-value,
+.info-panel-status-pill,
+.info-panel-status-ongoing,
+.heatmap-day-card-selected,
+.heatmap-completed-zone {
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+}
+
+.settings-shell,
+.timeline-header,
+.heatmap-meta-bar,
+.heatmap-sidebar-shell,
+.info-panel-header,
+.quick-add-section,
+.quick-add-shell,
+.info-panel-description-card,
+.info-panel-time-trigger,
+.heatmap-day-card,
+.timeline-state,
+.timeline-schedule-card,
+.info-panel-inline-editor,
+.info-panel-borderless-combo,
+.info-panel-notes-input,
+.info-panel-title-input,
+.timeline-range-group,
+.timeline-range-picker,
+.timeline-range-icon-wrap,
+.heatmap-sidebar,
+.heatmap-day-rail,
+.quick-add-badge,
+.heatmap-day-rail-badge {
+    -fx-effect: none;
+}

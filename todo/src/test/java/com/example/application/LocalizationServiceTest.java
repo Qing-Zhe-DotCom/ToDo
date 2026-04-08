@@ -29,13 +29,47 @@ class LocalizationServiceTest {
     }
 
     @Test
+    void installerDefaultLanguageAppliesWhenNoUserPreferenceExists() {
+        Locale previous = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.ENGLISH);
+            LocalizationService service = new LocalizationService(new MapPreferencesStore(Map.of()), "zh-TW");
+            assertEquals(AppLanguage.TRADITIONAL_CHINESE, service.getActiveLanguage());
+        } finally {
+            Locale.setDefault(previous);
+        }
+    }
+
+    @Test
+    void userPreferenceOverridesInstallerDefaultLanguage() {
+        LocalizationService service = new LocalizationService(
+            new MapPreferencesStore(Map.of("todo.language", AppLanguage.ENGLISH.getId())),
+            "zh-CN"
+        );
+
+        assertEquals(AppLanguage.ENGLISH, service.getActiveLanguage());
+    }
+
+    @Test
+    void invalidInstallerDefaultLanguageFallsBackToLocaleDefault() {
+        Locale previous = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.ENGLISH);
+            LocalizationService service = new LocalizationService(new MapPreferencesStore(Map.of()), "invalid-value");
+            assertEquals(AppLanguage.ENGLISH, service.getActiveLanguage());
+        } finally {
+            Locale.setDefault(previous);
+        }
+    }
+
+    @Test
     void languageLabelsResolveForAllSupportedLanguages() {
         LocalizationService simplified = serviceFor(AppLanguage.SIMPLIFIED_CHINESE);
         LocalizationService traditional = serviceFor(AppLanguage.TRADITIONAL_CHINESE);
         LocalizationService english = serviceFor(AppLanguage.ENGLISH);
 
-        assertEquals("简体中文", simplified.languageLabel(AppLanguage.SIMPLIFIED_CHINESE));
-        assertEquals("繁體中文", traditional.languageLabel(AppLanguage.TRADITIONAL_CHINESE));
+        assertEquals("\u7b80\u4f53\u4e2d\u6587", simplified.languageLabel(AppLanguage.SIMPLIFIED_CHINESE));
+        assertEquals("\u7e41\u9ad4\u4e2d\u6587", traditional.languageLabel(AppLanguage.TRADITIONAL_CHINESE));
         assertEquals("English", english.languageLabel(AppLanguage.ENGLISH));
     }
 
@@ -43,12 +77,12 @@ class LocalizationServiceTest {
     void weekdayAndDateFormattingFollowLanguage() {
         LocalDate sampleDate = LocalDate.of(2026, 4, 7);
 
-        assertEquals("4月7日", serviceFor(AppLanguage.SIMPLIFIED_CHINESE).format("format.info.daySummary", sampleDate));
-        assertEquals("4月7日", serviceFor(AppLanguage.TRADITIONAL_CHINESE).format("format.info.daySummary", sampleDate));
+        assertEquals("4\u67087\u65e5", serviceFor(AppLanguage.SIMPLIFIED_CHINESE).format("format.info.daySummary", sampleDate));
+        assertEquals("4\u67087\u65e5", serviceFor(AppLanguage.TRADITIONAL_CHINESE).format("format.info.daySummary", sampleDate));
         assertEquals("4/7", serviceFor(AppLanguage.ENGLISH).format("format.info.daySummary", sampleDate));
 
-        assertEquals("周二", serviceFor(AppLanguage.SIMPLIFIED_CHINESE).weekdayShort(DayOfWeek.TUESDAY));
-        assertEquals("週二", serviceFor(AppLanguage.TRADITIONAL_CHINESE).weekdayShort(DayOfWeek.TUESDAY));
+        assertEquals("\u5468\u4e8c", serviceFor(AppLanguage.SIMPLIFIED_CHINESE).weekdayShort(DayOfWeek.TUESDAY));
+        assertEquals("\u9031\u4e8c", serviceFor(AppLanguage.TRADITIONAL_CHINESE).weekdayShort(DayOfWeek.TUESDAY));
         assertEquals("Tue", serviceFor(AppLanguage.ENGLISH).weekdayShort(DayOfWeek.TUESDAY));
     }
 
@@ -64,23 +98,28 @@ class LocalizationServiceTest {
         String zhTw = RecurrenceSummaryFormatter.describe(rule, serviceFor(AppLanguage.TRADITIONAL_CHINESE));
         String en = RecurrenceSummaryFormatter.describe(rule, serviceFor(AppLanguage.ENGLISH));
 
-        assertTrue(zhCn.contains("每 2 周"));
-        assertTrue(zhTw.contains("每 2 週"));
+        assertTrue(zhCn.contains("\u6bcf 2 \u5468"));
+        assertTrue(zhTw.contains("\u6bcf 2 \u9031"));
         assertTrue(en.contains("Every 2 weeks"));
     }
 
     @Test
-    void generalSettingsTabLabelIsLocalized() {
-        assertEquals("\u901a\u7528", serviceFor(AppLanguage.SIMPLIFIED_CHINESE).text("settings.tab.details"));
-        assertEquals("\u901a\u7528", serviceFor(AppLanguage.TRADITIONAL_CHINESE).text("settings.tab.details"));
-        assertEquals("General", serviceFor(AppLanguage.ENGLISH).text("settings.tab.details"));
-    }
+    void settingsTabsAndThemeFamilyLabelsAreLocalized() {
+        LocalizationService simplified = serviceFor(AppLanguage.SIMPLIFIED_CHINESE);
+        LocalizationService traditional = serviceFor(AppLanguage.TRADITIONAL_CHINESE);
+        LocalizationService english = serviceFor(AppLanguage.ENGLISH);
 
-    @Test
-    void personalizationSettingsTabLabelIsLocalized() {
-        assertEquals("\u4e2a\u6027\u5316", serviceFor(AppLanguage.SIMPLIFIED_CHINESE).text("settings.tab.personalization"));
-        assertEquals("\u500b\u4eba\u5316", serviceFor(AppLanguage.TRADITIONAL_CHINESE).text("settings.tab.personalization"));
-        assertEquals("Personalization", serviceFor(AppLanguage.ENGLISH).text("settings.tab.personalization"));
+        assertEquals("\u901a\u7528", simplified.text("settings.tab.details"));
+        assertEquals("\u901a\u7528", traditional.text("settings.tab.details"));
+        assertEquals("General", english.text("settings.tab.details"));
+
+        assertEquals("\u4e2a\u6027\u5316", simplified.text("settings.tab.personalization"));
+        assertEquals("\u500b\u4eba\u5316", traditional.text("settings.tab.personalization"));
+        assertEquals("Personalization", english.text("settings.tab.personalization"));
+
+        assertEquals("\u7ecf\u5178", simplified.themeFamilyLabel(ThemeFamily.CLASSIC));
+        assertEquals("\u73fe\u4ee3\u9ad8\u7d1a\u6975\u7c21\u98a8", traditional.themeFamilyLabel(ThemeFamily.MODERN_MINIMAL));
+        assertEquals("Material You", english.themeFamilyLabel(ThemeFamily.MATERIAL_YOU));
     }
 
     private LocalizationService serviceFor(AppLanguage language) {

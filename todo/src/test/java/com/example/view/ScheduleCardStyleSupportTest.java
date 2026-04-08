@@ -3,19 +3,19 @@ package com.example.view;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.example.model.Schedule;
-
 import java.time.LocalDate;
 
 import org.junit.jupiter.api.Test;
+
+import com.example.model.Schedule;
 
 import javafx.scene.layout.StackPane;
 
 class ScheduleCardStyleSupportTest {
 
     @Test
-    void normalizeStyleIdFallsBackToDefaultAndMigratesLegacyLabels() {
-        assertEquals(ScheduleCardStyleSupport.getDefaultStyleId(), ScheduleCardStyleSupport.normalizeStyleId("不存在的样式"));
+    void normalizeStyleIdFallsBackToClassicAndMigratesLegacyLabels() {
+        assertEquals(ScheduleCardStyleSupport.getDefaultStyleId(), ScheduleCardStyleSupport.normalizeStyleId("missing-style"));
         assertEquals(ScheduleCardStyleSupport.getDefaultStyleId(), ScheduleCardStyleSupport.normalizeStyleId(null));
         assertEquals(ScheduleCardStyleSupport.STYLE_ID_MATERIAL_YOU, ScheduleCardStyleSupport.normalizeStyleId("Material You"));
         assertEquals(ScheduleCardStyleSupport.STYLE_ID_CLASSIC, ScheduleCardStyleSupport.normalizeStyleId("经典实体卡片"));
@@ -24,7 +24,7 @@ class ScheduleCardStyleSupportTest {
     @Test
     void applyCardPresentationAddsSharedClassesAndScheduleState() {
         Schedule schedule = new Schedule();
-        schedule.setPriority("高");
+        schedule.setPriority(Schedule.PRIORITY_HIGH);
         schedule.setDueDate(LocalDate.now().minusDays(1));
 
         StackPane card = new StackPane();

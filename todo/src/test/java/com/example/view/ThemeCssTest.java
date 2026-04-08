@@ -85,15 +85,86 @@ class ThemeCssTest {
     }
 
     @Test
-    void newBuiltinThemeFilesArePresent() throws IOException {
+    void classicPaletteAndThemeFamilyFilesArePresent() throws IOException {
         String lavender = readCss("/styles/lavender-theme.css");
         String forest = readCss("/styles/forest-theme.css");
         String slate = readCss("/styles/slate-theme.css");
+        String classic = readCss("/styles/theme-classic-light.css");
+        String fresh = readCss("/styles/theme-fresh-light.css");
+        String cozy = readCss("/styles/theme-cozy-light.css");
+        String modernMinimal = readCss("/styles/theme-modern-minimal-light.css");
+        String neoBrutalism = readCss("/styles/theme-neo-brutalism-light.css");
+        String materialYou = readCss("/styles/theme-material-you-light.css");
+        String neumorphism = readCss("/styles/theme-neumorphism-light.css");
 
         assertAll(
             () -> assertTrue(lavender.contains("-color-primary")),
             () -> assertTrue(forest.contains("-color-primary")),
-            () -> assertTrue(slate.contains("-color-primary"))
+            () -> assertTrue(slate.contains("-color-primary")),
+            () -> assertTrue(classic.contains(".settings-card")),
+            () -> assertTrue(fresh.contains(".settings-card")),
+            () -> assertTrue(cozy.contains(".settings-card")),
+            () -> assertTrue(modernMinimal.contains(".settings-card")),
+            () -> assertTrue(neoBrutalism.contains(".settings-card")),
+            () -> assertTrue(materialYou.contains(".settings-card")),
+            () -> assertTrue(neumorphism.contains(".settings-card"))
+        );
+    }
+
+    @Test
+    void themeFamilyFilesStyleWholeAppShellSelectors() throws IOException {
+        String classic = readCss("/styles/theme-classic-light.css");
+        String fresh = readCss("/styles/theme-fresh-light.css");
+        String cozy = readCss("/styles/theme-cozy-light.css");
+        String modernMinimal = readCss("/styles/theme-modern-minimal-light.css");
+        String neoBrutalism = readCss("/styles/theme-neo-brutalism-light.css");
+        String materialYou = readCss("/styles/theme-material-you-light.css");
+        String neumorphism = readCss("/styles/theme-neumorphism-light.css");
+
+        assertAll("theme family files whole app shell selectors",
+            () -> assertThemeFamilyFileThemesWholeShell(classic),
+            () -> assertThemeFamilyFileThemesWholeShell(fresh),
+            () -> assertThemeFamilyFileThemesWholeShell(cozy),
+            () -> assertThemeFamilyFileThemesWholeShell(modernMinimal),
+            () -> assertThemeFamilyFileThemesWholeShell(neoBrutalism),
+            () -> assertThemeFamilyFileThemesWholeShell(materialYou),
+            () -> assertThemeFamilyFileThemesWholeShell(neumorphism)
+        );
+    }
+
+    @Test
+    void baseCssUsesBorderlessInputsAndDialogFields() throws IOException {
+        String baseContent = readCss("/styles/base.css");
+        String searchFieldBlock = extractCssBlock(baseContent, ".search-field");
+        String textFieldBlock = extractCssBlock(baseContent, ".text-field, .text-area, .password-field");
+        String comboBoxBlock = extractCssBlock(baseContent, ".combo-box");
+        String timelineRangePillBlock = extractCssBlock(baseContent, ".timeline-range-pill");
+        String modernInputBlock = extractCssBlock(baseContent, ".modern-input");
+        String infoPanelInlineEditorBlock = extractCssBlock(baseContent, ".info-panel-inline-editor");
+        String infoPanelInlineEditorActiveBlock = extractCssBlock(baseContent, ".info-panel-inline-editor-active");
+        String heroTitleFocusBlock = extractCssBlock(baseContent, ".hero-title-input:focused");
+        String quickAddInputBlock = extractCssBlock(baseContent, ".quick-add-input");
+        String errorBorderBlock = extractCssBlock(baseContent, ".error-border");
+        String scheduleDialogFieldBlock = extractBlockByAnchor(baseContent, ".schedule-dialog-pane .combo-box,");
+
+        assertAll("base.css borderless input and dialog fields",
+            () -> assertTrue(searchFieldBlock != null && searchFieldBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(searchFieldBlock != null && searchFieldBlock.contains("-fx-border-width: 0")),
+            () -> assertTrue(textFieldBlock != null && textFieldBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(textFieldBlock != null && textFieldBlock.contains("-fx-border-width: 0")),
+            () -> assertTrue(comboBoxBlock != null && comboBoxBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(comboBoxBlock != null && comboBoxBlock.contains("-fx-border-width: 0")),
+            () -> assertTrue(timelineRangePillBlock != null && timelineRangePillBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(timelineRangePillBlock != null && timelineRangePillBlock.contains("-fx-border-width: 0")),
+            () -> assertTrue(modernInputBlock != null && modernInputBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(modernInputBlock != null && modernInputBlock.contains("-fx-border-width: 0")),
+            () -> assertTrue(infoPanelInlineEditorBlock != null && infoPanelInlineEditorBlock.contains("-fx-border-width: 0")),
+            () -> assertTrue(infoPanelInlineEditorActiveBlock != null && infoPanelInlineEditorActiveBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(heroTitleFocusBlock != null && heroTitleFocusBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(quickAddInputBlock != null && quickAddInputBlock.contains("-fx-border-width: 0")),
+            () -> assertTrue(scheduleDialogFieldBlock != null && scheduleDialogFieldBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(scheduleDialogFieldBlock != null && scheduleDialogFieldBlock.contains("-fx-border-width: 0")),
+            () -> assertTrue(errorBorderBlock != null && errorBorderBlock.contains("-fx-border-width: 1.5"))
         );
     }
 
@@ -243,5 +314,28 @@ class ThemeCssTest {
             return null;
         }
         return content.substring(start, end + 1);
+    }
+
+    private String extractBlockByAnchor(String content, String anchor) {
+        int start = content.indexOf(anchor);
+        if (start < 0) {
+            return null;
+        }
+        int end = content.indexOf("}", start);
+        if (end < 0) {
+            return null;
+        }
+        return content.substring(start, end + 1);
+    }
+
+    private void assertThemeFamilyFileThemesWholeShell(String content) {
+        assertAll(
+            () -> assertTrue(content.contains(".settings-nav-title")),
+            () -> assertTrue(content.contains(".info-panel-header")),
+            () -> assertTrue(content.contains(".timeline-header")),
+            () -> assertTrue(content.contains(".heatmap-meta-bar")),
+            () -> assertTrue(content.contains(".schedule-card-surface")),
+            () -> assertTrue(content.contains(".quick-add-badge"))
+        );
     }
 }

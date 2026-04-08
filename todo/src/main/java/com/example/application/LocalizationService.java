@@ -39,8 +39,13 @@ public final class LocalizationService {
     private AppLanguage preferredLanguage;
 
     public LocalizationService(UserPreferencesStore preferencesStore) {
+        this(preferencesStore, null);
+    }
+
+    public LocalizationService(UserPreferencesStore preferencesStore, String configuredDefaultLanguage) {
         this.preferencesStore = Objects.requireNonNull(preferencesStore, "preferencesStore");
-        this.preferredLanguage = AppLanguage.fromPreference(preferencesStore.get(PREF_LANGUAGE_KEY, AppLanguage.detectDefault().getId()));
+        String fallbackLanguageId = resolveFallbackLanguageId(configuredDefaultLanguage);
+        this.preferredLanguage = AppLanguage.fromPreference(preferencesStore.get(PREF_LANGUAGE_KEY, fallbackLanguageId));
         this.activeLanguage = preferredLanguage;
         this.activeBundle = loadBundle(activeLanguage);
         this.bundleCache.put(activeLanguage, activeBundle);
@@ -125,6 +130,16 @@ public final class LocalizationService {
         return text("theme." + themeId);
     }
 
+    public String themeFamilyLabel(ThemeFamily family) {
+        ThemeFamily resolved = family != null ? family : ThemeFamily.CLASSIC;
+        return text(resolved.getLabelKey());
+    }
+
+    public String classicPaletteLabel(ClassicThemePalette palette) {
+        ClassicThemePalette resolved = palette != null ? palette : ClassicThemePalette.LIGHT;
+        return text(resolved.getLabelKey());
+    }
+
     public String scheduleCardStyleLabel(String styleId) {
         return text(ScheduleCardStyleSupport.getLabelKey(styleId));
     }
@@ -141,6 +156,14 @@ public final class LocalizationService {
 
     public String categoryLabel(String category) {
         return Schedule.isDefaultCategory(category) ? text("category.default") : (category == null ? "" : category);
+    }
+
+    private String resolveFallbackLanguageId(String configuredDefaultLanguage) {
+        AppLanguage configured = AppLanguage.fromId(configuredDefaultLanguage);
+        if (configured != null) {
+            return configured.getId();
+        }
+        return AppLanguage.detectDefault().getId();
     }
 
     private ResourceBundle loadBundle(AppLanguage language) {

@@ -14,6 +14,14 @@
   #error AppIconFile is not defined.
 #endif
 
+#ifndef ChineseSimplifiedFile
+  #error ChineseSimplifiedFile is not defined.
+#endif
+
+#ifndef ChineseTraditionalFile
+  #error ChineseTraditionalFile is not defined.
+#endif
+
 [Setup]
 AppId={{D2232C75-43A9-4C4D-B1A9-92E2A67B6631}
 AppName=ToDo
@@ -30,11 +38,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
-#ifdef ChineseSimplifiedFile
-ShowLanguageDialog=auto
-#else
-ShowLanguageDialog=no
-#endif
+ShowLanguageDialog=yes
 SetupIconFile={#AppIconFile}
 UninstallDisplayIcon={app}\ToDo.exe
 OutputDir={#OutputDir}
@@ -42,9 +46,8 @@ OutputBaseFilename=ToDo-Setup-{#AppVersion}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
-#ifdef ChineseSimplifiedFile
 Name: "chinesesimplified"; MessagesFile: "{#ChineseSimplifiedFile}"
-#endif
+Name: "chinesetraditional"; MessagesFile: "{#ChineseTraditionalFile}"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
@@ -58,3 +61,41 @@ Name: "{autodesktop}\ToDo"; Filename: "{app}\ToDo.exe"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\ToDo.exe"; Description: "{cm:LaunchProgram,ToDo}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+function ResolveDefaultLanguageId: string;
+begin
+  if ActiveLanguage = 'chinesetraditional' then begin
+    Result := 'zh-TW';
+  end else if ActiveLanguage = 'chinesesimplified' then begin
+    Result := 'zh-CN';
+  end else begin
+    Result := 'en';
+  end;
+end;
+
+procedure WriteDefaultLanguageConfig;
+var
+  configDir: string;
+  configPath: string;
+  configContent: string;
+begin
+  configDir := ExpandConstant('{userappdata}\ToDo\config');
+  if not ForceDirectories(configDir) then begin
+    Log(Format('Failed to create config directory: %s', [configDir]));
+    Exit;
+  end;
+
+  configPath := AddBackslash(configDir) + 'application.properties';
+  configContent := 'todo.app.default-language=' + ResolveDefaultLanguageId() + #13#10;
+  if not SaveStringToFile(configPath, configContent, False) then begin
+    Log(Format('Failed to write default language config: %s', [configPath]));
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then begin
+    WriteDefaultLanguageConfig;
+  end;
+end;
