@@ -20,6 +20,7 @@ public final class ThemeService {
     static final String LEGACY_PREF_TIMELINE_CARD_STYLE_KEY = "todo.timeline.card.style";
 
     private final UserPreferencesStore preferencesStore;
+    private final ExperimentalFeaturesService experimentalFeaturesService;
     private final ThemeFamily defaultThemeFamily;
     private final ThemeAppearance defaultAppearance;
     private final ClassicThemePalette defaultClassicPalette;
@@ -28,9 +29,14 @@ public final class ThemeService {
     private ThemeAppearance currentAppearance;
     private ClassicThemePalette currentClassicPalette;
 
-    public ThemeService(UserPreferencesStore preferencesStore, AppProperties appProperties) {
+    public ThemeService(
+        UserPreferencesStore preferencesStore,
+        AppProperties appProperties,
+        ExperimentalFeaturesService experimentalFeaturesService
+    ) {
         this.preferencesStore = Objects.requireNonNull(preferencesStore, "preferencesStore");
         Objects.requireNonNull(appProperties, "appProperties");
+        this.experimentalFeaturesService = Objects.requireNonNull(experimentalFeaturesService, "experimentalFeaturesService");
         this.defaultThemeFamily = ThemeFamily.fromPreference(appProperties.getDefaultThemeFamily());
         this.defaultAppearance = ThemeAppearance.fromPreference(appProperties.getDefaultThemeAppearance());
         this.defaultClassicPalette = ClassicThemePalette.fromPreference(appProperties.getDefaultClassicPalette());
@@ -70,6 +76,7 @@ public final class ThemeService {
         currentThemeFamily = family != null ? family : defaultThemeFamily;
         currentAppearance = appearance != null ? appearance : defaultAppearance;
         currentClassicPalette = classicPalette != null ? classicPalette : defaultClassicPalette;
+        enforceThemeAvailability();
         save();
     }
 
@@ -133,6 +140,15 @@ public final class ThemeService {
             currentClassicPalette = storedClassicPalette != null
                 ? ClassicThemePalette.fromPreference(storedClassicPalette)
                 : defaultClassicPalette;
+            ThemeFamily resolvedFamily = currentThemeFamily;
+            ThemeAppearance resolvedAppearance = currentAppearance;
+            ClassicThemePalette resolvedPalette = currentClassicPalette;
+            enforceThemeAvailability();
+            if (resolvedFamily != currentThemeFamily
+                || resolvedAppearance != currentAppearance
+                || resolvedPalette != currentClassicPalette) {
+                save();
+            }
             return;
         }
 
@@ -149,7 +165,20 @@ public final class ThemeService {
         currentClassicPalette = currentThemeFamily.supportsClassicPalette()
             ? ClassicThemePalette.fromPreference(blankToNull(preferencesStore.get(LEGACY_PREF_THEME_KEY, null)))
             : defaultClassicPalette;
+        enforceThemeAvailability();
         save();
+    }
+
+    private void enforceThemeAvailability() {
+        if (currentThemeFamily == ThemeFamily.MACARON && !experimentalFeaturesService.isLabsEnabled()) {
+            currentThemeFamily = ThemeFamily.CLASSIC;
+            currentAppearance = defaultAppearance;
+            currentClassicPalette = defaultClassicPalette;
+            return;
+        }
+        if (!currentThemeFamily.supportsClassicPalette() && currentClassicPalette == null) {
+            currentClassicPalette = defaultClassicPalette;
+        }
     }
 
     private void save() {

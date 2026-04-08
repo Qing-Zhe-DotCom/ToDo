@@ -21,7 +21,10 @@
                         <rect x="66" y="12" width="2" height="10" rx="1" fill="#FFFFFF" opacity="0.6"/>
 
                         <!-- 居中大号日期 -->
-                        <text x="50" y="72" font-family="'Nunito', 'Arial Rounded MT Bold', sans-serif" font-weight="900" font-size="34" fill="#4FC3F7" text-anchor="middle">24</text>
+                        <rect x="30" y="50" width="12" height="12" rx="4" fill="#4FC3F7"/>
+                        <rect x="46" y="50" width="12" height="12" rx="4" fill="#FFE0E9"/>
+                        <rect x="30" y="66" width="12" height="12" rx="4" fill="#FFF9C4"/>
+                        <rect x="46" y="66" width="12" height="12" rx="4" fill="#E8F5E9"/>
                         
                         <!-- 氛围点缀 -->
                         <circle cx="72" cy="52" r="4" fill="#FFF9C4"/>

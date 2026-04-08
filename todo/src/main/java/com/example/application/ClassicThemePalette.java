@@ -9,8 +9,7 @@ public enum ClassicThemePalette {
     SUNSET("sunset", "theme.sunset", "/styles/sunset-theme.css", "#ffab91"),
     LAVENDER("lavender", "theme.lavender", "/styles/lavender-theme.css", "#ce93d8"),
     FOREST("forest", "theme.forest", "/styles/forest-theme.css", "#81c784"),
-    SLATE("slate", "theme.slate", "/styles/slate-theme.css", "#90a4ae"),
-    MACARON("macaron", "theme.macaron", "/styles/macaron-theme.css", "#f8bbd0");
+    SLATE("slate", "theme.slate", "/styles/slate-theme.css", "#90a4ae");
 
     private final String id;
     private final String labelKey;

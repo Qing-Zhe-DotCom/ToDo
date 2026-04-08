@@ -8,6 +8,7 @@ public enum ThemeFamily {
     CLASSIC("classic", "theme.family.classic", ScheduleCardStyleSupport.STYLE_ID_CLASSIC, true),
     FRESH("fresh", "theme.family.fresh", ScheduleCardStyleSupport.STYLE_ID_FRESH, false),
     COZY("cozy", "theme.family.cozy", ScheduleCardStyleSupport.STYLE_ID_COZY, false),
+    MACARON("macaron", "theme.family.macaron", ScheduleCardStyleSupport.STYLE_ID_COZY, false),
     MODERN_MINIMAL("modern-minimal", "theme.family.modernMinimal", ScheduleCardStyleSupport.STYLE_ID_MODERN_MINIMAL, false),
     NEO_BRUTALISM("neo-brutalism", "theme.family.neoBrutalism", ScheduleCardStyleSupport.STYLE_ID_NEO_BRUTALISM, false),
     MATERIAL_YOU("material-you", "theme.family.materialYou", ScheduleCardStyleSupport.STYLE_ID_MATERIAL_YOU, false),

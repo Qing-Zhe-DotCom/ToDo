@@ -26,6 +26,7 @@ public final class ApplicationContext {
     private final ScheduleItemRepository scheduleItemRepository;
     private final ScheduleItemService scheduleItemService;
     private final NavigationService navigationService;
+    private final ExperimentalFeaturesService experimentalFeaturesService;
     private final ThemeService themeService;
     private final LocalizationService localizationService;
     private final FontService fontService;
@@ -41,6 +42,7 @@ public final class ApplicationContext {
         ScheduleItemRepository scheduleItemRepository,
         ScheduleItemService scheduleItemService,
         NavigationService navigationService,
+        ExperimentalFeaturesService experimentalFeaturesService,
         ThemeService themeService,
         LocalizationService localizationService,
         FontService fontService,
@@ -55,6 +57,7 @@ public final class ApplicationContext {
         this.scheduleItemRepository = scheduleItemRepository;
         this.scheduleItemService = scheduleItemService;
         this.navigationService = navigationService;
+        this.experimentalFeaturesService = experimentalFeaturesService;
         this.themeService = themeService;
         this.localizationService = localizationService;
         this.fontService = fontService;
@@ -70,6 +73,7 @@ public final class ApplicationContext {
             appProperties.getDefaultLanguage()
         );
         FontService fontService = new FontService(preferencesStore);
+        ExperimentalFeaturesService experimentalFeaturesService = new ExperimentalFeaturesService(preferencesStore);
 
         AppDataPaths appDataPaths = null;
         ConnectionFactory connectionFactory;
@@ -100,7 +104,7 @@ public final class ApplicationContext {
             throw new IllegalStateException("Failed to initialize stage-B data runtime", exception);
         }
         NavigationService navigationService = new NavigationService();
-        ThemeService themeService = new ThemeService(preferencesStore, appProperties);
+        ThemeService themeService = new ThemeService(preferencesStore, appProperties, experimentalFeaturesService);
         MainViewModel mainViewModel = new MainViewModel(
             navigationService,
             themeService,
@@ -118,6 +122,7 @@ public final class ApplicationContext {
             scheduleItemRepository,
             scheduleItemService,
             navigationService,
+            experimentalFeaturesService,
             themeService,
             localizationService,
             fontService,
@@ -163,6 +168,10 @@ public final class ApplicationContext {
 
     public ThemeService getThemeService() {
         return themeService;
+    }
+
+    public ExperimentalFeaturesService getExperimentalFeaturesService() {
+        return experimentalFeaturesService;
     }
 
     public LocalizationService getLocalizationService() {
