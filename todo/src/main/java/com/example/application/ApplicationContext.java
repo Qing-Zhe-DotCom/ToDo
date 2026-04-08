@@ -65,7 +65,10 @@ public final class ApplicationContext {
         AppProperties appProperties = ConfigurationLoader.loadAppProperties();
         DatabaseProperties databaseProperties = ConfigurationLoader.loadDatabaseProperties();
         UserPreferencesStore preferencesStore = new JavaPreferencesStore(MainApp.class);
-        LocalizationService localizationService = new LocalizationService(preferencesStore);
+        LocalizationService localizationService = new LocalizationService(
+            preferencesStore,
+            appProperties.getDefaultLanguage()
+        );
         FontService fontService = new FontService(preferencesStore);
 
         AppDataPaths appDataPaths = null;

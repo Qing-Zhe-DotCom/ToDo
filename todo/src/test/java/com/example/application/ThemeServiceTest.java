@@ -92,7 +92,7 @@ class ThemeServiceTest {
     private ThemeService serviceFor(Map<String, String> preferences) {
         return new ThemeService(
             new MapPreferencesStore(preferences),
-            new AppProperties("test", "classic", "light", "light", null)
+            new AppProperties("test", "classic", "light", "light", null, null)
         );
     }
 

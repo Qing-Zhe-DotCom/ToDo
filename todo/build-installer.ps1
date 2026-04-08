@@ -79,13 +79,14 @@ if ([string]::IsNullOrWhiteSpace($version)) {
 $artifactName = "todo-$version.jar"
 $iconPath = Join-Path $projectDir "src\main\resources\icons\todo.ico"
 $issPath = Join-Path $projectDir "installer\ToDo.iss"
+$chineseSimplifiedFile = Join-Path $projectDir "installer\languages\ChineseSimplified.isl"
+$chineseTraditionalFile = Join-Path $projectDir "installer\languages\ChineseTraditional.isl"
 $targetDir = Join-Path $projectDir "target"
 $legacyWorkDir = Join-Path $targetDir "installer-work"
 $workDir = Join-Path $projectDir ".installer-work"
 $inputDir = Join-Path $workDir "input"
 $appImageDest = Join-Path $workDir "app-image"
 $appImageDir = Join-Path $appImageDest "ToDo"
-$chineseSimplifiedFile = Join-Path $env:LOCALAPPDATA "Programs\Inno Setup 6\Languages\ChineseSimplified.isl"
 
 if (-not (Test-Path $iconPath)) {
     throw "Icon file not found: $iconPath"
@@ -93,6 +94,14 @@ if (-not (Test-Path $iconPath)) {
 
 if (-not (Test-Path $issPath)) {
     throw "Inno Setup script not found: $issPath"
+}
+
+if (-not (Test-Path $chineseSimplifiedFile)) {
+    throw "Chinese simplified language file not found: $chineseSimplifiedFile"
+}
+
+if (-not (Test-Path $chineseTraditionalFile)) {
+    throw "Chinese traditional language file not found: $chineseTraditionalFile"
 }
 
 $jpackage = Get-RequiredCommandPath -CommandName "jpackage" -FallbackPaths @(
@@ -120,6 +129,8 @@ if (Test-Path $legacyWorkDir) {
 
 Write-Host "==> Building Maven package"
 Invoke-ExternalCommand -FilePath "mvn" -Arguments @(
+    "-f",
+    (Join-Path $projectDir "pom.xml"),
     "clean",
     "package",
     "dependency:copy-dependencies",
@@ -170,12 +181,10 @@ $isccArguments = @(
     "/DAppVersion=$version",
     "/DAppSourceDir=$appImageDir",
     "/DOutputDir=$resolvedOutputDir",
-    "/DAppIconFile=$iconPath"
+    "/DAppIconFile=$iconPath",
+    "/DChineseSimplifiedFile=$chineseSimplifiedFile",
+    "/DChineseTraditionalFile=$chineseTraditionalFile"
 )
-
-if (Test-Path $chineseSimplifiedFile) {
-    $isccArguments += "/DChineseSimplifiedFile=$chineseSimplifiedFile"
-}
 
 $isccArguments += $issPath
 Invoke-ExternalCommand -FilePath $iscc -Arguments $isccArguments

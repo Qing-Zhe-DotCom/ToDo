@@ -2,6 +2,7 @@
 /todo/.codex-runcheck/
 /todo/.jdks/
 /todo/.m2-repo/
+/todo/.installer-work/
 *.dump
 *.dumpstream
 *.log

@@ -29,6 +29,40 @@ class LocalizationServiceTest {
     }
 
     @Test
+    void installerDefaultLanguageAppliesWhenNoUserPreferenceExists() {
+        Locale previous = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.ENGLISH);
+            LocalizationService service = new LocalizationService(new MapPreferencesStore(Map.of()), "zh-TW");
+            assertEquals(AppLanguage.TRADITIONAL_CHINESE, service.getActiveLanguage());
+        } finally {
+            Locale.setDefault(previous);
+        }
+    }
+
+    @Test
+    void userPreferenceOverridesInstallerDefaultLanguage() {
+        LocalizationService service = new LocalizationService(
+            new MapPreferencesStore(Map.of("todo.language", AppLanguage.ENGLISH.getId())),
+            "zh-CN"
+        );
+
+        assertEquals(AppLanguage.ENGLISH, service.getActiveLanguage());
+    }
+
+    @Test
+    void invalidInstallerDefaultLanguageFallsBackToLocaleDefault() {
+        Locale previous = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.ENGLISH);
+            LocalizationService service = new LocalizationService(new MapPreferencesStore(Map.of()), "invalid-value");
+            assertEquals(AppLanguage.ENGLISH, service.getActiveLanguage());
+        } finally {
+            Locale.setDefault(previous);
+        }
+    }
+
+    @Test
     void languageLabelsResolveForAllSupportedLanguages() {
         LocalizationService simplified = serviceFor(AppLanguage.SIMPLIFIED_CHINESE);
         LocalizationService traditional = serviceFor(AppLanguage.TRADITIONAL_CHINESE);
