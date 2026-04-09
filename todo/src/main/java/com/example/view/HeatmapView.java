@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.example.application.IconKey;
 import com.example.application.ScheduleOccurrenceProjector;
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionCoordinator;
@@ -165,7 +166,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         viewModes.setAlignment(Pos.CENTER_LEFT);
 
         ToggleButton monthBtn = new ToggleButton();
-        monthBtn.setGraphic(controller.createSvgIcon("/icons/macaron_month_icon.svg", null, 48));
+        monthBtn.setGraphic(controller.createSvgIcon(IconKey.HEATMAP_MONTH, null, 48));
         monthBtn.setToggleGroup(viewGroup);
         monthBtn.setSelected(true);
         monthBtn.getStyleClass().setAll("icon-button");
@@ -176,7 +177,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         });
 
         ToggleButton yearBtn = new ToggleButton();
-        yearBtn.setGraphic(controller.createSvgIcon("/icons/macaron_year_icon.svg", null, 48));
+        yearBtn.setGraphic(controller.createSvgIcon(IconKey.HEATMAP_YEAR, null, 48));
         yearBtn.setToggleGroup(viewGroup);
         yearBtn.getStyleClass().setAll("icon-button");
         yearBtn.setTooltip(new Tooltip(text("view.heatmap.mode.year")));
@@ -193,12 +194,12 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         navButtons.setPadding(new Insets(0, 15, 0, 0)); // Keep the 15px right padding from edge
 
         prevBtn = new Button();
-        prevBtn.setGraphic(controller.createSvgIcon("/icons/macaron_prev_icon.svg", null, 48));
+        prevBtn.setGraphic(controller.createSvgIcon(IconKey.HEATMAP_PREVIOUS, null, 48));
         prevBtn.getStyleClass().setAll("icon-button");
         prevBtn.setOnAction(e -> navigate(-1));
 
         Button todayBtn = new Button();
-        todayBtn.setGraphic(controller.createSvgIcon("/icons/macaron_today_icon.svg", null, 48));
+        todayBtn.setGraphic(controller.createSvgIcon(IconKey.HEATMAP_TODAY, null, 48));
         todayBtn.getStyleClass().setAll("icon-button");
         todayBtn.setTooltip(new Tooltip(text("view.heatmap.today")));
         todayBtn.setOnAction(e -> {
@@ -207,7 +208,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         });
 
         nextBtn = new Button();
-        nextBtn.setGraphic(controller.createSvgIcon("/icons/macaron_next_icon.svg", null, 48));
+        nextBtn.setGraphic(controller.createSvgIcon(IconKey.HEATMAP_NEXT, null, 48));
         nextBtn.getStyleClass().setAll("icon-button");
         nextBtn.setOnAction(e -> navigate(1));
 
@@ -354,7 +355,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         Button button = new Button();
         button.getStyleClass().addAll("icon-button", "heatmap-sidebar-toggle");
         button.setGraphic(controller.createSvgIcon(
-            collapseTarget ? "/icons/macaron_arrow-right_icon.svg" : "/icons/macaron_arrow-left_icon.svg",
+            collapseTarget ? IconKey.ARROW_RIGHT : IconKey.ARROW_LEFT,
             null,
             18
         ));

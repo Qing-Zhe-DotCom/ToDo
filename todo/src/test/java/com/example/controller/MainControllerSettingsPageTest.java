@@ -11,6 +11,7 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import com.example.application.IconTheme;
 import com.example.application.ThemeFamily;
 
 class MainControllerSettingsPageTest {
@@ -49,5 +50,27 @@ class MainControllerSettingsPageTest {
         List<ThemeFamily> filtered = MainController.filterThemeFamilies(ThemeFamily.supportedValues(), true);
 
         assertTrue(filtered.contains(ThemeFamily.MACARON));
+    }
+
+    @Test
+    void iconThemeSelectorIsDisabledWhenIconsFollowTheme() {
+        assertFalse(MainController.isIconThemeSelectionEnabled(true));
+        assertTrue(MainController.isIconThemeSelectionEnabled(false));
+    }
+
+    @Test
+    void boundIconPreviewFollowsSelectedThemeFamily() {
+        assertEquals(
+            IconTheme.MATERIAL_YOU,
+            MainController.resolveDisplayedIconTheme(true, IconTheme.CLASSIC, ThemeFamily.MATERIAL_YOU)
+        );
+    }
+
+    @Test
+    void manualIconPreviewIgnoresThemeFamily() {
+        assertEquals(
+            IconTheme.NEO_BRUTALISM,
+            MainController.resolveDisplayedIconTheme(false, IconTheme.NEO_BRUTALISM, ThemeFamily.COZY)
+        );
     }
 }

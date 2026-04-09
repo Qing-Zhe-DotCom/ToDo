@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import com.example.application.IconKey;
 import com.example.application.ScheduleOccurrenceProjector;
 import com.example.controller.MainController;
 import com.example.model.Schedule;
@@ -172,7 +173,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         rangeLabel.setMinWidth(Region.USE_PREF_SIZE);
         rangeLabelBox.getChildren().add(rangeLabel);
 
-        StackPane rangeIconBox = new StackPane(controller.createSvgIcon("/icons/macaron_calendar-date_icon.svg", null, 18));
+        StackPane rangeIconBox = new StackPane(controller.createSvgIcon(IconKey.TIMELINE_CALENDAR, null, 18));
         rangeIconBox.getStyleClass().add("timeline-range-icon-wrap");
 
         Label rangeConnector = new Label("→");

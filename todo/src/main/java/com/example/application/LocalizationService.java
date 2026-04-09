@@ -140,6 +140,11 @@ public final class LocalizationService {
         return text(resolved.getLabelKey());
     }
 
+    public String iconThemeLabel(IconTheme iconTheme) {
+        IconTheme resolved = iconTheme != null ? iconTheme : IconTheme.CLASSIC;
+        return text(resolved.getLabelKey());
+    }
+
     public String scheduleCardStyleLabel(String styleId) {
         return text(ScheduleCardStyleSupport.getLabelKey(styleId));
     }

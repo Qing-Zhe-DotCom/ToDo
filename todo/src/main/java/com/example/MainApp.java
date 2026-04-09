@@ -3,7 +3,6 @@ package com.example;
 import java.awt.Taskbar;
 import java.awt.Taskbar.Feature;
 import java.awt.image.BufferedImage;
-import java.io.InputStream;
 
 import com.example.application.ApplicationContext;
 import com.example.application.FontService;
@@ -24,13 +23,11 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 public class MainApp extends Application {
-    private static final String APP_ICON_RESOURCE = "/icons/macaron_todo_icon.png";
     private static final double MIN_WIDTH = 1200;
     private static final double MIN_HEIGHT = 700;
 
     private MainController mainController;
     private Stage primaryStageRef;
-    private Image baseIconImage;
     private LocalizationService localizationService;
     private FontService fontService;
 
@@ -154,7 +151,9 @@ public class MainApp extends Application {
     private Image createAppIconImage(int size, int pendingCount) {
         Image source = loadBaseIconImage();
         if (source == null) {
-            return createFallbackIconImage(size);
+            return mainController != null
+                ? mainController.createCurrentAppIconImage(size)
+                : createFallbackIconImage(size);
         }
         Canvas canvas = new Canvas(size, size);
         GraphicsContext gc = canvas.getGraphicsContext2D();
@@ -183,18 +182,10 @@ public class MainApp extends Application {
     }
 
     private Image loadBaseIconImage() {
-        if (baseIconImage != null) {
-            return baseIconImage;
-        }
-        try (InputStream iconStream = getClass().getResourceAsStream(APP_ICON_RESOURCE)) {
-            if (iconStream == null) {
-                return null;
-            }
-            baseIconImage = new Image(iconStream);
-            return baseIconImage;
-        } catch (Exception ignored) {
+        if (mainController == null) {
             return null;
         }
+        return mainController.createCurrentAppIconImage(256);
     }
 
     private Image createFallbackIconImage(int size) {
