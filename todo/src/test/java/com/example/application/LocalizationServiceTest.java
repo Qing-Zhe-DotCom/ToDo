@@ -123,9 +123,6 @@ class LocalizationServiceTest {
         assertEquals("\u99ac\u5361\u9f8d\u73bb\u7483\u98a8", traditional.themeFamilyLabel(ThemeFamily.MACARON));
         assertEquals("Material You", english.themeFamilyLabel(ThemeFamily.MATERIAL_YOU));
         assertEquals("Macaron Glass", english.themeFamilyLabel(ThemeFamily.MACARON));
-        assertEquals("\u62df\u7269\u6d6e\u96d5\u98ce", simplified.iconThemeLabel(IconTheme.NEUMORPHISM));
-        assertEquals("\u65b0\u7c97\u91ce\u4e3b\u7fa9", traditional.iconThemeLabel(IconTheme.NEO_BRUTALISM));
-        assertEquals("Modern Minimal", english.iconThemeLabel(IconTheme.MODERN_MINIMAL));
     }
 
     private LocalizationService serviceFor(AppLanguage language) {

@@ -1,6 +1,5 @@
 package com.example.view;
 
-import com.example.application.IconKey;
 import com.example.controller.MainController;
 
 import javafx.application.Platform;
@@ -15,6 +14,8 @@ import javafx.stage.PopupWindow;
 import javafx.stage.Window;
 
 final class DatePickerArrowSupport {
+    private static final String CALENDAR_LEFT_ICON_RESOURCE = "/icons/macaron_arrow-left_icon.svg";
+    private static final String CALENDAR_RIGHT_ICON_RESOURCE = "/icons/macaron_arrow-right_icon.svg";
     private static final String INSTALL_FLAG = "calendar-arrow-support-installed";
     private static final String CUSTOMIZED_FLAG = "calendar-arrow-customized";
 
@@ -58,12 +59,12 @@ final class DatePickerArrowSupport {
 
             for (Node node : root.lookupAll(".left-button")) {
                 if (node instanceof Button) {
-                    applyCalendarArrowButton((Button) node, controller, IconKey.ARROW_LEFT, ".left-arrow");
+                    applyCalendarArrowButton((Button) node, controller, CALENDAR_LEFT_ICON_RESOURCE, ".left-arrow");
                 }
             }
             for (Node node : root.lookupAll(".right-button")) {
                 if (node instanceof Button) {
-                    applyCalendarArrowButton((Button) node, controller, IconKey.ARROW_RIGHT, ".right-arrow");
+                    applyCalendarArrowButton((Button) node, controller, CALENDAR_RIGHT_ICON_RESOURCE, ".right-arrow");
                 }
             }
         }
@@ -72,7 +73,7 @@ final class DatePickerArrowSupport {
     private static void applyCalendarArrowButton(
         Button button,
         MainController controller,
-        IconKey iconKey,
+        String iconPath,
         String arrowSelector
     ) {
         if (Boolean.TRUE.equals(button.getProperties().get(CUSTOMIZED_FLAG))) {
@@ -81,7 +82,7 @@ final class DatePickerArrowSupport {
 
         button.getProperties().put(CUSTOMIZED_FLAG, Boolean.TRUE);
         button.getStyleClass().add("calendar-arrow-button");
-        button.setGraphic(controller.createSvgIcon(iconKey, null, 18));
+        button.setGraphic(controller.createSvgIcon(iconPath, null, 18));
         button.setText("");
         button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         button.setStyle(

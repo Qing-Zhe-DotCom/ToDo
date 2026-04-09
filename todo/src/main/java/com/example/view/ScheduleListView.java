@@ -13,7 +13,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.example.application.IconKey;
 import com.example.application.ScheduleOccurrenceProjector;
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionCoordinator;
@@ -345,7 +344,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         Label quickAddTitle = new Label(controller.text("schedule.list.quickAdd"));
         quickAddTitle.getStyleClass().add("quick-add-title");
 
-        Node quickAddIcon = controller.createSvgIcon(IconKey.QUICK_ADD, null, 20);
+        Node quickAddIcon = controller.createSvgIcon("/icons/macaron-logo-simple-plus-blue.svg", null, 20);
         quickAddIcon.setMouseTransparent(true);
         StackPane quickAddBadge = new StackPane(quickAddIcon);
         quickAddBadge.getStyleClass().add("quick-add-badge");
@@ -373,7 +372,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
         quickAddButton = new Button("新建日程");
         quickAddButton.getStyleClass().add("quick-add-action");
-        quickAddButton.setGraphic(controller.createSvgIcon(IconKey.QUICK_ADD, null, 18));
+        quickAddButton.setGraphic(controller.createSvgIcon("/icons/macaron-logo-simple-plus-blue.svg", null, 18));
         quickAddButton.setGraphicTextGap(10);
         quickAddButton.setFocusTraversable(false);
         quickAddButton.setOnAction(event -> submitQuickAdd());

@@ -6,6 +6,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
+import java.io.InputStream;
 
 import com.example.controller.MainController;
 import com.example.model.Schedule;
@@ -38,6 +39,8 @@ import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
 public class ScheduleDialog extends Dialog<Schedule> {
+    private static final String APP_ICON_RESOURCE = "/icons/macaron_todo_icon.png";
+
     private MainController controller;
     private Schedule schedule;
     private boolean isEditMode;
@@ -107,7 +110,13 @@ public class ScheduleDialog extends Dialog<Schedule> {
             return;
         }
         Stage stage = (Stage) getDialogPane().getScene().getWindow();
-        stage.getIcons().setAll(controller.createCurrentAppIconImage(64));
+        try (InputStream iconStream = getClass().getResourceAsStream(APP_ICON_RESOURCE)) {
+            if (iconStream == null) {
+                return;
+            }
+            stage.getIcons().setAll(new Image(iconStream));
+        } catch (Exception ignored) {
+        }
     }
 
     private void initializeForm() {
