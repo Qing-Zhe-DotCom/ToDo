@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.example.application.IconKey;
 import com.example.application.ScheduleOccurrenceProjector;
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionCoordinator;
@@ -67,6 +68,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
     private ComboBox<String> filterComboBox;
     private TextField quickAddField;
+    private StackPane quickAddBadge;
     private boolean quickAddComposing;
 
     private boolean showingSearchResults = false;
@@ -344,9 +346,9 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         Label quickAddTitle = new Label(controller.text("schedule.list.quickAdd"));
         quickAddTitle.getStyleClass().add("quick-add-title");
 
-        Node quickAddIcon = controller.createSvgIcon("/icons/macaron-logo-simple-plus-blue.svg", null, 20);
+        Node quickAddIcon = controller.createSvgIcon(IconKey.PLUS, null, 20);
         quickAddIcon.setMouseTransparent(true);
-        StackPane quickAddBadge = new StackPane(quickAddIcon);
+        quickAddBadge = new StackPane(quickAddIcon);
         quickAddBadge.getStyleClass().add("quick-add-badge");
         quickAddBadge.setMouseTransparent(true);
 
@@ -396,6 +398,15 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         quickAddSection.setPadding(new Insets(14, 0, 0, 0));
         quickAddSection.getStyleClass().add("quick-add-section");
         return quickAddSection;
+    }
+
+    @Override
+    public void refreshIcons() {
+        if (quickAddBadge != null) {
+            Node quickAddIcon = controller.createSvgIcon(IconKey.PLUS, null, 20);
+            quickAddIcon.setMouseTransparent(true);
+            quickAddBadge.getChildren().setAll(quickAddIcon);
+        }
     }
 
     private void submitQuickAdd() {

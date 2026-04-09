@@ -1,5 +1,6 @@
 package com.example.view;
 
+import com.example.application.IconKey;
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionMutation;
 import com.example.model.RecurrenceRule;
@@ -454,13 +455,13 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         completeControl.getStyleClass().add("info-panel-complete-control");
 
         deleteButton = actionIconButton(
-            "/icons/macaron_info-delete_icon.svg",
+            IconKey.DELETE,
             text("info.delete"),
             this::deleteSchedule,
             "info-panel-icon-button-danger",
             "info-panel-delete-button"
         );
-        closeButton = iconButton("/icons/macaron_info-close_icon.svg", text("info.close"), controller::closeScheduleDetails);
+        closeButton = iconButton(IconKey.CLOSE, text("info.close"), controller::closeScheduleDetails);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -1214,20 +1215,29 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         return label;
     }
 
-    private Button iconButton(String iconPath, String tooltipText, Runnable action) {
+    public void refreshIcons() {
+        if (deleteButton != null) {
+            deleteButton.setGraphic(controller.createSvgIcon(IconKey.DELETE, text("info.delete"), 16));
+        }
+        if (closeButton != null) {
+            closeButton.setGraphic(controller.createSvgIcon(IconKey.CLOSE, text("info.close"), 16));
+        }
+    }
+
+    private Button iconButton(IconKey iconKey, String tooltipText, Runnable action) {
         Button button = new Button();
         button.getStyleClass().add("info-panel-toolbar-button");
-        button.setGraphic(controller.createSvgIcon(iconPath, tooltipText, 16));
+        button.setGraphic(controller.createSvgIcon(iconKey, tooltipText, 16));
         button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         button.setOnAction(event -> action.run());
         return button;
     }
 
-    private Button actionIconButton(String iconPath, String tooltipText, Runnable action, String... styleClasses) {
+    private Button actionIconButton(IconKey iconKey, String tooltipText, Runnable action, String... styleClasses) {
         Button button = new Button();
         button.getStyleClass().add("info-panel-icon-button");
         button.getStyleClass().addAll(styleClasses);
-        button.setGraphic(controller.createSvgIcon(iconPath, tooltipText, 16));
+        button.setGraphic(controller.createSvgIcon(iconKey, tooltipText, 16));
         button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         button.setOnAction(event -> action.run());
         return button;

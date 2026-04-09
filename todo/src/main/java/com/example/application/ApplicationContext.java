@@ -28,6 +28,7 @@ public final class ApplicationContext {
     private final NavigationService navigationService;
     private final ExperimentalFeaturesService experimentalFeaturesService;
     private final ThemeService themeService;
+    private final IconService iconService;
     private final LocalizationService localizationService;
     private final FontService fontService;
     private final MainViewModel mainViewModel;
@@ -44,6 +45,7 @@ public final class ApplicationContext {
         NavigationService navigationService,
         ExperimentalFeaturesService experimentalFeaturesService,
         ThemeService themeService,
+        IconService iconService,
         LocalizationService localizationService,
         FontService fontService,
         MainViewModel mainViewModel
@@ -59,6 +61,7 @@ public final class ApplicationContext {
         this.navigationService = navigationService;
         this.experimentalFeaturesService = experimentalFeaturesService;
         this.themeService = themeService;
+        this.iconService = iconService;
         this.localizationService = localizationService;
         this.fontService = fontService;
         this.mainViewModel = mainViewModel;
@@ -105,9 +108,11 @@ public final class ApplicationContext {
         }
         NavigationService navigationService = new NavigationService();
         ThemeService themeService = new ThemeService(preferencesStore, appProperties, experimentalFeaturesService);
+        IconService iconService = new IconService(preferencesStore, themeService.getCurrentThemeFamily());
         MainViewModel mainViewModel = new MainViewModel(
             navigationService,
             themeService,
+            iconService,
             localizationService,
             fontService
         );
@@ -124,6 +129,7 @@ public final class ApplicationContext {
             navigationService,
             experimentalFeaturesService,
             themeService,
+            iconService,
             localizationService,
             fontService,
             mainViewModel
@@ -168,6 +174,10 @@ public final class ApplicationContext {
 
     public ThemeService getThemeService() {
         return themeService;
+    }
+
+    public IconService getIconService() {
+        return iconService;
     }
 
     public ExperimentalFeaturesService getExperimentalFeaturesService() {

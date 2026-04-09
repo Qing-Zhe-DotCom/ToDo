@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import com.example.application.IconKey;
 import com.example.application.ScheduleOccurrenceProjector;
 import com.example.controller.MainController;
 import com.example.model.Schedule;
@@ -68,6 +69,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     private Label timelineStateLabel;
     private DatePicker startDatePicker;
     private DatePicker endDatePicker;
+    private StackPane rangeIconBox;
 
     private AnimationTimer autoScrollTimer;
     private long lastUpdate = 0;
@@ -172,7 +174,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         rangeLabel.setMinWidth(Region.USE_PREF_SIZE);
         rangeLabelBox.getChildren().add(rangeLabel);
 
-        StackPane rangeIconBox = new StackPane(controller.createSvgIcon("/icons/macaron_calendar-date_icon.svg", null, 18));
+        rangeIconBox = new StackPane(controller.createSvgIcon(IconKey.CALENDAR, null, 18));
         rangeIconBox.getStyleClass().add("timeline-range-icon-wrap");
 
         Label rangeConnector = new Label("→");
@@ -210,6 +212,13 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         picker.getStyleClass().add("timeline-range-picker");
         DatePickerArrowSupport.install(picker, controller);
         return picker;
+    }
+
+    @Override
+    public void refreshIcons() {
+        if (rangeIconBox != null) {
+            rangeIconBox.getChildren().setAll(controller.createSvgIcon(IconKey.CALENDAR, null, 18));
+        }
     }
 
     private String text(String key, Object... args) {

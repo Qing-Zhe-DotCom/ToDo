@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg id="macaron-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="w-48 h-48 drop-shadow-sm">
+                <!-- 1. 涓讳綋锛氬渾褰㈠簳搴?(鐩村緞鍗?0%锛屽嵆鍗婂緞45)锛屾祬钃?#E0F7FA -->
+                
+
+                <!-- 2. 鍥炬锛?涓┈鍗￠緳鑹插潡鍫嗗彔鎴愯糠浣犵儹鍔涘浘 -->
+                <!-- 宸︿笅 - 娴呯矇 -->
+                <rect x="22" y="52" width="26" height="26" rx="7" fill="#FFE0E9"/>
+                <!-- 鍙充笅 - 娴呴粍 -->
+                <rect x="52" y="52" width="26" height="26" rx="7" fill="#FFF9C4"/>
+                <!-- 宸︿笂 - 娴呯豢 -->
+                <rect x="22" y="22" width="26" height="26" rx="7" fill="#E8F5E9"/>
+
+                <!-- 3. 缁嗚妭锛氭枩鏀惧渾瑙掑崱閫氫换鍔℃爣绛?-->
+                <!-- 鏃嬭浆涓績鐐硅缃湪鏍囩涓績闄勮繎 -->
+                <g transform="rotate(14 66 32)">
+                    <rect x="52" y="22" width="26" height="26" rx="7" fill="#E0F7FA"/>
+                    <circle cx="60" cy="30" r="3" fill="#FFFFFF"/>
+                    <rect x="57" y="35" width="14" height="4" rx="2" fill="#FFFFFF"/>
+                </g>
+            </svg>

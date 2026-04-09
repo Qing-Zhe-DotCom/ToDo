@@ -23,6 +23,9 @@ import com.example.application.ClassicThemePalette;
 import com.example.application.ExperimentalFeaturesService;
 import com.example.application.FontService;
 import com.example.application.GlassBackdropCoordinator;
+import com.example.application.IconKey;
+import com.example.application.IconPack;
+import com.example.application.IconService;
 import com.example.application.LocalizationService;
 import com.example.application.MainViewModel;
 import com.example.application.NavigationService;
@@ -119,6 +122,7 @@ public class MainController {
     private final ScheduleItemService scheduleItemService;
     private final NavigationService navigationService;
     private final ThemeService themeService;
+    private final IconService iconService;
     private final ExperimentalFeaturesService experimentalFeaturesService;
     private final LocalizationService localizationService;
     private final FontService fontService;
@@ -144,6 +148,13 @@ public class MainController {
     private Separator bottomActionsSeparator;
     private Label functionTitle;
     private TextField searchField;
+    private ToggleButton scheduleNavButton;
+    private ToggleButton timelineNavButton;
+    private ToggleButton heatmapNavButton;
+    private ToggleButton flowchartNavButton;
+    private Button loginActionButton;
+    private Button settingsActionButton;
+    private Button exitActionButton;
     private ToggleButton collapseToggle;
     private ToggleButton featurePanelToggle;
     private Button themeButton;
@@ -156,6 +167,7 @@ public class MainController {
     private final Map<Labeled, String[]> collapsibleLabels = new LinkedHashMap<>();
     private final List<ThemeFamily> availableThemeFamilies;
     private final List<ClassicThemePalette> classicThemePalettes;
+    private final List<IconPack> availableIconPacks;
     private static final String DEFAULT_SCHEDULE_CARD_STYLE = ScheduleCardStyleSupport.getDefaultStyleId();
     private final ExecutorService scheduleCompletionExecutor;
     private final ScheduleCompletionCoordinator scheduleCompletionCoordinator;
@@ -167,6 +179,8 @@ public class MainController {
     private ThemeAppearance currentThemeAppearance = ThemeAppearance.LIGHT;
     private ClassicThemePalette currentClassicPalette = ClassicThemePalette.LIGHT;
     private String currentScheduleCardStyle = DEFAULT_SCHEDULE_CARD_STYLE;
+    private IconPack currentIconPack = IconPack.CLASSIC;
+    private boolean currentThemeIconBinding = true;
     
     public MainController() {
         this(ApplicationContext.createDefault());
@@ -178,12 +192,16 @@ public class MainController {
         this.scheduleItemService = applicationContext.getScheduleItemService();
         this.navigationService = mainViewModel.getNavigationService();
         this.themeService = mainViewModel.getThemeService();
+        this.iconService = mainViewModel.getIconService();
         this.experimentalFeaturesService = applicationContext.getExperimentalFeaturesService();
         this.localizationService = mainViewModel.getLocalizationService();
         this.fontService = mainViewModel.getFontService();
         this.availableThemeFamilies = List.copyOf(themeService.getThemeFamilies());
         this.classicThemePalettes = List.copyOf(themeService.getClassicPalettes());
+        this.availableIconPacks = List.copyOf(iconService.getAvailableIconPacks());
         syncThemeState();
+        syncIconState();
+        iconService.addChangeListener(this::refreshIconography);
         scheduleCompletionExecutor = Executors.newSingleThreadExecutor(createCompletionThreadFactory());
         scheduleCompletionCoordinator = new ScheduleCompletionCoordinator(
             scheduleItemService::updateScheduleItemCompletion,
@@ -331,7 +349,7 @@ public class MainController {
         collapseToggle.getStyleClass().addAll("nav-button", "sidebar-collapse-button");
         collapseToggle.setMaxWidth(Double.MAX_VALUE);
         String collapseTooltip = text("sidebar.collapse.toggle");
-        collapseToggleIcon = createSvgIcon("/icons/macaron-logo-triangle-arrow.svg", collapseTooltip, 24);
+        collapseToggleIcon = createSvgIcon(IconKey.ARROW_RIGHT, collapseTooltip, 24);
         collapseToggle.setGraphic(collapseToggleIcon);
         collapseToggle.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         collapseToggle.setAccessibleText(collapseTooltip);
@@ -354,18 +372,18 @@ public class MainController {
         // 导航按钮
         ToggleGroup navGroup = new ToggleGroup();
 
-        ToggleButton scheduleBtn = createNavButton("/icons/macaron-logo-calendar.svg", text("nav.schedule"), navGroup);
-        scheduleBtn.setSelected(true);
-        scheduleBtn.setOnAction(e -> showView(scheduleListView));
+        scheduleNavButton = createNavButton(IconKey.CALENDAR, text("nav.schedule"), navGroup);
+        scheduleNavButton.setSelected(true);
+        scheduleNavButton.setOnAction(e -> showView(scheduleListView));
 
-        ToggleButton timelineBtn = createNavButton("/icons/macaron-logo-timeline.svg", text("nav.timeline"), navGroup);
-        timelineBtn.setOnAction(e -> showView(timelineView));
+        timelineNavButton = createNavButton(IconKey.TIMELINE, text("nav.timeline"), navGroup);
+        timelineNavButton.setOnAction(e -> showView(timelineView));
 
-        ToggleButton heatmapBtn = createNavButton("/icons/macaron-logo-grid-heatmap.svg", text("nav.heatmap"), navGroup);
-        heatmapBtn.setOnAction(e -> showView(heatmapView));
+        heatmapNavButton = createNavButton(IconKey.GRID_HEATMAP, text("nav.heatmap"), navGroup);
+        heatmapNavButton.setOnAction(e -> showView(heatmapView));
 
-        ToggleButton flowchartBtn = createNavButton("/icons/macaron-logo-flowchart.svg", text("nav.flowchart"), navGroup);
-        flowchartBtn.setOnAction(e -> showView(flowchartView));
+        flowchartNavButton = createNavButton(IconKey.FLOWCHART, text("nav.flowchart"), navGroup);
+        flowchartNavButton.setOnAction(e -> showView(flowchartView));
 
         Region spacer = new Region();
         VBox.setVgrow(spacer, Priority.ALWAYS);
@@ -373,24 +391,24 @@ public class MainController {
         functionTitle = new Label(text("sidebar.functions"));
         functionTitle.getStyleClass().addAll("label-hint", "sidebar-function-title");
 
-        Button loginButton = createActionButton("/icons/macaron-logo-user.svg", text("sidebar.login"), this::showLoginDialog);
-        Button settingsButton = createActionButton("/icons/macaron-logo-settings.svg", text("sidebar.settings"), this::showSettingsDialog);
-        Button exitButton = createActionButton("/icons/macaron-logo-logout.svg", text("sidebar.exit"), Platform::exit);
+        loginActionButton = createActionButton(IconKey.USER, text("sidebar.login"), this::showLoginDialog);
+        settingsActionButton = createActionButton(IconKey.SETTINGS, text("sidebar.settings"), this::showSettingsDialog);
+        exitActionButton = createActionButton(IconKey.LOGOUT, text("sidebar.exit"), Platform::exit);
 
         bottomActions = new VBox(6);
         bottomActions.getStyleClass().add("sidebar-bottom-actions");
         bottomActions.getChildren().addAll(
             functionTitle,
-            loginButton,
-            settingsButton,
-            exitButton
+            loginActionButton,
+            settingsActionButton,
+            exitActionButton
         );
 
         featurePanelToggle = new ToggleButton();
         featurePanelToggle.getStyleClass().addAll("nav-button", "sidebar-feature-toggle");
         featurePanelToggle.setMaxWidth(Double.MAX_VALUE);
         String featureTooltip = text("sidebar.feature.toggle");
-        featureToggleIcon = createSvgIcon("/icons/macaron-logo-triangle-arrow.svg", featureTooltip, 24);
+        featureToggleIcon = createSvgIcon(IconKey.ARROW_RIGHT, featureTooltip, 24);
         featurePanelToggle.setGraphic(featureToggleIcon);
         featurePanelToggle.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         featurePanelToggle.setAccessibleText(featureTooltip);
@@ -406,10 +424,10 @@ public class MainController {
             collapseToggle,
             searchField,
             new Separator(),
-            scheduleBtn,
-            timelineBtn,
-            heatmapBtn,
-            flowchartBtn,
+            scheduleNavButton,
+            timelineNavButton,
+            heatmapNavButton,
+            flowchartNavButton,
             spacer,
             bottomActionsSeparator,
             bottomActions,
@@ -420,12 +438,12 @@ public class MainController {
         appShell.setLeft(sidebar);
     }
 
-    private ToggleButton createNavButton(String iconPath, String text, ToggleGroup group) {
+    private ToggleButton createNavButton(IconKey iconKey, String text, ToggleGroup group) {
         ToggleButton button = new ToggleButton(text);
         button.getStyleClass().add("nav-button");
         button.setToggleGroup(group);
         button.setMaxWidth(Double.MAX_VALUE);
-        button.setGraphic(createSvgIcon(iconPath, text, 24));
+        button.setGraphic(createSvgIcon(iconKey, text, 24));
         button.setGraphicTextGap(8);
         button.setContentDisplay(ContentDisplay.LEFT);
         button.setTextOverrun(OverrunStyle.CLIP);
@@ -436,11 +454,11 @@ public class MainController {
         return button;
     }
 
-    private Button createActionButton(String iconPath, String text, Runnable action) {
+    private Button createActionButton(IconKey iconKey, String text, Runnable action) {
         Button button = new Button(text);
         button.getStyleClass().addAll("nav-button", "sidebar-action-button");
         button.setMaxWidth(Double.MAX_VALUE);
-        button.setGraphic(createSvgIcon(iconPath, text, 24));
+        button.setGraphic(createSvgIcon(iconKey, text, 24));
         button.setGraphicTextGap(8);
         button.setContentDisplay(ContentDisplay.LEFT);
         button.setTextOverrun(OverrunStyle.CLIP);
@@ -548,6 +566,10 @@ public class MainController {
             Tooltip.install(container, new Tooltip(title));
         }
         return container;
+    }
+
+    public Pane createSvgIcon(IconKey iconKey, String title, double size) {
+        return createSvgIcon(iconService.resolveResourcePath(iconKey), title, size);
     }
 
     private Group loadSvgGraphic(String resourcePath, double targetSize) {
@@ -1102,6 +1124,11 @@ public class MainController {
         currentClassicPalette = themeService.getCurrentClassicPalette();
         currentScheduleCardStyle = themeService.getCurrentScheduleCardStyle();
     }
+
+    private void syncIconState() {
+        currentIconPack = iconService.getCurrentIconPack();
+        currentThemeIconBinding = iconService.isThemeBindingEnabled();
+    }
     
     private void switchTheme(ThemeFamily family) {
         previewThemeSelection(family, currentThemeAppearance, currentClassicPalette, null);
@@ -1175,6 +1202,8 @@ public class MainController {
     private void saveThemePreference() {
         themeService.selectTheme(currentThemeFamily, currentThemeAppearance, currentClassicPalette);
         syncThemeState();
+        iconService.syncThemeFamily(currentThemeFamily);
+        syncIconState();
     }
 
     private void applySavedThemeIfNeeded() {
@@ -1258,6 +1287,60 @@ public class MainController {
         themeIcon.setRotate(0);
         themeIcon.setOpacity(1.0);
     }
+
+    private void refreshIconography() {
+        syncIconState();
+        updateSidebarIcons();
+        if (scheduleListView != null) {
+            scheduleListView.refreshIcons();
+        }
+        if (timelineView != null) {
+            timelineView.refreshIcons();
+        }
+        if (heatmapView != null) {
+            heatmapView.refreshIcons();
+        }
+        if (flowchartView != null) {
+            flowchartView.refreshIcons();
+        }
+        if (infoPanelView != null) {
+            infoPanelView.refreshIcons();
+        }
+    }
+
+    private void updateSidebarIcons() {
+        if (collapseToggle != null) {
+            collapseToggle.setGraphic(createSvgIcon(IconKey.ARROW_RIGHT, text("sidebar.collapse.toggle"), 24));
+            collapseToggleIcon = (Pane) collapseToggle.getGraphic();
+            collapseToggleIcon.setRotate(sidebarCollapsed ? 0 : 90);
+        }
+        if (featurePanelToggle != null) {
+            featurePanelToggle.setGraphic(createSvgIcon(IconKey.ARROW_RIGHT, text("sidebar.feature.toggle"), 24));
+            featureToggleIcon = (Pane) featurePanelToggle.getGraphic();
+            featureToggleIcon.setRotate(featurePanelExpanded ? 90 : 0);
+        }
+        if (scheduleNavButton != null) {
+            scheduleNavButton.setGraphic(createSvgIcon(IconKey.CALENDAR, text("nav.schedule"), 24));
+        }
+        if (timelineNavButton != null) {
+            timelineNavButton.setGraphic(createSvgIcon(IconKey.TIMELINE, text("nav.timeline"), 24));
+        }
+        if (heatmapNavButton != null) {
+            heatmapNavButton.setGraphic(createSvgIcon(IconKey.GRID_HEATMAP, text("nav.heatmap"), 24));
+        }
+        if (flowchartNavButton != null) {
+            flowchartNavButton.setGraphic(createSvgIcon(IconKey.FLOWCHART, text("nav.flowchart"), 24));
+        }
+        if (loginActionButton != null) {
+            loginActionButton.setGraphic(createSvgIcon(IconKey.USER, text("sidebar.login"), 24));
+        }
+        if (settingsActionButton != null) {
+            settingsActionButton.setGraphic(createSvgIcon(IconKey.SETTINGS, text("sidebar.settings"), 24));
+        }
+        if (exitActionButton != null) {
+            exitActionButton.setGraphic(createSvgIcon(IconKey.LOGOUT, text("sidebar.exit"), 24));
+        }
+    }
     
     private void performSearch(String keyword) {
         if (isBlankSearchText(keyword)) {
@@ -1331,14 +1414,14 @@ public class MainController {
 
         ToggleGroup categoryGroup = new ToggleGroup();
         ToggleButton generalTab = new ToggleButton(text("settings.tab.details"));
-        generalTab.setGraphic(createSvgIcon("/icons/macaron_detail-v2_icon.svg", text("settings.tab.details"), 20));
+        generalTab.setGraphic(createSvgIcon(IconKey.DETAIL, text("settings.tab.details"), 20));
         generalTab.setGraphicTextGap(8);
         
         ToggleButton personalizationTab = new ToggleButton(text("settings.tab.personalization"));
-        personalizationTab.setGraphic(createSvgIcon("/icons/macaron_theme-v1_icon.svg", text("settings.tab.personalization"), 20));
+        personalizationTab.setGraphic(createSvgIcon(IconKey.STYLE, text("settings.tab.personalization"), 20));
         personalizationTab.setGraphicTextGap(8);
         ToggleButton dataTab = new ToggleButton(text("settings.tab.data"));
-        dataTab.setGraphic(createSvgIcon("/icons/macaron-logo-folder.svg", text("settings.tab.data"), 20));
+        dataTab.setGraphic(createSvgIcon(IconKey.FOLDER, text("settings.tab.data"), 20));
         dataTab.setGraphicTextGap(8);
         for (ToggleButton tab : List.of(generalTab, personalizationTab, dataTab)) {
             tab.getStyleClass().add("nav-button");
@@ -1361,6 +1444,8 @@ public class MainController {
         ThemeFamily originalThemeFamily = currentThemeFamily;
         ThemeAppearance originalThemeAppearance = currentThemeAppearance;
         ClassicThemePalette originalClassicPalette = currentClassicPalette;
+        IconPack originalIconPack = currentIconPack;
+        boolean originalThemeIconBinding = currentThemeIconBinding;
         boolean originalLabsEnabled = experimentalFeaturesService.isLabsEnabled();
 
         VBox generalPage = new VBox(18);
@@ -1379,18 +1464,23 @@ public class MainController {
         languageValue.getStyleClass().add("settings-inline-value");
         Label fontValue = new Label(localizationService.fontWeightLabel(fontService.getCurrentFontWeight()));
         fontValue.getStyleClass().add("settings-inline-value");
+        Label iconValue = new Label(currentIconDisplayName(currentIconPack, currentThemeIconBinding));
+        iconValue.getStyleClass().add("settings-inline-value");
         currentCard.getChildren().addAll(
             createSettingRow(text("settings.current.theme.label"), text("settings.current.theme.description"), themeValue),
+            createSettingRow(text("settings.current.icon.label"), text("settings.current.icon.description"), iconValue),
             createSettingRow(text("settings.current.language.label"), text("settings.current.language.description"), languageValue),
             createSettingRow(text("settings.current.font.label"), text("settings.current.font.description"), fontValue)
         );
         ThemeFamily[] selectedThemeFamily = new ThemeFamily[] { originalThemeFamily };
         ClassicThemePalette[] selectedClassicPalette = new ClassicThemePalette[] { originalClassicPalette };
+        IconPack[] selectedIconPack = new IconPack[] { originalIconPack };
         AppLanguage originalPreferredLanguage = localizationService.getPreferredLanguage();
         AppFontWeight originalFontWeight = fontService.getCurrentFontWeight();
         AppLanguage[] selectedLanguage = new AppLanguage[] { originalPreferredLanguage };
         AppFontWeight[] selectedFontWeight = new AppFontWeight[] { originalFontWeight };
         boolean[] selectedLabsEnabled = new boolean[] { originalLabsEnabled };
+        boolean[] selectedThemeIconBinding = new boolean[] { originalThemeIconBinding };
 
         VBox languageFontCard = createSettingsCard(text("settings.preferences.title"), text("settings.preferences.subtitle"));
         ComboBox<AppLanguage> languageComboBox = new ComboBox<>();
@@ -1507,12 +1597,61 @@ public class MainController {
             paletteFlow
         );
 
+        VBox iconCard = createSettingsCard(text("settings.icon.title"), text("settings.icon.subtitle"));
+        Label iconSummaryValue = new Label(currentIconDisplayName(selectedIconPack[0], selectedThemeIconBinding[0]));
+        iconSummaryValue.getStyleClass().add("settings-inline-value");
+        ToggleButton iconBindingToggle = new ToggleButton();
+        iconBindingToggle.getStyleClass().add("modern-toggle-switch");
+        iconBindingToggle.setCursor(Cursor.HAND);
+        iconBindingToggle.setSelected(originalThemeIconBinding);
+        if (originalThemeIconBinding) {
+            iconBindingToggle.getStyleClass().add("on");
+        }
+
+        ToggleGroup iconPackGroup = new ToggleGroup();
+        FlowPane iconPackFlow = new FlowPane();
+        iconPackFlow.getStyleClass().add("settings-chip-flow");
+        iconPackFlow.setHgap(8);
+        iconPackFlow.setVgap(10);
+        iconPackFlow.setAlignment(Pos.CENTER_LEFT);
+        iconPackFlow.setMaxWidth(Double.MAX_VALUE);
+        Map<IconPack, ToggleButton> iconPackChips = new LinkedHashMap<>();
+        for (IconPack iconPack : availableIconPacks) {
+            ToggleButton chip = new ToggleButton(iconPackDisplayName(iconPack));
+            chip.getStyleClass().add("settings-style-chip");
+            chip.setToggleGroup(iconPackGroup);
+            chip.setWrapText(true);
+            chip.setTextOverrun(OverrunStyle.CLIP);
+            chip.setUserData(iconPack);
+            if (iconPack == selectedIconPack[0]) {
+                chip.setSelected(true);
+            }
+            iconPackChips.put(iconPack, chip);
+            iconPackFlow.getChildren().add(chip);
+        }
+
+        Runnable refreshSettingsDialogIcons = () -> {
+            generalTab.setGraphic(createSvgIcon(IconKey.DETAIL, text("settings.tab.details"), 20));
+            personalizationTab.setGraphic(createSvgIcon(IconKey.STYLE, text("settings.tab.personalization"), 20));
+            dataTab.setGraphic(createSvgIcon(IconKey.FOLDER, text("settings.tab.data"), 20));
+        };
         Runnable updateThemeSummary = () ->
             themeValue.setText(currentThemeDisplayName(selectedThemeFamily[0], selectedClassicPalette[0]));
+        Runnable updateIconSummary = () -> {
+            String iconDisplay = currentIconDisplayName(selectedIconPack[0], selectedThemeIconBinding[0]);
+            iconValue.setText(iconDisplay);
+            iconSummaryValue.setText(iconDisplay);
+        };
         Runnable updatePaletteVisibility = () -> {
             boolean visible = selectedThemeFamily[0] != null && selectedThemeFamily[0].supportsClassicPalette();
             paletteRow.setManaged(visible);
             paletteRow.setVisible(visible);
+        };
+        Runnable updateIconPackInteractivity = () -> {
+            boolean manualSelectionEnabled = !selectedThemeIconBinding[0];
+            for (ToggleButton chip : iconPackChips.values()) {
+                chip.setDisable(!manualSelectionEnabled);
+            }
         };
         Runnable updateLabsThemeVisibility = () -> {
             for (Map.Entry<ThemeFamily, ToggleButton> entry : familyChips.entrySet()) {
@@ -1521,17 +1660,27 @@ public class MainController {
                 entry.getValue().setVisible(visible);
             }
         };
-        Runnable previewTheme = () -> {
+        Runnable previewThemeAndIcons = () -> {
             previewThemeSelection(selectedThemeFamily[0], ThemeAppearance.LIGHT, selectedClassicPalette[0], dialog.getDialogPane());
+            iconService.previewSelection(selectedThemeFamily[0], selectedThemeIconBinding[0], selectedIconPack[0]);
+            syncIconState();
+            selectedIconPack[0] = currentIconPack;
+            ToggleButton selectedPackChip = iconPackChips.get(selectedIconPack[0]);
+            if (selectedPackChip != null) {
+                selectedPackChip.setSelected(true);
+            }
             updateThemeSummary.run();
+            updateIconSummary.run();
             updatePaletteVisibility.run();
+            updateIconPackInteractivity.run();
+            refreshSettingsDialogIcons.run();
         };
 
         for (javafx.scene.Node node : familyChipFlow.getChildren()) {
             if (node instanceof ToggleButton chip) {
                 chip.setOnAction(event -> {
                     selectedThemeFamily[0] = (ThemeFamily) ((ToggleButton) event.getSource()).getUserData();
-                    previewTheme.run();
+                    previewThemeAndIcons.run();
                 });
             }
         }
@@ -1539,14 +1688,37 @@ public class MainController {
             if (node instanceof ToggleButton swatch) {
                 swatch.setOnAction(event -> {
                     selectedClassicPalette[0] = (ClassicThemePalette) ((ToggleButton) event.getSource()).getUserData();
-                    if (selectedThemeFamily[0] != null && selectedThemeFamily[0].supportsClassicPalette()) {
-                        previewTheme.run();
-                    } else {
-                        updateThemeSummary.run();
-                    }
+                    previewThemeAndIcons.run();
                 });
             }
         }
+        for (javafx.scene.Node node : iconPackFlow.getChildren()) {
+            if (node instanceof ToggleButton chip) {
+                chip.setOnAction(event -> {
+                    if (selectedThemeIconBinding[0]) {
+                        return;
+                    }
+                    selectedIconPack[0] = (IconPack) ((ToggleButton) event.getSource()).getUserData();
+                    previewThemeAndIcons.run();
+                });
+            }
+        }
+
+        iconBindingToggle.selectedProperty().addListener((obs, oldValue, newValue) -> {
+            boolean bindingEnabled = Boolean.TRUE.equals(newValue);
+            selectedThemeIconBinding[0] = bindingEnabled;
+            if (bindingEnabled) {
+                iconBindingToggle.getStyleClass().add("on");
+                selectedIconPack[0] = IconPack.boundToThemeFamily(selectedThemeFamily[0]);
+                ToggleButton selectedPackChip = iconPackChips.get(selectedIconPack[0]);
+                if (selectedPackChip != null) {
+                    selectedPackChip.setSelected(true);
+                }
+            } else {
+                iconBindingToggle.getStyleClass().remove("on");
+            }
+            previewThemeAndIcons.run();
+        });
 
         labsToggle.selectedProperty().addListener((obs, oldValue, newValue) -> {
             boolean labsEnabled = Boolean.TRUE.equals(newValue);
@@ -1572,7 +1744,7 @@ public class MainController {
                     }
                 }
                 updateLabsThemeVisibility.run();
-                previewTheme.run();
+                previewThemeAndIcons.run();
                 showInfo(
                     text("settings.labs.disabled.title"),
                     text("settings.labs.disabled.message")
@@ -1586,11 +1758,19 @@ public class MainController {
 
         updateLabsThemeVisibility.run();
         updatePaletteVisibility.run();
+        updateIconSummary.run();
+        updateIconPackInteractivity.run();
+        refreshSettingsDialogIcons.run();
         themeCard.getChildren().addAll(
             createStackedSettingRow(text("settings.theme.family.label"), text("settings.theme.family.description"), familyChipFlow),
             paletteRow
         );
-        personalizationPage.getChildren().add(themeCard);
+        iconCard.getChildren().addAll(
+            createSettingRow(text("settings.icon.summary.label"), text("settings.icon.summary.description"), iconSummaryValue),
+            createSettingRow(text("settings.icon.binding.label"), text("settings.icon.binding.description"), iconBindingToggle),
+            createStackedSettingRow(text("settings.icon.pack.label"), text("settings.icon.pack.description"), iconPackFlow)
+        );
+        personalizationPage.getChildren().addAll(themeCard, iconCard);
         VBox dataPage = new VBox(18);
         dataPage.getStyleClass().add("settings-page");
         dataPage.setFillWidth(true);
@@ -1675,9 +1855,9 @@ public class MainController {
 
         Optional<ButtonType> result = dialog.showAndWait();
         if (result.isEmpty() || result.get() != saveButtonType) {
-            if (currentThemeFamily != originalThemeFamily || currentClassicPalette != originalClassicPalette) {
-                previewThemeSelection(originalThemeFamily, originalThemeAppearance, originalClassicPalette, null);
-            }
+            previewThemeSelection(originalThemeFamily, originalThemeAppearance, originalClassicPalette, null);
+            iconService.previewSelection(originalThemeFamily, originalThemeIconBinding, originalIconPack);
+            syncIconState();
             return;
         }
 
@@ -1686,6 +1866,12 @@ public class MainController {
         }
         if (selectedThemeFamily[0] != originalThemeFamily || selectedClassicPalette[0] != originalClassicPalette) {
             saveThemePreference();
+        }
+        if (selectedThemeFamily[0] != originalThemeFamily
+            || selectedIconPack[0] != originalIconPack
+            || selectedThemeIconBinding[0] != originalThemeIconBinding) {
+            iconService.commitSelection(selectedThemeFamily[0], selectedThemeIconBinding[0], selectedIconPack[0]);
+            syncIconState();
         }
         if (selectedLanguage[0] != null && selectedLanguage[0] != originalPreferredLanguage) {
             localizationService.saveLanguagePreference(selectedLanguage[0]);
@@ -1871,6 +2057,10 @@ public class MainController {
         return localizationService.classicPaletteLabel(palette);
     }
 
+    public String iconPackDisplayName(IconPack iconPack) {
+        return localizationService.iconPackLabel(iconPack);
+    }
+
     public String currentThemeDisplayName(ThemeFamily family, ClassicThemePalette palette) {
         ThemeFamily resolvedFamily = family != null ? family : ThemeFamily.CLASSIC;
         if (resolvedFamily.supportsClassicPalette()) {
@@ -1881,6 +2071,13 @@ public class MainController {
             );
         }
         return themeFamilyDisplayName(resolvedFamily);
+    }
+
+    public String currentIconDisplayName(IconPack iconPack, boolean bindingEnabled) {
+        IconPack resolvedPack = iconPack != null ? iconPack : IconPack.CLASSIC;
+        return bindingEnabled
+            ? text("settings.current.icon.boundValue", iconPackDisplayName(resolvedPack))
+            : text("settings.current.icon.unboundValue", iconPackDisplayName(resolvedPack));
     }
 
     public String scheduleCardStyleDisplayName(String styleId) {

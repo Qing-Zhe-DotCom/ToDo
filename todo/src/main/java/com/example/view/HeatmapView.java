@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.example.application.IconKey;
 import com.example.application.ScheduleOccurrenceProjector;
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionCoordinator;
@@ -65,8 +66,11 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private ScrollPane scrollPane;
     private Label statsLabel;
     private HBox legend;
+    private ToggleButton monthModeButton;
+    private ToggleButton yearModeButton;
     private Button prevBtn;
     private Button nextBtn;
+    private Button todayBtn;
     private VBox sidebarShell;
     private VBox daySchedulePanel;
     private VBox dayScheduleRail;
@@ -93,6 +97,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private String currentViewMode = "month"; // month, year
     private LocalDate currentDate = LocalDate.now();
     private LocalDate selectedDate;
+    private final List<Button> sidebarToggleButtons = new ArrayList<>();
 
     public HeatmapView(MainController controller) {
         this.controller = controller;
@@ -164,28 +169,28 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         HBox viewModes = new HBox(24); // Increase spacing to 24px (1.5x of 16px)
         viewModes.setAlignment(Pos.CENTER_LEFT);
 
-        ToggleButton monthBtn = new ToggleButton();
-        monthBtn.setGraphic(controller.createSvgIcon("/icons/macaron_month_icon.svg", null, 48));
-        monthBtn.setToggleGroup(viewGroup);
-        monthBtn.setSelected(true);
-        monthBtn.getStyleClass().setAll("icon-button");
-        monthBtn.setTooltip(new Tooltip(text("view.heatmap.mode.month")));
-        monthBtn.setOnAction(e -> {
+        monthModeButton = new ToggleButton();
+        monthModeButton.setGraphic(controller.createSvgIcon(IconKey.MONTH, null, 48));
+        monthModeButton.setToggleGroup(viewGroup);
+        monthModeButton.setSelected(true);
+        monthModeButton.getStyleClass().setAll("icon-button");
+        monthModeButton.setTooltip(new Tooltip(text("view.heatmap.mode.month")));
+        monthModeButton.setOnAction(e -> {
             currentViewMode = "month";
             queueRefresh();
         });
 
-        ToggleButton yearBtn = new ToggleButton();
-        yearBtn.setGraphic(controller.createSvgIcon("/icons/macaron_year_icon.svg", null, 48));
-        yearBtn.setToggleGroup(viewGroup);
-        yearBtn.getStyleClass().setAll("icon-button");
-        yearBtn.setTooltip(new Tooltip(text("view.heatmap.mode.year")));
-        yearBtn.setOnAction(e -> {
+        yearModeButton = new ToggleButton();
+        yearModeButton.setGraphic(controller.createSvgIcon(IconKey.YEAR, null, 48));
+        yearModeButton.setToggleGroup(viewGroup);
+        yearModeButton.getStyleClass().setAll("icon-button");
+        yearModeButton.setTooltip(new Tooltip(text("view.heatmap.mode.year")));
+        yearModeButton.setOnAction(e -> {
             currentViewMode = "year";
             queueRefresh();
         });
         
-        viewModes.getChildren().addAll(monthBtn, yearBtn);
+        viewModes.getChildren().addAll(monthModeButton, yearModeButton);
 
         // 导航按钮
         HBox navButtons = new HBox(24); // Increase spacing to 24px (1.5x of 16px)
@@ -193,12 +198,12 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         navButtons.setPadding(new Insets(0, 15, 0, 0)); // Keep the 15px right padding from edge
 
         prevBtn = new Button();
-        prevBtn.setGraphic(controller.createSvgIcon("/icons/macaron_prev_icon.svg", null, 48));
+        prevBtn.setGraphic(controller.createSvgIcon(IconKey.PREV, null, 48));
         prevBtn.getStyleClass().setAll("icon-button");
         prevBtn.setOnAction(e -> navigate(-1));
 
-        Button todayBtn = new Button();
-        todayBtn.setGraphic(controller.createSvgIcon("/icons/macaron_today_icon.svg", null, 48));
+        todayBtn = new Button();
+        todayBtn.setGraphic(controller.createSvgIcon(IconKey.TODAY, null, 48));
         todayBtn.getStyleClass().setAll("icon-button");
         todayBtn.setTooltip(new Tooltip(text("view.heatmap.today")));
         todayBtn.setOnAction(e -> {
@@ -207,7 +212,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         });
 
         nextBtn = new Button();
-        nextBtn.setGraphic(controller.createSvgIcon("/icons/macaron_next_icon.svg", null, 48));
+        nextBtn.setGraphic(controller.createSvgIcon(IconKey.NEXT, null, 48));
         nextBtn.getStyleClass().setAll("icon-button");
         nextBtn.setOnAction(e -> navigate(1));
 
@@ -353,13 +358,11 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private Button createSidebarToggleButton(boolean collapseTarget) {
         Button button = new Button();
         button.getStyleClass().addAll("icon-button", "heatmap-sidebar-toggle");
-        button.setGraphic(controller.createSvgIcon(
-            collapseTarget ? "/icons/macaron_arrow-right_icon.svg" : "/icons/macaron_arrow-left_icon.svg",
-            null,
-            18
-        ));
+        button.setUserData(collapseTarget);
+        button.setGraphic(controller.createSvgIcon(collapseTarget ? IconKey.ARROW_RIGHT : IconKey.ARROW_LEFT, null, 18));
         button.setTooltip(new Tooltip(collapseTarget ? text("view.heatmap.sidebar.collapse") : text("view.heatmap.sidebar.expand")));
         button.setOnAction(event -> setSidebarCollapsed(collapseTarget));
+        sidebarToggleButtons.add(button);
         return button;
     }
 
@@ -411,6 +414,29 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     @Override
     public void refresh() {
         queueRefresh();
+    }
+
+    @Override
+    public void refreshIcons() {
+        if (monthModeButton != null) {
+            monthModeButton.setGraphic(controller.createSvgIcon(IconKey.MONTH, null, 48));
+        }
+        if (yearModeButton != null) {
+            yearModeButton.setGraphic(controller.createSvgIcon(IconKey.YEAR, null, 48));
+        }
+        if (prevBtn != null) {
+            prevBtn.setGraphic(controller.createSvgIcon(IconKey.PREV, null, 48));
+        }
+        if (todayBtn != null) {
+            todayBtn.setGraphic(controller.createSvgIcon(IconKey.TODAY, null, 48));
+        }
+        if (nextBtn != null) {
+            nextBtn.setGraphic(controller.createSvgIcon(IconKey.NEXT, null, 48));
+        }
+        for (Button button : sidebarToggleButtons) {
+            boolean collapseTarget = Boolean.TRUE.equals(button.getUserData());
+            button.setGraphic(controller.createSvgIcon(collapseTarget ? IconKey.ARROW_RIGHT : IconKey.ARROW_LEFT, null, 18));
+        }
     }
 
     private void queueLayoutRefresh() {
