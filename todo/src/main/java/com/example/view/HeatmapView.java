@@ -9,9 +9,11 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import com.example.application.ScheduleOccurrenceProjector;
+import com.example.config.UserPreferencesStore;
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionCoordinator;
 import com.example.controller.ScheduleCompletionMutation;
@@ -30,6 +32,9 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -37,6 +42,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 
 public class HeatmapView implements View, ScheduleCompletionParticipant {
@@ -54,6 +60,12 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private static final double SIDEBAR_COLLAPSED_WIDTH = 40;
     private static final String COMPLETED_PROXY_STYLE = "heatmap-completed-proxy";
     private static final String COMPLETED_PROXY_HOST_STYLE = "heatmap-completed-proxy-host";
+    private static final String PREF_HEATMAP_PROFILE_KEY = "todo.heatmap.profile";
+    private static final String PREF_HEATMAP_MANUAL_THRESHOLDS_KEY = "todo.heatmap.manual.thresholds";
+    private static final String PREF_HEATMAP_MANUAL_COLORS_KEY = "todo.heatmap.manual.colors";
+    private static final double WHEEL_NAV_TRIGGER_DELTA = 55;
+    private static final double WHEEL_NAV_EDGE_EPSILON = 0.02;
+    private static final long WHEEL_NAV_IDLE_RESET_NANOS = 400_000_000L;
 
     private MainController controller;
 
@@ -82,6 +94,9 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private boolean redrawQueued;
     private boolean layoutRefreshQueued;
     private boolean sidebarCollapsed;
+    private boolean draggingDateSelection;
+    private double wheelNavigationAccumulator;
+    private long lastWheelNavigationNanos;
     private String lastLayoutSignature;
     private LocalDate visibleStartDate;
     private LocalDate visibleEndDate;
@@ -89,14 +104,19 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private StackPane completedProxyHost;
     private StackPane completedProxyShell;
     private ChangeListener<Bounds> viewportReadyListener;
+    private StackPane overlayLayer;
+    private Label overlayHintLabel;
+    private Label overlayIndicatorText;
+    private Circle overlayIndicatorDot;
 
     private String currentViewMode = "month"; // month, year
     private LocalDate currentDate = LocalDate.now();
     private LocalDate selectedDate;
+    private HeatmapIntensityProfile heatmapIntensityProfile;
 
     public HeatmapView(MainController controller) {
         this.controller = controller;
-
+        this.heatmapIntensityProfile = loadHeatmapIntensityProfile();
         initializeUI();
     }
 
@@ -138,6 +158,9 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         HBox.setHgrow(heatmapPane, Priority.ALWAYS);
         heatmapPane.widthProperty().addListener((obs, oldValue, newValue) -> queueLayoutRefresh());
         heatmapPane.heightProperty().addListener((obs, oldValue, newValue) -> queueLayoutRefresh());
+        installHeatmapNavigationInteractions();
+        overlayLayer = createOverlayLayer();
+        heatmapPane.getChildren().add(overlayLayer);
 
         // 图例
         sidebarShell = createDayScheduleSidebar();
@@ -193,7 +216,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         navButtons.setPadding(new Insets(0, 15, 0, 0)); // Keep the 15px right padding from edge
 
         prevBtn = new Button();
-        prevBtn.setGraphic(controller.createSvgIcon("/icons/macaron_prev_icon.svg", null, 48));
+        prevBtn.setGraphic(controller.createSvgIcon("/icons/macaron_arrow-left_icon.svg", null, 48));
         prevBtn.getStyleClass().setAll("icon-button");
         prevBtn.setOnAction(e -> navigate(-1));
 
@@ -201,13 +224,10 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         todayBtn.setGraphic(controller.createSvgIcon("/icons/macaron_today_icon.svg", null, 48));
         todayBtn.getStyleClass().setAll("icon-button");
         todayBtn.setTooltip(new Tooltip(text("view.heatmap.today")));
-        todayBtn.setOnAction(e -> {
-            currentDate = LocalDate.now();
-            queueRefresh();
-        });
+        todayBtn.setOnAction(e -> focusToday());
 
         nextBtn = new Button();
-        nextBtn.setGraphic(controller.createSvgIcon("/icons/macaron_next_icon.svg", null, 48));
+        nextBtn.setGraphic(controller.createSvgIcon("/icons/macaron_arrow-right_icon.svg", null, 48));
         nextBtn.getStyleClass().setAll("icon-button");
         nextBtn.setOnAction(e -> navigate(1));
 
@@ -238,6 +258,94 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         return text("view.heatmap.period.month");
     }
 
+    private void installHeatmapNavigationInteractions() {
+        if (scrollPane != null) {
+            scrollPane.addEventFilter(ScrollEvent.SCROLL, this::handleWheelPeriodNavigation);
+        }
+        if (heatmapPane != null) {
+            heatmapPane.addEventFilter(MouseEvent.MOUSE_RELEASED, e -> draggingDateSelection = false);
+            heatmapPane.addEventFilter(MouseEvent.MOUSE_EXITED_TARGET, e -> {
+                if (!e.isPrimaryButtonDown()) {
+                    draggingDateSelection = false;
+                }
+            });
+        }
+    }
+
+    private void handleWheelPeriodNavigation(ScrollEvent event) {
+        if (event == null || event.isControlDown() || event.isMetaDown() || event.isAltDown()) {
+            return;
+        }
+
+        double dominantDelta = resolveNavigationWheelDelta(event.getDeltaX(), event.getDeltaY());
+        if (Math.abs(dominantDelta) < 0.01) {
+            return;
+        }
+
+        long now = System.nanoTime();
+        if (now - lastWheelNavigationNanos > WHEEL_NAV_IDLE_RESET_NANOS) {
+            wheelNavigationAccumulator = 0;
+        }
+
+        wheelNavigationAccumulator += dominantDelta;
+        int direction = resolveWheelNavigationDirection(wheelNavigationAccumulator, WHEEL_NAV_TRIGGER_DELTA);
+        if (direction == 0) {
+            return;
+        }
+
+        boolean verticalAxis = Math.abs(event.getDeltaY()) >= Math.abs(event.getDeltaX());
+        if (!canNavigatePeriodByWheel(verticalAxis, direction)) {
+            wheelNavigationAccumulator = 0;
+            return;
+        }
+
+        wheelNavigationAccumulator = 0;
+        lastWheelNavigationNanos = now;
+        navigate(direction);
+        event.consume();
+    }
+
+    private boolean canNavigatePeriodByWheel(boolean verticalAxis, int direction) {
+        if (!"year".equals(currentViewMode)) {
+            return true;
+        }
+        if (scrollPane == null || scrollPane.getContent() == null) {
+            return true;
+        }
+        if (verticalAxis) {
+            return canNavigateOnScrollAxis(direction, hasVerticalOverflow(), scrollPane.getVvalue());
+        }
+        return canNavigateOnScrollAxis(direction, hasHorizontalOverflow(), scrollPane.getHvalue());
+    }
+
+    private boolean canNavigateOnScrollAxis(int direction, boolean hasOverflow, double scrollValue) {
+        if (!hasOverflow) {
+            return true;
+        }
+        if (direction < 0) {
+            return scrollValue <= WHEEL_NAV_EDGE_EPSILON;
+        }
+        return scrollValue >= 1 - WHEEL_NAV_EDGE_EPSILON;
+    }
+
+    private boolean hasVerticalOverflow() {
+        if (scrollPane == null || scrollPane.getContent() == null) {
+            return false;
+        }
+        Bounds viewport = scrollPane.getViewportBounds();
+        Bounds content = scrollPane.getContent().getLayoutBounds();
+        return viewport.getHeight() > 0 && content.getHeight() - viewport.getHeight() > 1;
+    }
+
+    private boolean hasHorizontalOverflow() {
+        if (scrollPane == null || scrollPane.getContent() == null) {
+            return false;
+        }
+        Bounds viewport = scrollPane.getViewportBounds();
+        Bounds content = scrollPane.getContent().getLayoutBounds();
+        return viewport.getWidth() > 0 && content.getWidth() - viewport.getWidth() > 1;
+    }
+
     private void navigate(int direction) {
         if ("year".equals(currentViewMode)) {
             currentDate = currentDate.plusYears(direction);
@@ -247,12 +355,46 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         queueRefresh();
     }
 
+    private void focusToday() {
+        LocalDate today = LocalDate.now();
+        currentDate = today;
+        selectedDate = today;
+        queueRefresh();
+    }
+
     private HBox createLegend() {
         HBox legend = new HBox(8);
         legend.getStyleClass().add("heatmap-legend");
         legend.setAlignment(Pos.CENTER_RIGHT);
         updateLegend();
         return legend;
+    }
+
+    private StackPane createOverlayLayer() {
+        StackPane layer = new StackPane();
+        layer.setMouseTransparent(true);
+        layer.setPickOnBounds(false);
+        layer.getStyleClass().add("heatmap-overlay-layer");
+
+        overlayHintLabel = new Label(controller.text("view.heatmap.overlayHint"));
+        overlayHintLabel.getStyleClass().add("heatmap-overlay-hint");
+        StackPane.setAlignment(overlayHintLabel, Pos.CENTER);
+
+        overlayIndicatorDot = new Circle(5, Color.web("#ff3b30"));
+        overlayIndicatorDot.getStyleClass().add("heatmap-indicator-dot");
+
+        overlayIndicatorText = new Label();
+        overlayIndicatorText.getStyleClass().add("heatmap-indicator-text");
+
+        HBox indicatorContent = new HBox(6, overlayIndicatorDot, overlayIndicatorText);
+        indicatorContent.setAlignment(Pos.CENTER_LEFT);
+        indicatorContent.getStyleClass().add("heatmap-indicator-box");
+        StackPane indicatorWrapper = new StackPane(indicatorContent);
+        indicatorWrapper.setPadding(new Insets(8));
+        StackPane.setAlignment(indicatorWrapper, Pos.TOP_LEFT);
+
+        layer.getChildren().addAll(overlayHintLabel, indicatorWrapper);
+        return layer;
     }
 
     private HBox createMetaBar() {
@@ -273,6 +415,9 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
 
         dayScheduleTitle = new Label(text("view.heatmap.selectedSchedules"));
         dayScheduleTitle.getStyleClass().add("heatmap-day-title");
+        dayScheduleTitle.setMaxWidth(Double.MAX_VALUE);
+        dayScheduleTitle.setTextOverrun(OverrunStyle.CLIP);
+        dayScheduleTitle.setWrapText(false);
 
         ScrollPane dayScheduleScrollPane = new ScrollPane();
         dayScheduleScrollPane.getStyleClass().add("heatmap-day-scroll");
@@ -309,16 +454,22 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
 
         dayScheduleTitle = new Label(text("view.heatmap.selectedDate"));
         dayScheduleTitle.getStyleClass().add("heatmap-day-title");
+        dayScheduleTitle.setMaxWidth(Double.MAX_VALUE);
+        dayScheduleTitle.setTextOverrun(OverrunStyle.CLIP);
+        dayScheduleTitle.setWrapText(false);
 
         dayScheduleCountLabel = new Label(buildScheduleCountText(0));
         dayScheduleCountLabel.getStyleClass().add("heatmap-day-count");
 
         VBox titleGroup = new VBox(6, dayScheduleTitle, dayScheduleCountLabel);
+        titleGroup.setFillWidth(true);
+        titleGroup.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(titleGroup, Priority.ALWAYS);
 
         Region headerSpacer = new Region();
         HBox.setHgrow(headerSpacer, Priority.ALWAYS);
 
-        panelHeader.getChildren().addAll(titleGroup, headerSpacer, createSidebarToggleButton(true));
+        panelHeader.getChildren().addAll(titleGroup, headerSpacer, wrapSidebarToggle(createSidebarToggleButton(true)));
 
         ScrollPane dayScheduleScrollPane = new ScrollPane();
         dayScheduleScrollPane.getStyleClass().add("heatmap-day-scroll");
@@ -343,7 +494,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         dayScheduleRail = new VBox(0);
         dayScheduleRail.getStyleClass().add("heatmap-day-rail");
         dayScheduleRail.setAlignment(Pos.TOP_CENTER);
-        dayScheduleRail.getChildren().add(createSidebarToggleButton(false));
+        dayScheduleRail.getChildren().add(wrapSidebarToggle(createSidebarToggleButton(false)));
 
         shell.getChildren().addAll(daySchedulePanel, dayScheduleRail);
         VBox.setVgrow(daySchedulePanel, Priority.ALWAYS);
@@ -361,6 +512,19 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         button.setTooltip(new Tooltip(collapseTarget ? text("view.heatmap.sidebar.collapse") : text("view.heatmap.sidebar.expand")));
         button.setOnAction(event -> setSidebarCollapsed(collapseTarget));
         return button;
+    }
+
+    private Node wrapSidebarToggle(Button toggleButton) {
+        StackPane host = new StackPane(toggleButton);
+        host.getStyleClass().add("heatmap-sidebar-toggle-host");
+        double size = resolveSidebarToggleHostWidth();
+        host.setMinWidth(size);
+        host.setPrefWidth(size);
+        host.setMaxWidth(size);
+        host.setMinHeight(size);
+        host.setPrefHeight(size);
+        host.setMaxHeight(size);
+        return host;
     }
 
     private void setSidebarCollapsed(boolean collapsed) {
@@ -645,13 +809,39 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         }
         if (activeInCurrentPeriod) {
             cell.setOnMouseClicked(e -> {
-                if (date.equals(selectedDate)) {
+                if (e.getButton() != MouseButton.PRIMARY) {
                     return;
                 }
-                selectedDate = date;
-                updateSelectedCellStyles();
-                updateDaySchedulePanel();
+                selectDateIfChanged(date);
             });
+            cell.setOnMousePressed(e -> {
+                if (e.getButton() != MouseButton.PRIMARY) {
+                    return;
+                }
+                draggingDateSelection = true;
+                selectDateIfChanged(date);
+            });
+            cell.setOnDragDetected(e -> {
+                if (!e.isPrimaryButtonDown()) {
+                    return;
+                }
+                draggingDateSelection = true;
+                cell.startFullDrag();
+                e.consume();
+            });
+            cell.setOnMouseDragEntered(e -> {
+                if (!draggingDateSelection || !e.isPrimaryButtonDown()) {
+                    return;
+                }
+                selectDateIfChanged(date);
+            });
+            cell.setOnMouseEntered(e -> {
+                if (!draggingDateSelection || !e.isPrimaryButtonDown()) {
+                    return;
+                }
+                selectDateIfChanged(date);
+            });
+            cell.setOnMouseReleased(e -> draggingDateSelection = false);
         }
 
         List<Schedule> schedules = schedulesByDate.getOrDefault(date, List.of());
@@ -663,6 +853,15 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         }
 
         return cell;
+    }
+
+    private void selectDateIfChanged(LocalDate date) {
+        if (!shouldSelectDate(date, selectedDate)) {
+            return;
+        }
+        selectedDate = date;
+        updateSelectedCellStyles();
+        updateDaySchedulePanel();
     }
 
     private String buildTooltipText(LocalDate date, int completedCount, List<Schedule> schedules) {
@@ -693,6 +892,119 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         }
     }
 
+    HeatmapIntensityProfile getHeatmapIntensityProfile() {
+        return heatmapIntensityProfile;
+    }
+
+    void useHeatmapPreset(String presetId) {
+        HeatmapIntensityProfile resolved = HeatmapIntensityProfile.fromPreset(presetId);
+        if (resolved == null) {
+            return;
+        }
+        heatmapIntensityProfile = resolved;
+        persistHeatmapIntensityProfile();
+        queueRefresh();
+    }
+
+    void useManualHeatmapScale(int[] thresholds, String[] colors) {
+        heatmapIntensityProfile = HeatmapIntensityProfile.manual(thresholds, colors);
+        persistHeatmapIntensityProfile();
+        queueRefresh();
+    }
+
+    private HeatmapIntensityProfile loadHeatmapIntensityProfile() {
+        UserPreferencesStore store = controller != null ? controller.getPreferencesStore() : null;
+        if (store == null) {
+            return HeatmapIntensityProfile.defaultProfile();
+        }
+
+        String profileId = store.get(PREF_HEATMAP_PROFILE_KEY, HeatmapIntensityProfile.DEFAULT_PROFILE_ID);
+        if (HeatmapIntensityProfile.MANUAL_PROFILE_ID.equalsIgnoreCase(profileId)) {
+            int[] manualThresholds = parseThresholdCsv(
+                store.get(PREF_HEATMAP_MANUAL_THRESHOLDS_KEY, ""),
+                HeatmapIntensityProfile.defaultProfile().thresholds()
+            );
+            String[] manualColors = parseColorCsv(
+                store.get(PREF_HEATMAP_MANUAL_COLORS_KEY, ""),
+                HeatmapIntensityProfile.defaultProfile().colors()
+            );
+            return HeatmapIntensityProfile.manual(manualThresholds, manualColors);
+        }
+
+        HeatmapIntensityProfile preset = HeatmapIntensityProfile.fromPreset(profileId);
+        return preset != null ? preset : HeatmapIntensityProfile.defaultProfile();
+    }
+
+    private void persistHeatmapIntensityProfile() {
+        UserPreferencesStore store = controller != null ? controller.getPreferencesStore() : null;
+        if (store == null || heatmapIntensityProfile == null) {
+            return;
+        }
+
+        store.put(PREF_HEATMAP_PROFILE_KEY, heatmapIntensityProfile.id());
+        if (!heatmapIntensityProfile.isManual()) {
+            return;
+        }
+
+        store.put(PREF_HEATMAP_MANUAL_THRESHOLDS_KEY, toCsv(heatmapIntensityProfile.thresholds()));
+        store.put(PREF_HEATMAP_MANUAL_COLORS_KEY, String.join(",", heatmapIntensityProfile.colors()));
+    }
+
+    private static int[] parseThresholdCsv(String raw, int[] fallback) {
+        if (raw == null || raw.isBlank()) {
+            return normalizeThresholds(fallback);
+        }
+        List<Integer> parsed = new ArrayList<>();
+        for (String token : raw.split(",")) {
+            String normalized = token == null ? "" : token.trim();
+            if (normalized.isEmpty()) {
+                continue;
+            }
+            try {
+                parsed.add(Integer.parseInt(normalized));
+            } catch (NumberFormatException ignored) {
+            }
+            if (parsed.size() >= 3) {
+                break;
+            }
+        }
+        if (parsed.size() < 3) {
+            return normalizeThresholds(fallback);
+        }
+        return normalizeThresholds(new int[] { parsed.get(0), parsed.get(1), parsed.get(2) });
+    }
+
+    private static String[] parseColorCsv(String raw, String[] fallback) {
+        String[] defaults = normalizeColors(fallback, HeatmapIntensityProfile.defaultProfile().colors());
+        if (raw == null || raw.isBlank()) {
+            return defaults;
+        }
+        String[] tokens = raw.split(",");
+        List<String> parsed = new ArrayList<>();
+        for (String token : tokens) {
+            String normalized = token == null ? "" : token.trim();
+            if (normalized.isEmpty()) {
+                continue;
+            }
+            parsed.add(normalized);
+            if (parsed.size() >= 5) {
+                break;
+            }
+        }
+        if (parsed.size() < 5) {
+            return defaults;
+        }
+        return normalizeColors(
+            new String[] { parsed.get(0), parsed.get(1), parsed.get(2), parsed.get(3), parsed.get(4) },
+            defaults
+        );
+    }
+
+    private static String toCsv(int[] values) {
+        int[] resolved = normalizeThresholds(values);
+        return resolved[0] + "," + resolved[1] + "," + resolved[2];
+    }
+
     private void updateLegend() {
         if (legend == null) {
             return;
@@ -704,14 +1016,14 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         title.getStyleClass().add("label-hint");
         legend.getChildren().add(title);
 
-        String[] labels = {"0", "1-2", "3-5", "6-8", "9+"};
+        List<String> labels = buildLegendLabels(heatmapIntensityProfile.thresholds());
 
-        for (int i = 0; i < labels.length; i++) {
+        for (int i = 0; i < labels.size(); i++) {
             Rectangle rect = new Rectangle(15, 15);
             rect.getStyleClass().add("heatmap-cell");
             updateHeatmapCellColor(rect, i);
 
-            Label label = new Label(labels[i]);
+            Label label = new Label(labels.get(i));
             label.getStyleClass().add("label-hint");
 
             legend.getChildren().addAll(rect, label);
@@ -733,13 +1045,20 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             return;
         }
 
-        if (currentDate.isBefore(startDate)) {
-            selectedDate = startDate;
-        } else if (currentDate.isAfter(endDate)) {
-            selectedDate = endDate;
-        } else {
-            selectedDate = currentDate;
+        selectedDate = clampDateWithinRange(currentDate, startDate, endDate);
+    }
+
+    static LocalDate clampDateWithinRange(LocalDate candidate, LocalDate startDate, LocalDate endDate) {
+        if (candidate == null || startDate == null || endDate == null) {
+            return null;
         }
+        if (candidate.isBefore(startDate)) {
+            return startDate;
+        }
+        if (candidate.isAfter(endDate)) {
+            return endDate;
+        }
+        return candidate;
     }
 
     private void updateDaySchedulePanel() {
@@ -759,12 +1078,38 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             Label emptyLabel = new Label(text("view.heatmap.empty"));
             emptyLabel.getStyleClass().add("heatmap-day-empty");
             dayScheduleCardsBox.getChildren().add(emptyLabel);
-            return;
+        } else {
+            for (Schedule schedule : schedules) {
+                dayScheduleCardsBox.getChildren().add(createDayScheduleCard(schedule));
+            }
         }
 
-        for (Schedule schedule : schedules) {
-            dayScheduleCardsBox.getChildren().add(createDayScheduleCard(schedule));
+        updateOverlayIndicator();
+    }
+
+    private void updateOverlayIndicator() {
+        if (overlayIndicatorText == null || controller == null) {
+            return;
         }
+        LocalDate date = selectedDate != null ? selectedDate : currentDate;
+        if (date == null) {
+            overlayIndicatorText.setText("");
+            return;
+        }
+        String dateLabel = controller.format("format.heatmap.selectedDate", date);
+        int count = countSchedulesForDate(schedulesByDate, date);
+        overlayIndicatorText.setText(controller.text("view.heatmap.indicator", dateLabel, count));
+    }
+
+    static int countSchedulesForDate(Map<LocalDate, List<Schedule>> map, LocalDate date) {
+        if (map == null || date == null) {
+            return 0;
+        }
+        List<Schedule> schedules = map.get(date);
+        if (schedules == null || schedules.isEmpty()) {
+            return 0;
+        }
+        return (int) schedules.stream().filter(Schedule::isCompleted).count();
     }
 
     private StackPane createDayScheduleCard(Schedule schedule) {
@@ -844,13 +1189,14 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         tagsBox.setAlignment(Pos.CENTER_RIGHT);
 
         if (hasText(schedule.getPriority())) {
-            Label priorityLabel = new Label(schedule.getPriority());
+            Label priorityLabel = new Label(controller.priorityDisplayName(schedule.getPriority()));
             priorityLabel.getStyleClass().add("priority-" + getPriorityClass(schedule.getPriority()));
             tagsBox.getChildren().add(priorityLabel);
         }
 
-        if (hasText(schedule.getCategory())) {
-            Label categoryLabel = new Label(schedule.getCategory());
+        String localizedCategory = controller.categoryDisplayName(schedule.getCategory());
+        if (hasText(localizedCategory)) {
+            Label categoryLabel = new Label(localizedCategory);
             categoryLabel.getStyleClass().add("category-tag");
             tagsBox.getChildren().add(categoryLabel);
         }
@@ -1333,8 +1679,28 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         return cellSize + cellChrome;
     }
 
+    static double resolveNavigationWheelDelta(double deltaX, double deltaY) {
+        return Math.abs(deltaY) >= Math.abs(deltaX) ? deltaY : deltaX;
+    }
+
+    static int resolveWheelNavigationDirection(double accumulatedDelta, double triggerDelta) {
+        double threshold = Math.max(1, Math.abs(triggerDelta));
+        if (Math.abs(accumulatedDelta) < threshold) {
+            return 0;
+        }
+        return accumulatedDelta > 0 ? -1 : 1;
+    }
+
+    static boolean shouldSelectDate(LocalDate candidateDate, LocalDate currentSelectedDate) {
+        return candidateDate != null && !candidateDate.equals(currentSelectedDate);
+    }
+
     static double resolveSidebarWidth(boolean collapsed) {
         return collapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
+    }
+
+    static double resolveSidebarToggleHostWidth() {
+        return SIDEBAR_COLLAPSED_WIDTH;
     }
 
     static int resolveMonthGridRows() {
@@ -1346,6 +1712,73 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             return min;
         }
         return Math.max(min, Math.min(max, value));
+    }
+
+    static int resolveHeatmapLevel(int count, int[] thresholds) {
+        int[] resolvedThresholds = normalizeThresholds(thresholds);
+        if (count <= 0) {
+            return 0;
+        }
+        if (count <= resolvedThresholds[0]) {
+            return 1;
+        }
+        if (count <= resolvedThresholds[1]) {
+            return 2;
+        }
+        if (count <= resolvedThresholds[2]) {
+            return 3;
+        }
+        return 4;
+    }
+
+    static List<String> buildLegendLabels(int[] thresholds) {
+        int[] resolved = normalizeThresholds(thresholds);
+        List<String> labels = new ArrayList<>(5);
+        labels.add("0");
+        labels.add("1-" + resolved[0]);
+        labels.add((resolved[0] + 1) + "-" + resolved[1]);
+        labels.add((resolved[1] + 1) + "-" + resolved[2]);
+        labels.add((resolved[2] + 1) + "+");
+        return labels;
+    }
+
+    static int[] normalizeThresholds(int[] thresholds) {
+        int[] defaults = HeatmapIntensityProfile.defaultThresholds();
+        if (thresholds == null || thresholds.length < 3) {
+            return defaults;
+        }
+        int first = Math.max(1, thresholds[0]);
+        int second = Math.max(first + 1, thresholds[1]);
+        int third = Math.max(second + 1, thresholds[2]);
+        return new int[] { first, second, third };
+    }
+
+    static String[] normalizeColors(String[] colors, String[] fallback) {
+        String[] resolvedFallback = fallback != null && fallback.length >= 5
+            ? new String[] { fallback[0], fallback[1], fallback[2], fallback[3], fallback[4] }
+            : HeatmapIntensityProfile.defaultColors();
+
+        if (colors == null || colors.length < 5) {
+            return resolvedFallback;
+        }
+
+        String[] normalized = new String[5];
+        for (int i = 0; i < normalized.length; i++) {
+            Color parsed = parseColor(colors[i]);
+            normalized[i] = parsed != null ? colors[i].trim() : resolvedFallback[i];
+        }
+        return normalized;
+    }
+
+    private static Color parseColor(String rawColor) {
+        if (rawColor == null || rawColor.isBlank()) {
+            return null;
+        }
+        try {
+            return Color.web(rawColor.trim());
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
     }
 
     static Map<LocalDate, List<Schedule>> buildSchedulesByDate(List<Schedule> schedules, LocalDate startDate, LocalDate endDate) {
@@ -1423,12 +1856,108 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         return !date.isBefore(startDate) && !date.isAfter(endDate);
     }
 
+    static final class HeatmapIntensityProfile {
+        static final String DEFAULT_PROFILE_ID = "classic";
+        static final String MANUAL_PROFILE_ID = "manual";
+        private static final Map<String, HeatmapIntensityProfile> PRESET_PROFILES = buildPresetProfiles();
+
+        private final String id;
+        private final int[] thresholds;
+        private final String[] colors;
+        private final boolean manual;
+
+        private HeatmapIntensityProfile(String id, int[] thresholds, String[] colors, boolean manual) {
+            this.id = id;
+            this.thresholds = normalizeThresholds(thresholds);
+            this.colors = normalizeColors(colors, defaultColors());
+            this.manual = manual;
+        }
+
+        static HeatmapIntensityProfile defaultProfile() {
+            return PRESET_PROFILES.get(DEFAULT_PROFILE_ID);
+        }
+
+        static HeatmapIntensityProfile fromPreset(String presetId) {
+            if (presetId == null || presetId.isBlank()) {
+                return defaultProfile();
+            }
+            return PRESET_PROFILES.get(presetId.trim().toLowerCase(Locale.ROOT));
+        }
+
+        static HeatmapIntensityProfile manual(int[] thresholds, String[] colors) {
+            HeatmapIntensityProfile defaults = defaultProfile();
+            return new HeatmapIntensityProfile(
+                MANUAL_PROFILE_ID,
+                thresholds,
+                colors != null ? colors : defaults.colors(),
+                true
+            );
+        }
+
+        String id() {
+            return id;
+        }
+
+        int[] thresholds() {
+            return thresholds.clone();
+        }
+
+        String[] colors() {
+            return colors.clone();
+        }
+
+        String colorForLevel(int level) {
+            int clampedLevel = Math.max(0, Math.min(level, 4));
+            return colors[clampedLevel];
+        }
+
+        boolean isManual() {
+            return manual;
+        }
+
+        private static Map<String, HeatmapIntensityProfile> buildPresetProfiles() {
+            Map<String, HeatmapIntensityProfile> presets = new LinkedHashMap<>();
+            presets.put(
+                "classic",
+                new HeatmapIntensityProfile(
+                    "classic",
+                    new int[] { 2, 5, 8 },
+                    new String[] { "#ebedf0", "#c6e48b", "#7bc96f", "#239a3b", "#196127" },
+                    false
+                )
+            );
+            presets.put(
+                "cool",
+                new HeatmapIntensityProfile(
+                    "cool",
+                    new int[] { 1, 3, 6 },
+                    new String[] { "#ecf2ff", "#bdd7ff", "#7faeff", "#4d84ff", "#1f5fe0" },
+                    false
+                )
+            );
+            presets.put(
+                "warm",
+                new HeatmapIntensityProfile(
+                    "warm",
+                    new int[] { 2, 4, 7 },
+                    new String[] { "#fff2e8", "#ffd3b3", "#ffad80", "#ff7a59", "#e6533c" },
+                    false
+                )
+            );
+            return presets;
+        }
+
+        private static String[] defaultColors() {
+            return new String[] { "#ebedf0", "#c6e48b", "#7bc96f", "#239a3b", "#196127" };
+        }
+
+        private static int[] defaultThresholds() {
+            return new int[] { 2, 5, 8 };
+        }
+    }
+
     private int getLevelForCount(int count) {
-        if (count == 0) return 0;
-        if (count <= 2) return 1;
-        if (count <= 5) return 2;
-        if (count <= 8) return 3;
-        return 4;
+        return resolveHeatmapLevel(count, heatmapIntensityProfile.thresholds());
     }
 
     private void updateHeatmapCellColor(Rectangle rect, int level) {
@@ -1436,7 +1965,9 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             "level-0", "level-1", "level-2",
             "level-3", "level-4"
         );
-        rect.getStyleClass().add("level-" + Math.min(level, 4));
+        int clampedLevel = Math.max(0, Math.min(level, 4));
+        rect.getStyleClass().add("level-" + clampedLevel);
+        rect.setFill(parseColor(heatmapIntensityProfile.colorForLevel(clampedLevel)));
     }
 
     private String getScheduleDateText(Schedule schedule) {

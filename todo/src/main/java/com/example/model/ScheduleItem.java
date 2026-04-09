@@ -40,6 +40,7 @@ public class ScheduleItem {
     public static final String SYNC_STATUS_PENDING_UPLOAD = "pending_upload";
     public static final String SYNC_STATUS_SYNCED = "synced";
     public static final String SYNC_STATUS_PENDING_DELETE = "pending_delete";
+    private static final String METADATA_KEY_PIN = "pin";
 
     private static final LocalTime START_OF_DAY_TIME = LocalTime.MIDNIGHT;
     private static final LocalTime END_OF_DAY_TIME = LocalTime.of(23, 59);
@@ -550,6 +551,14 @@ public class ScheduleItem {
         return metadataJson;
     }
 
+    public boolean isPinned() {
+        return readMetadataBooleanFlag(getMetadataJson(), METADATA_KEY_PIN);
+    }
+
+    public void setPinned(boolean pinned) {
+        setMetadataJson(writeMetadataBooleanFlag(getMetadataJson(), METADATA_KEY_PIN, pinned));
+    }
+
     public LocalDate getStartDate() {
         return startDateProjection.get();
     }
@@ -958,5 +967,304 @@ public class ScheduleItem {
             }
         }
         return null;
+    }
+
+    private static boolean readMetadataBooleanFlag(String metadata, String key) {
+        String valueToken = readMetadataValueToken(metadata, key);
+        if (valueToken == null) {
+            return false;
+        }
+        String normalizedValue = valueToken.strip();
+        if ("true".equalsIgnoreCase(normalizedValue)) {
+            return true;
+        }
+        if ("false".equalsIgnoreCase(normalizedValue)) {
+            return false;
+        }
+        String decodedValue = decodeJsonStringLiteral(normalizedValue);
+        return decodedValue != null && Boolean.parseBoolean(decodedValue);
+    }
+
+    private static String readMetadataValueToken(String metadata, String key) {
+        String normalized = Tag.normalizeNullableText(metadata);
+        if (normalized == null) {
+            return null;
+        }
+        String object = normalized.strip();
+        if (!isJsonObject(object)) {
+            return null;
+        }
+        String body = object.substring(1, object.length() - 1);
+        for (String member : splitTopLevelMembers(body)) {
+            MetadataMember parsed = parseMetadataMember(member);
+            if (parsed != null && key.equals(parsed.key())) {
+                return parsed.valueToken().strip();
+            }
+        }
+        return null;
+    }
+
+    private static String writeMetadataBooleanFlag(String metadata, String key, boolean enabled) {
+        String normalized = Tag.normalizeNullableText(metadata);
+        if (normalized == null) {
+            return enabled ? "{\"" + escapeJsonString(key) + "\":true}" : null;
+        }
+        String object = normalized.strip();
+        if (!isJsonObject(object)) {
+            return enabled ? "{\"" + escapeJsonString(key) + "\":true}" : normalized;
+        }
+
+        String body = object.substring(1, object.length() - 1);
+        List<String> members = splitTopLevelMembers(body);
+        List<String> rewritten = new ArrayList<>();
+        boolean found = false;
+
+        for (String member : members) {
+            MetadataMember parsed = parseMetadataMember(member);
+            if (parsed == null) {
+                String retained = member.strip();
+                if (!retained.isEmpty()) {
+                    rewritten.add(retained);
+                }
+                continue;
+            }
+            if (!key.equals(parsed.key())) {
+                rewritten.add(parsed.rawMember());
+                continue;
+            }
+
+            found = true;
+            if (enabled) {
+                rewritten.add(parsed.prefix() + leadingWhitespace(parsed.valueToken()) + "true");
+            }
+        }
+
+        if (!enabled && !found) {
+            return normalized;
+        }
+        if (enabled && !found) {
+            rewritten.add("\"" + escapeJsonString(key) + "\": true");
+        }
+        if (rewritten.isEmpty()) {
+            return null;
+        }
+        return "{" + String.join(", ", rewritten) + "}";
+    }
+
+    private static List<String> splitTopLevelMembers(String body) {
+        List<String> members = new ArrayList<>();
+        if (body == null || body.isBlank()) {
+            return members;
+        }
+
+        int depth = 0;
+        boolean inString = false;
+        boolean escaped = false;
+        int start = 0;
+        for (int index = 0; index < body.length(); index++) {
+            char current = body.charAt(index);
+            if (inString) {
+                if (escaped) {
+                    escaped = false;
+                } else if (current == '\\') {
+                    escaped = true;
+                } else if (current == '"') {
+                    inString = false;
+                }
+                continue;
+            }
+            if (current == '"') {
+                inString = true;
+                continue;
+            }
+            if (current == '{' || current == '[') {
+                depth++;
+                continue;
+            }
+            if (current == '}' || current == ']') {
+                depth = Math.max(0, depth - 1);
+                continue;
+            }
+            if (current == ',' && depth == 0) {
+                members.add(body.substring(start, index));
+                start = index + 1;
+            }
+        }
+        members.add(body.substring(start));
+        return members;
+    }
+
+    private static MetadataMember parseMetadataMember(String member) {
+        String normalized = member == null ? "" : member.strip();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        int colonIndex = findTopLevelColon(normalized);
+        if (colonIndex <= 0) {
+            return null;
+        }
+        String keyLiteral = normalized.substring(0, colonIndex).strip();
+        String key = decodeJsonStringLiteral(keyLiteral);
+        if (key == null) {
+            return null;
+        }
+        return new MetadataMember(
+            normalized,
+            key,
+            normalized.substring(0, colonIndex + 1),
+            normalized.substring(colonIndex + 1)
+        );
+    }
+
+    private static int findTopLevelColon(String text) {
+        int depth = 0;
+        boolean inString = false;
+        boolean escaped = false;
+        for (int index = 0; index < text.length(); index++) {
+            char current = text.charAt(index);
+            if (inString) {
+                if (escaped) {
+                    escaped = false;
+                } else if (current == '\\') {
+                    escaped = true;
+                } else if (current == '"') {
+                    inString = false;
+                }
+                continue;
+            }
+            if (current == '"') {
+                inString = true;
+                continue;
+            }
+            if (current == '{' || current == '[') {
+                depth++;
+                continue;
+            }
+            if (current == '}' || current == ']') {
+                depth = Math.max(0, depth - 1);
+                continue;
+            }
+            if (current == ':' && depth == 0) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private static String decodeJsonStringLiteral(String literal) {
+        if (literal == null) {
+            return null;
+        }
+        String normalized = literal.strip();
+        if (normalized.length() < 2 || normalized.charAt(0) != '"' || normalized.charAt(normalized.length() - 1) != '"') {
+            return null;
+        }
+        StringBuilder decoded = new StringBuilder();
+        for (int index = 1; index < normalized.length() - 1; index++) {
+            char current = normalized.charAt(index);
+            if (current != '\\') {
+                decoded.append(current);
+                continue;
+            }
+            if (index + 1 >= normalized.length() - 1) {
+                return null;
+            }
+            char escaped = normalized.charAt(++index);
+            switch (escaped) {
+                case '"':
+                case '\\':
+                case '/':
+                    decoded.append(escaped);
+                    break;
+                case 'b':
+                    decoded.append('\b');
+                    break;
+                case 'f':
+                    decoded.append('\f');
+                    break;
+                case 'n':
+                    decoded.append('\n');
+                    break;
+                case 'r':
+                    decoded.append('\r');
+                    break;
+                case 't':
+                    decoded.append('\t');
+                    break;
+                case 'u':
+                    if (index + 4 >= normalized.length()) {
+                        return null;
+                    }
+                    String hex = normalized.substring(index + 1, index + 5);
+                    try {
+                        decoded.append((char) Integer.parseInt(hex, 16));
+                    } catch (NumberFormatException exception) {
+                        return null;
+                    }
+                    index += 4;
+                    break;
+                default:
+                    return null;
+            }
+        }
+        return decoded.toString();
+    }
+
+    private static String escapeJsonString(String value) {
+        if (value == null || value.isEmpty()) {
+            return "";
+        }
+        StringBuilder escaped = new StringBuilder(value.length());
+        for (char current : value.toCharArray()) {
+            switch (current) {
+                case '\\':
+                    escaped.append("\\\\");
+                    break;
+                case '"':
+                    escaped.append("\\\"");
+                    break;
+                case '\b':
+                    escaped.append("\\b");
+                    break;
+                case '\f':
+                    escaped.append("\\f");
+                    break;
+                case '\n':
+                    escaped.append("\\n");
+                    break;
+                case '\r':
+                    escaped.append("\\r");
+                    break;
+                case '\t':
+                    escaped.append("\\t");
+                    break;
+                default:
+                    if (current < 0x20) {
+                        escaped.append(String.format("\\u%04x", (int) current));
+                    } else {
+                        escaped.append(current);
+                    }
+                    break;
+            }
+        }
+        return escaped.toString();
+    }
+
+    private static boolean isJsonObject(String value) {
+        return value != null && value.length() >= 2 && value.charAt(0) == '{' && value.charAt(value.length() - 1) == '}';
+    }
+
+    private static String leadingWhitespace(String value) {
+        if (value == null || value.isEmpty()) {
+            return "";
+        }
+        int index = 0;
+        while (index < value.length() && Character.isWhitespace(value.charAt(index))) {
+            index++;
+        }
+        return value.substring(0, index);
+    }
+
+    private record MetadataMember(String rawMember, String key, String prefix, String valueToken) {
     }
 }

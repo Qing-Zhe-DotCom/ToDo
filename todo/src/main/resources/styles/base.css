@@ -692,6 +692,12 @@
     -fx-padding: 0;
 }
 
+.schedule-group-count {
+    -fx-font-size: 12px;
+    -fx-text-fill: -color-text-muted;
+    -fx-padding: 0;
+}
+
 /* 已完成日程标题样式 */
 .title-completed {
     -fx-strikethrough: true;
@@ -1115,6 +1121,7 @@
     -fx-background-color: transparent;
     -fx-background-radius: 0;
     -fx-effect: none;
+    -fx-translate-y: 1px;
 }
 
 .quick-add-input {
@@ -1474,6 +1481,38 @@
     -fx-background-color: derive(-color-bg-hover, 6%);
 
     -fx-effect: dropshadow(gaussian, -color-primary-glow, 8, 0.12, 0, 0);
+
+}
+
+.sidebar-search-shell {
+
+    -fx-alignment: center-left;
+
+    -fx-spacing: 6;
+
+}
+
+.search-clear-button {
+
+    -fx-background-color: transparent;
+
+    -fx-padding: 4;
+
+}
+
+.search-clear-button:hover {
+
+    -fx-background-color: rgba(255, 255, 255, 0.12);
+
+}
+
+.search-clear-button .sidebar-svg-icon {
+
+    -fx-background-color: transparent;
+
+    -fx-background-radius: 0;
+
+    -fx-effect: none;
 
 }
 
@@ -2048,6 +2087,10 @@
 
     -fx-text-fill: -color-text-main;
 
+    -fx-text-overrun: clip;
+
+    -fx-wrap-text: false;
+
 }
 
 .heatmap-day-count,
@@ -2182,6 +2225,25 @@
 
     -fx-padding: 0;
 
+}
+
+.heatmap-sidebar-toggle-host {
+
+    -fx-alignment: center;
+
+    -fx-padding: 0;
+
+    -fx-pref-width: 40px;
+
+    -fx-pref-height: 40px;
+
+    -fx-min-width: 40px;
+
+    -fx-min-height: 40px;
+
+    -fx-max-width: 40px;
+
+    -fx-max-height: 40px;
 }
 
 .heatmap-day-rail {
@@ -3377,6 +3439,70 @@
 
 .ios-wheel-save-button:hover {
     -fx-background-color: -color-primary-hover;
+}
+
+.ios-wheel-manual-input-box {
+    -fx-spacing: 4;
+    -fx-padding: 0 8 4 8;
+}
+
+.ios-wheel-manual-label {
+    -fx-font-size: 11;
+    -fx-text-fill: -color-text-secondary;
+    -fx-font-weight: 600;
+    -fx-letter-spacing: 0.08em;
+}
+
+.ios-wheel-manual-input {
+    -fx-background-color: -color-bg-panel;
+    -fx-border-color: -color-divider;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-padding: 6 10;
+    -fx-pref-height: 32;
+    -fx-focus-color: -color-primary;
+}
+
+.ios-wheel-manual-hint {
+    -fx-font-size: 10;
+    -fx-text-fill: -color-text-secondary;
+}
+
+.ios-wheel-manual-error {
+    -fx-font-size: 10;
+    -fx-text-fill: -color-danger;
+    -fx-opacity: 0.9;
+}
+
+.heatmap-overlay-layer {
+    -fx-background-color: transparent;
+}
+
+.heatmap-indicator-box {
+    -fx-background-color: rgba(0, 0, 0, 0.45);
+    -fx-background-radius: 12;
+    -fx-padding: 2 10;
+    -fx-border-color: rgba(255, 255, 255, 0.2);
+    -fx-border-width: 1;
+}
+
+.heatmap-indicator-dot {
+    -fx-fill: #ff3b30;
+}
+
+.heatmap-indicator-text {
+    -fx-font-size: 12;
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-text-primary;
+}
+
+.heatmap-overlay-hint {
+    -fx-font-size: 72;
+    -fx-font-weight: 700;
+    -fx-text-fill: rgba(255, 255, 255, 0.08);
+    -fx-letter-spacing: 0.12em;
+    -fx-text-alignment: center;
+    -fx-effect: dropshadow(one-pass-box, rgba(0,0,0,0.35), 20, 0, 0, 4);
 }
 
 /* Info panel refresh */

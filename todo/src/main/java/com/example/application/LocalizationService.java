@@ -119,7 +119,9 @@ public final class LocalizationService {
     }
 
     public String languageLabel(AppLanguage language) {
-        return text(language.getLabelKey());
+        AppLanguage resolved = language != null ? language : activeLanguage;
+        String labelKey = resolved.getLabelKey();
+        return labelKey == null ? "" : text(resolved, labelKey);
     }
 
     public String fontWeightLabel(AppFontWeight fontWeight) {

@@ -26,6 +26,8 @@ import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
@@ -80,6 +82,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
 
     private ScheduleStatusControl completeControl;
     private Button closeButton;
+    private Button pinButton;
     private Button deleteButton;
     private Label statusLabel;
     private FlowPane chipPane;
@@ -453,6 +456,12 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         );
         completeControl.getStyleClass().add("info-panel-complete-control");
 
+        pinButton = actionIconButton(
+            "/icons/macaron_info-flag_icon.svg",
+            text("info.pin"),
+            this::togglePin,
+            "info-panel-pin-button"
+        );
         deleteButton = actionIconButton(
             "/icons/macaron_info-delete_icon.svg",
             text("info.delete"),
@@ -464,7 +473,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox actionGroup = new HBox(10, completeControl, deleteButton);
+        HBox actionGroup = new HBox(10, completeControl, pinButton, deleteButton);
         actionGroup.setAlignment(Pos.CENTER_LEFT);
         actionGroup.getStyleClass().add("info-panel-action-group");
         HBox header = new HBox(10, actionGroup, spacer, closeButton);
@@ -518,6 +527,15 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
 
         categoryField = textInput(text("category.default"));
         tagsField = textInput(text("info.tags.prompt"));
+        tagsField.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                event.consume();
+                String committed = ScheduleDialog.commitTagEntryValue(tagsField.getText());
+                tagsField.setText(committed);
+                tagsField.positionCaret(committed.length());
+                saveTags();
+            }
+        });
 
         notesArea = new TextArea();
         notesArea.getStyleClass().addAll("info-panel-notes-input", "info-panel-borderless-area");
@@ -935,6 +953,15 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         return;
     }
 
+    private void togglePin() {
+        closeWheelPopup();
+        if (currentSchedule == null) {
+            return;
+        }
+        boolean targetPinned = !currentSchedule.isPinned();
+        save(text("error.pinSave.title"), draft -> draft.setPinned(targetPinned), true);
+    }
+
     private void save(String errorTitle, Change change, boolean rerender) {
         if (currentSchedule == null || persistedSchedule == null) {
             return;
@@ -1031,6 +1058,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         completeControl.syncCompleted(false);
         setDisabled(true);
         updateTimeTriggers();
+        updatePinButtonState();
         titleField.setPromptText(text("info.title.empty"));
     }
 
@@ -1057,6 +1085,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         statusLabel.setManaged(true);
         completeControl.syncCompleted(currentSchedule.isCompleted());
         setDisabled(false);
+        updatePinButtonState();
 
         DatePresentation presentation = buildDatePresentation(
             controller,
@@ -1080,6 +1109,9 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         chipPane.getChildren().clear();
         if (statusLabel.isManaged() && !statusLabel.getText().isBlank()) {
             chipPane.getChildren().add(statusLabel);
+        }
+        if (currentSchedule != null && currentSchedule.isPinned()) {
+            chipPane.getChildren().add(chip(text("info.pinned"), "info-panel-chip-pin"));
         }
         if (shouldShowCategoryChip(category)) {
             chipPane.getChildren().add(chip(controller.categoryDisplayName(Schedule.normalizeCategory(category)), "info-panel-chip-category"));
@@ -1143,6 +1175,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
 
     private void setDisabled(boolean disabled) {
         completeControl.setDisable(disabled);
+        pinButton.setDisable(disabled);
         deleteButton.setDisable(disabled);
         titleField.setDisable(disabled);
         allDayToggle.setDisable(disabled);
@@ -1414,6 +1447,17 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         return chip;
     }
 
+    private void updatePinButtonState() {
+        if (pinButton == null) {
+            return;
+        }
+        boolean pinned = currentSchedule != null && currentSchedule.isPinned();
+        String tooltipText = pinned ? text("info.unpin") : text("info.pin");
+        pinButton.setGraphic(controller.createSvgIcon("/icons/macaron_info-flag_icon.svg", tooltipText, 16));
+        pinButton.setAccessibleText(tooltipText);
+        toggleStyleClass(pinButton, "info-panel-icon-button-active", pinned);
+    }
+
     private Schedule copyOf(Schedule source) {
         Schedule copy = new Schedule();
         copy.setId(source.getId());
@@ -1441,6 +1485,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         copy.setDeletedAt(source.getDeletedAt());
         copy.setStatus(source.getStatus());
         copy.setCompletedAt(source.getCompletedAt());
+        copy.setMetadataJson(source.getMetadataJson());
         return copy;
     }
 

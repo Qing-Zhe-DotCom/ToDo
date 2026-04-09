@@ -187,8 +187,9 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         Button resetBtn = new Button(text("view.timeline.reset"));
         resetBtn.getStyleClass().addAll("button-secondary", "timeline-range-reset");
         resetBtn.setOnAction(e -> {
-            startDatePicker.setValue(null);
-            endDatePicker.setValue(null);
+            LocalDate[] range = defaultResetRange(LocalDate.now());
+            startDatePicker.setValue(range[0]);
+            endDatePicker.setValue(range[1]);
             refresh();
         });
 
@@ -259,6 +260,11 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             return left;
         }
         return left.isAfter(right) ? left : right;
+    }
+
+    private static LocalDate[] defaultResetRange(LocalDate anchorDate) {
+        LocalDate anchor = anchorDate != null ? anchorDate : LocalDate.now();
+        return new LocalDate[] { anchor.minusDays(7), anchor.plusDays(30) };
     }
 
     @Override

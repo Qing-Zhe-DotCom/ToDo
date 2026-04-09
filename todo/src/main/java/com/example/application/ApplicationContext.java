@@ -27,6 +27,7 @@ public final class ApplicationContext {
     private final ScheduleItemService scheduleItemService;
     private final NavigationService navigationService;
     private final ExperimentalFeaturesService experimentalFeaturesService;
+    private final ProductivityConfigService productivityConfigService;
     private final ThemeService themeService;
     private final LocalizationService localizationService;
     private final FontService fontService;
@@ -43,6 +44,7 @@ public final class ApplicationContext {
         ScheduleItemService scheduleItemService,
         NavigationService navigationService,
         ExperimentalFeaturesService experimentalFeaturesService,
+        ProductivityConfigService productivityConfigService,
         ThemeService themeService,
         LocalizationService localizationService,
         FontService fontService,
@@ -58,6 +60,7 @@ public final class ApplicationContext {
         this.scheduleItemService = scheduleItemService;
         this.navigationService = navigationService;
         this.experimentalFeaturesService = experimentalFeaturesService;
+        this.productivityConfigService = productivityConfigService;
         this.themeService = themeService;
         this.localizationService = localizationService;
         this.fontService = fontService;
@@ -74,6 +77,7 @@ public final class ApplicationContext {
         );
         FontService fontService = new FontService(preferencesStore);
         ExperimentalFeaturesService experimentalFeaturesService = new ExperimentalFeaturesService(preferencesStore);
+        ProductivityConfigService productivityConfigService = new ProductivityConfigService(preferencesStore);
 
         AppDataPaths appDataPaths = null;
         ConnectionFactory connectionFactory;
@@ -123,6 +127,7 @@ public final class ApplicationContext {
             scheduleItemService,
             navigationService,
             experimentalFeaturesService,
+            productivityConfigService,
             themeService,
             localizationService,
             fontService,
@@ -172,6 +177,10 @@ public final class ApplicationContext {
 
     public ExperimentalFeaturesService getExperimentalFeaturesService() {
         return experimentalFeaturesService;
+    }
+
+    public ProductivityConfigService getProductivityConfigService() {
+        return productivityConfigService;
     }
 
     public LocalizationService getLocalizationService() {

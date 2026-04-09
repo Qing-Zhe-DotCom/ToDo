@@ -10,7 +10,9 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -37,6 +39,11 @@ final class IosWheelDateTimePopup {
     private static final int VISIBLE_ROWS = 5;
     private static final double WHEEL_HEIGHT = CELL_HEIGHT * VISIBLE_ROWS;
     private static final double WHEEL_PADDING = CELL_HEIGHT * ((VISIBLE_ROWS - 1) / 2.0);
+    private static final double YEAR_COLUMN_WIDTH = 64;
+    private static final double DATE_COLUMN_WIDTH = 72;
+    private static final double TIME_COLUMN_WIDTH = 52;
+    private static final int YEAR_MIN = 1900;
+    private static final int YEAR_MAX = 2100;
 
     private final Popup popup = new Popup();
     private final VBox root = new VBox(16);
@@ -45,10 +52,16 @@ final class IosWheelDateTimePopup {
     private final Button previousYearButton = new Button("<");
     private final Button nextYearButton = new Button(">");
     private final Button saveButton = new Button();
-    private final WheelColumn monthColumn = new WheelColumn(84, this::formatMonth);
-    private final WheelColumn dayColumn = new WheelColumn(84, this::formatDay);
-    private final WheelColumn hourColumn = new WheelColumn(64, value -> String.format("%02d", value));
-    private final WheelColumn minuteColumn = new WheelColumn(64, value -> String.format("%02d", value));
+    private final WheelColumn yearColumn = new WheelColumn(YEAR_COLUMN_WIDTH, value -> String.valueOf(value));
+    private final WheelColumn monthColumn = new WheelColumn(DATE_COLUMN_WIDTH, this::formatMonth);
+    private final WheelColumn dayColumn = new WheelColumn(DATE_COLUMN_WIDTH, this::formatDay);
+    private final WheelColumn hourColumn = new WheelColumn(TIME_COLUMN_WIDTH, value -> String.format("%02d", value));
+    private final WheelColumn minuteColumn = new WheelColumn(TIME_COLUMN_WIDTH, value -> String.format("%02d", value));
+    private final Label manualInputLabel = new Label();
+    private final TextField manualInputField = new TextField();
+    private final Label manualInputHintLabel = new Label();
+    private final Label manualInputErrorLabel = new Label();
+    private final VBox manualInputBox = new VBox(4);
 
     private int selectedYear;
     private Consumer<LocalDateTime> onSave = value -> { };
@@ -76,6 +89,7 @@ final class IosWheelDateTimePopup {
         refreshLocalizedText();
         titleLabel.setText(title == null ? text("info.time") : title);
         applySeed(seed != null ? seed : LocalDateTime.now());
+        resetManualInputState();
         double[] position = resolvePosition(owner);
         if (popup.isShowing()) {
             popup.hide();
@@ -99,6 +113,10 @@ final class IosWheelDateTimePopup {
         return Math.max(1, Math.min(day, daysInMonth(year, month)));
     }
 
+    static int clampYear(int candidate) {
+        return Math.max(YEAR_MIN, Math.min(YEAR_MAX, candidate));
+    }
+
     private void buildUi() {
         popup.setAutoHide(true);
         popup.setAutoFix(false);
@@ -120,7 +138,7 @@ final class IosWheelDateTimePopup {
         header.setAlignment(Pos.CENTER_LEFT);
         header.getStyleClass().add("ios-wheel-header");
 
-        HBox columns = new HBox(10, monthColumn.getView(), dayColumn.getView(), hourColumn.getView(), minuteColumn.getView());
+        HBox columns = new HBox(6, yearColumn.getView(), monthColumn.getView(), dayColumn.getView(), hourColumn.getView(), minuteColumn.getView());
         columns.setAlignment(Pos.CENTER);
         columns.getStyleClass().add("ios-wheel-columns");
 
@@ -148,6 +166,17 @@ final class IosWheelDateTimePopup {
         StackPane.setAlignment(topMask, Pos.TOP_CENTER);
         StackPane.setAlignment(bottomMask, Pos.BOTTOM_CENTER);
 
+        manualInputBox.getStyleClass().add("ios-wheel-manual-input-box");
+        manualInputLabel.getStyleClass().add("ios-wheel-manual-label");
+        manualInputField.getStyleClass().add("ios-wheel-manual-input");
+        manualInputField.setMaxWidth(Double.MAX_VALUE);
+        manualInputField.setOnAction(event -> handleSaveAction());
+        manualInputField.textProperty().addListener((obs, oldValue, newValue) -> manualInputErrorLabel.setVisible(false));
+        manualInputHintLabel.getStyleClass().add("ios-wheel-manual-hint");
+        manualInputErrorLabel.getStyleClass().add("ios-wheel-manual-error");
+        manualInputErrorLabel.setVisible(false);
+        manualInputBox.getChildren().addAll(manualInputLabel, manualInputField, manualInputHintLabel, manualInputErrorLabel);
+
         saveButton.getStyleClass().add("ios-wheel-save-button");
         saveButton.setMaxWidth(Double.MAX_VALUE);
 
@@ -156,29 +185,32 @@ final class IosWheelDateTimePopup {
         root.setPrefHeight(POPUP_HEIGHT);
         root.setMinWidth(POPUP_WIDTH);
         root.setFocusTraversable(true);
-        root.getChildren().addAll(header, wheelHost, saveButton);
+        root.getChildren().addAll(header, wheelHost, manualInputBox, saveButton);
         popup.getContent().add(root);
-    }
+ }
 
     private void wireInteractions() {
         previousYearButton.setOnAction(event -> adjustYear(-1));
         nextYearButton.setOnAction(event -> adjustYear(1));
-        saveButton.setOnAction(event -> {
-            hide();
-            onSave.accept(buildSelection());
-        });
+        saveButton.setOnAction(event -> handleSaveAction());
         root.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ESCAPE) {
                 hide();
                 event.consume();
             }
         });
+        yearColumn.setSelectionListener(value -> {
+            selectedYear = clampYear(value);
+            updateYearLabel();
+            refreshDayColumn(dayColumn.getSelectedValue());
+        });
         monthColumn.setSelectionListener(value -> refreshDayColumn(dayColumn.getSelectedValue()));
     }
 
     private void applySeed(LocalDateTime seed) {
-        selectedYear = seed.getYear();
+        selectedYear = clampYear(seed.getYear());
         updateYearLabel();
+        updateYearColumnSelection();
         monthColumn.setItems(range(1, 12), seed.getMonthValue());
         refreshDayColumn(seed.getDayOfMonth());
         hourColumn.setItems(range(0, 23), seed.getHour());
@@ -192,13 +224,22 @@ final class IosWheelDateTimePopup {
     }
 
     private void adjustYear(int delta) {
-        selectedYear += delta;
-        updateYearLabel();
-        refreshDayColumn(dayColumn.getSelectedValue());
+        selectYear(selectedYear + delta);
     }
 
     private void updateYearLabel() {
         yearLabel.setText(text("wheel.year.label", selectedYear));
+    }
+
+    private void updateYearColumnSelection() {
+        yearColumn.setItems(range(YEAR_MIN, YEAR_MAX), selectedYear);
+    }
+
+    private void selectYear(int value) {
+        selectedYear = clampYear(value);
+        updateYearLabel();
+        updateYearColumnSelection();
+        refreshDayColumn(dayColumn.getSelectedValue());
     }
 
     private LocalDateTime buildSelection() {
@@ -212,10 +253,52 @@ final class IosWheelDateTimePopup {
     }
 
     private void alignColumns() {
+        yearColumn.snapToSelection();
         monthColumn.snapToSelection();
         dayColumn.snapToSelection();
         hourColumn.snapToSelection();
         minuteColumn.snapToSelection();
+    }
+
+    private void handleSaveAction() {
+        LocalDateTime manual = parseManualInput();
+        if (hasManualInput()) {
+            if (manual != null) {
+                finalizeSelection(manual);
+            } else {
+                showManualInputError();
+            }
+            return;
+        }
+        finalizeSelection(buildSelection());
+    }
+
+    private void finalizeSelection(LocalDateTime selection) {
+        resetManualInputState();
+        hide();
+        onSave.accept(selection);
+    }
+
+    private LocalDateTime parseManualInput() {
+        String raw = manualInputField.getText();
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        return ManualTimeInputParser.parse(raw, buildSelection()).orElse(null);
+    }
+
+    private boolean hasManualInput() {
+        String value = manualInputField.getText();
+        return value != null && !value.isBlank();
+    }
+
+    private void showManualInputError() {
+        manualInputErrorLabel.setVisible(true);
+    }
+
+    private void resetManualInputState() {
+        manualInputField.clear();
+        manualInputErrorLabel.setVisible(false);
     }
 
     private double[] resolvePosition(Node owner) {
@@ -254,6 +337,10 @@ final class IosWheelDateTimePopup {
 
     private void refreshLocalizedText() {
         saveButton.setText(text("common.save"));
+        manualInputLabel.setText(text("schedule.dialog.manualTime.label"));
+        manualInputHintLabel.setText(text("schedule.dialog.manualTime.hint"));
+        manualInputField.setPromptText(text("schedule.dialog.manualTime.placeholder"));
+        manualInputErrorLabel.setText(text("schedule.dialog.manualTime.error"));
     }
 
     private String formatMonth(int value) {
@@ -289,6 +376,7 @@ final class IosWheelDateTimePopup {
         private List<Label> labels = List.of();
         private java.util.function.IntConsumer selectionListener = value -> { };
         private boolean adjusting;
+        private boolean dragInProgress;
         private int selectedIndex;
 
         private WheelColumn(double width, IntFunction<String> formatter) {
@@ -317,11 +405,25 @@ final class IosWheelDateTimePopup {
                     return;
                 }
                 updateSelectionFromScroll();
-                snapDelay.playFromStart();
+                if (!dragInProgress) {
+                    snapDelay.playFromStart();
+                }
             });
-            scrollPane.setOnMouseReleased(event -> snapToSelection());
+            scrollPane.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+                dragInProgress = true;
+                snapDelay.stop();
+            });
+            scrollPane.addEventFilter(MouseEvent.MOUSE_DRAGGED, event -> updateSelectionFromScroll());
+            scrollPane.addEventFilter(MouseEvent.MOUSE_RELEASED, event -> {
+                dragInProgress = false;
+                snapToSelection();
+            });
             scrollPane.setOnScroll(event -> snapDelay.playFromStart());
-            snapDelay.setOnFinished(event -> snapToSelection());
+            snapDelay.setOnFinished(event -> {
+                if (!dragInProgress) {
+                    snapToSelection();
+                }
+            });
         }
 
         private StackPane getView() {
@@ -404,25 +506,36 @@ final class IosWheelDateTimePopup {
                 return;
             }
             double maxOffset = maxOffset();
-            double targetOffset = selectedIndex * CELL_HEIGHT;
+            int maxIndex = Math.max(0, values.size() - 1);
+            int boundedIndex = Math.max(0, Math.min(selectedIndex, maxIndex));
+            selectedIndex = boundedIndex;
+            double targetOffset = boundedIndex * CELL_HEIGHT;
             adjusting = true;
             scrollPane.setVvalue(maxOffset <= 0 ? 0 : targetOffset / maxOffset);
             Platform.runLater(() -> adjusting = false);
         }
 
         private double currentOffset() {
-            return scrollPane.getVvalue() * maxOffset();
+            return clampedOffset(scrollPane.getVvalue() * maxOffset());
         }
 
         private double maxOffset() {
             return Math.max((values.size() - 1) * CELL_HEIGHT, 0);
         }
 
+        private double clampedOffset(double offset) {
+            double max = maxOffset();
+            if (max <= 0) {
+                return 0;
+            }
+            return Math.max(0, Math.min(offset, max));
+        }
+
         private int indexForOffset(double offset) {
             if (values.isEmpty()) {
                 return 0;
             }
-            int index = (int) Math.round(offset / CELL_HEIGHT);
+            int index = (int) Math.round(clampedOffset(offset) / CELL_HEIGHT);
             return Math.max(0, Math.min(index, values.size() - 1));
         }
 

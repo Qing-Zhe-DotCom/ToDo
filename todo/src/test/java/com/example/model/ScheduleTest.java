@@ -101,4 +101,23 @@ class ScheduleTest {
         assertEquals("论文, 学习, 复盘", schedule.getTags());
         assertEquals(List.of("论文", "学习", "复盘"), Schedule.splitTags(schedule.getTags()));
     }
+    @Test
+    void pinFlagPersistsInsideMetadataJsonWithoutDroppingOtherFields() {
+        Schedule schedule = new Schedule();
+        schedule.setMetadataJson("{\"foo\":1,\"pin\":false,\"bar\":\"x\"}");
+
+        assertFalse(schedule.isPinned());
+
+        schedule.setPinned(true);
+        assertTrue(schedule.isPinned());
+        assertTrue(schedule.getMetadataJson().contains("\"foo\":1"));
+        assertTrue(schedule.getMetadataJson().contains("\"bar\":\"x\""));
+        assertTrue(schedule.getMetadataJson().contains("\"pin\":true"));
+
+        schedule.setPinned(false);
+        assertFalse(schedule.isPinned());
+        assertTrue(schedule.getMetadataJson().contains("\"foo\":1"));
+        assertTrue(schedule.getMetadataJson().contains("\"bar\":\"x\""));
+        assertFalse(schedule.getMetadataJson().contains("\"pin\""));
+    }
 }

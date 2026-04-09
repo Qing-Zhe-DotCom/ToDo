@@ -50,4 +50,20 @@ class MainControllerSettingsPageTest {
 
         assertTrue(filtered.contains(ThemeFamily.MACARON));
     }
+
+    @Test
+    void settingsShellHeightFallsBackForInvalidDialogHeights() {
+        assertEquals(640.0, MainController.resolveSettingsShellHeight(0));
+        assertEquals(640.0, MainController.resolveSettingsShellHeight(-12));
+    }
+
+    @Test
+    void settingsShellHeightUsesMinimumWhenDialogIsTooShort() {
+        assertEquals(520.0, MainController.resolveSettingsShellHeight(560.0));
+    }
+
+    @Test
+    void settingsShellHeightTracksDialogHeightWhenEnoughSpaceExists() {
+        assertEquals(674.0, MainController.resolveSettingsShellHeight(760.0));
+    }
 }

@@ -39,6 +39,35 @@ class HeatmapViewTest {
     }
 
     @Test
+    void cornerIndicatorCountsSchedulesForDate() {
+        LocalDate target = LocalDate.of(2026, 4, 1);
+        Schedule firstCompleted = new Schedule();
+        firstCompleted.setCompleted(true);
+        Schedule secondCompleted = new Schedule();
+        secondCompleted.setCompleted(true);
+        Map<LocalDate, List<Schedule>> schedules = Map.of(
+            target,
+            List.of(firstCompleted, secondCompleted)
+        );
+
+        assertEquals(2, HeatmapView.countSchedulesForDate(schedules, target));
+        assertEquals(0, HeatmapView.countSchedulesForDate(schedules, target.plusDays(1)));
+    }
+
+    @Test
+    void countSchedulesForDateOnlyIncludesCompletedTasks() {
+        LocalDate target = LocalDate.of(2026, 4, 5);
+        Schedule completed = new Schedule();
+        completed.setCompleted(true);
+        Schedule pending = new Schedule();
+        pending.setCompleted(false);
+
+        Map<LocalDate, List<Schedule>> schedules = Map.of(target, List.of(completed, pending));
+
+        assertEquals(1, HeatmapView.countSchedulesForDate(schedules, target));
+    }
+
+    @Test
     void scheduleOccursOnDateSupportsReversedAndSingleDates() {
         Schedule reversedRangeSchedule = new Schedule();
         reversedRangeSchedule.setStartDate(LocalDate.of(2026, 4, 5));
@@ -176,6 +205,11 @@ class HeatmapViewTest {
     }
 
     @Test
+    void sidebarToggleHostWidthMatchesCollapsedSidebar() {
+        assertEquals(HeatmapView.resolveSidebarWidth(true), HeatmapView.resolveSidebarToggleHostWidth());
+    }
+
+    @Test
     void yearMonthGridUsesFourByThreeLayoutOrder() {
         assertEquals(0, HeatmapView.resolveYearMonthColumn(1));
         assertEquals(0, HeatmapView.resolveYearMonthRow(1));
@@ -187,5 +221,43 @@ class HeatmapViewTest {
         assertEquals(2, HeatmapView.resolveYearMonthRow(12));
         assertEquals("1月", HeatmapView.buildYearMonthTitle(LocalDate.of(2026, 1, 1)));
         assertEquals("12月", HeatmapView.buildYearMonthTitle(LocalDate.of(2026, 12, 1)));
+    }
+    @Test
+    void heatmapLevelRespectsCustomThresholds() {
+        int[] thresholds = {1, 3, 6};
+        assertEquals(0, HeatmapView.resolveHeatmapLevel(0, thresholds));
+        assertEquals(1, HeatmapView.resolveHeatmapLevel(1, thresholds));
+        assertEquals(2, HeatmapView.resolveHeatmapLevel(3, thresholds));
+        assertEquals(3, HeatmapView.resolveHeatmapLevel(6, thresholds));
+        assertEquals(4, HeatmapView.resolveHeatmapLevel(7, thresholds));
+    }
+
+    @Test
+    void legendLabelsFollowConfiguredThresholds() {
+        assertEquals(
+            List.of("0", "1-1", "2-3", "4-6", "7+"),
+            HeatmapView.buildLegendLabels(new int[] {1, 3, 6})
+        );
+    }
+
+    @Test
+    void wheelNavigationDirectionUsesDominantAxisAndThreshold() {
+        assertEquals(0, HeatmapView.resolveWheelNavigationDirection(40, 55));
+        assertEquals(-1, HeatmapView.resolveWheelNavigationDirection(56, 55));
+        assertEquals(1, HeatmapView.resolveWheelNavigationDirection(-56, 55));
+
+        assertEquals(22, HeatmapView.resolveNavigationWheelDelta(22, 4));
+        assertEquals(-30, HeatmapView.resolveNavigationWheelDelta(8, -30));
+    }
+
+    @Test
+    void clampDateKeepsTodayWithinVisibleRange() {
+        LocalDate start = LocalDate.of(2024, 1, 1);
+        LocalDate end = LocalDate.of(2024, 12, 31);
+        LocalDate today = LocalDate.of(2024, 6, 15);
+
+        assertEquals(today, HeatmapView.clampDateWithinRange(today, start, end));
+        assertEquals(start, HeatmapView.clampDateWithinRange(today.minusDays(400), start, end));
+        assertEquals(end, HeatmapView.clampDateWithinRange(today.plusDays(400), start, end));
     }
 }

@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import com.example.config.UserPreferencesStore;
 import com.example.model.RecurrenceRule;
+import com.example.model.Schedule;
 
 class LocalizationServiceTest {
 
@@ -74,6 +75,15 @@ class LocalizationServiceTest {
     }
 
     @Test
+    void languageLabelsAlwaysUseTargetLanguageBundle() {
+        LocalizationService englishService = serviceFor(AppLanguage.ENGLISH);
+
+        assertEquals("English", englishService.languageLabel(AppLanguage.ENGLISH));
+        assertEquals("\u7b80\u4f53\u4e2d\u6587", englishService.languageLabel(AppLanguage.SIMPLIFIED_CHINESE));
+        assertEquals("\u7e41\u9ad4\u4e2d\u6587", englishService.languageLabel(AppLanguage.TRADITIONAL_CHINESE));
+    }
+
+    @Test
     void weekdayAndDateFormattingFollowLanguage() {
         LocalDate sampleDate = LocalDate.of(2026, 4, 7);
 
@@ -123,6 +133,18 @@ class LocalizationServiceTest {
         assertEquals("\u99ac\u5361\u9f8d\u73bb\u7483\u98a8", traditional.themeFamilyLabel(ThemeFamily.MACARON));
         assertEquals("Material You", english.themeFamilyLabel(ThemeFamily.MATERIAL_YOU));
         assertEquals("Macaron Glass", english.themeFamilyLabel(ThemeFamily.MACARON));
+    }
+
+    @Test
+    void legacyChinesePriorityAndCategoryUseLocalizedLabels() {
+        LocalizationService english = serviceFor(AppLanguage.ENGLISH);
+
+        assertEquals("High", english.priorityLabel(Schedule.PRIORITY_HIGH));
+        assertEquals("Medium", english.priorityLabel(Schedule.PRIORITY_MEDIUM));
+        assertEquals("Low", english.priorityLabel(Schedule.PRIORITY_LOW));
+        assertEquals("Uncategorized", english.categoryLabel(Schedule.DEFAULT_CATEGORY));
+        assertEquals("Uncategorized", english.categoryLabel(Schedule.LEGACY_DEFAULT_CATEGORY));
+        assertEquals("Work", english.categoryLabel("Work"));
     }
 
     private LocalizationService serviceFor(AppLanguage language) {

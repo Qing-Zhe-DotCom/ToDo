@@ -290,6 +290,9 @@ class ThemeCssTest {
     void baseCssContainsQuickAddSelectors() throws IOException {
         String baseContent = readCss("/styles/base.css");
 
+        String quickAddBadgeBlock = extractCssBlock(baseContent, ".quick-add-badge");
+        String quickAddBadgeIconBlock = extractCssBlock(baseContent, ".quick-add-badge .sidebar-svg-icon");
+
         assertAll(
             () -> assertTrue(baseContent.contains(".quick-add-section {")),
             () -> assertTrue(baseContent.contains(".quick-add-title {")),
@@ -298,6 +301,11 @@ class ThemeCssTest {
             () -> assertTrue(baseContent.contains(".quick-add-shell-focused {")),
             () -> assertTrue(baseContent.contains(".quick-add-badge {")),
             () -> assertTrue(baseContent.contains(".quick-add-input {"))
+        );
+
+        assertAll(
+            () -> assertTrue(quickAddBadgeBlock != null && quickAddBadgeBlock.contains("-fx-alignment: center")),
+            () -> assertTrue(quickAddBadgeIconBlock != null && quickAddBadgeIconBlock.contains("-fx-translate-y: 1px"))
         );
     }
 

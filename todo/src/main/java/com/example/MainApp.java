@@ -25,8 +25,8 @@ import javafx.stage.Stage;
 
 public class MainApp extends Application {
     private static final String APP_ICON_RESOURCE = "/icons/macaron_todo_icon.png";
-    private static final double MIN_WIDTH = 1200;
-    private static final double MIN_HEIGHT = 700;
+    private static final double MIN_WIDTH = 1100;
+    private static final double MIN_HEIGHT = 660;
 
     private MainController mainController;
     private Stage primaryStageRef;
@@ -212,5 +212,13 @@ public class MainApp extends Application {
 
     private String resolveAppTitle() {
         return localizationService != null ? localizationService.text("app.title") : "ToDo";
+    }
+
+    public static double getMinimumWidth() {
+        return MIN_WIDTH;
+    }
+
+    public static double getMinimumHeight() {
+        return MIN_HEIGHT;
     }
 }

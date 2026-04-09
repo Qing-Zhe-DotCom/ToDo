@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.example.application.ProductivityConfig;
+import com.example.application.ProductivityConfigService;
 import com.example.application.ScheduleOccurrenceProjector;
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionCoordinator;
@@ -68,6 +70,8 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     private ComboBox<String> filterComboBox;
     private TextField quickAddField;
     private boolean quickAddComposing;
+    private ComboBox<ProductivityConfig.SortMode> sortComboBox;
+    private ProductivityConfig.SortMode currentSortMode;
 
     private boolean showingSearchResults = false;
     private String currentSearchKeyword = "";
@@ -81,6 +85,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     private static final class GroupHeader {
         private final HBox root;
         private final Label arrowLabel;
+        private final Label countLabel;
 
         private GroupHeader(String title, Runnable toggleAction) {
             arrowLabel = new Label("\u25b6");
@@ -89,7 +94,12 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             Label textLabel = new Label(title);
             textLabel.getStyleClass().addAll("completed-group-header", "schedule-group-title");
 
-            root = new HBox(6, arrowLabel, textLabel);
+            countLabel = new Label();
+            countLabel.getStyleClass().add("schedule-group-count");
+            countLabel.setVisible(false);
+            countLabel.setManaged(false);
+
+            root = new HBox(6, arrowLabel, textLabel, countLabel);
             root.setAlignment(Pos.CENTER_LEFT);
             root.getStyleClass().add("schedule-group-toggle");
             root.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> event.consume());
@@ -105,6 +115,12 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
         private void updateCollapsed(boolean collapsed) {
             arrowLabel.setRotate(collapsed ? 0 : 90);
+        }
+
+        private void updateCount(int count) {
+            countLabel.setText(ScheduleListView.formatGroupCount(count));
+            countLabel.setVisible(true);
+            countLabel.setManaged(true);
         }
     }
 
@@ -264,7 +280,20 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
     public ScheduleListView(MainController controller) {
         this.controller = controller;
+        this.currentSortMode = resolveInitialSortMode();
         initializeUI();
+    }
+
+    private ProductivityConfig.SortMode resolveInitialSortMode() {
+        if (controller == null) {
+            return ProductivityConfig.SortMode.PRIORITY;
+        }
+        ProductivityConfigService service = controller.getProductivityConfigService();
+        if (service == null) {
+            return ProductivityConfig.SortMode.PRIORITY;
+        }
+        ProductivityConfig.SortMode loaded = service.load().defaultSortMode();
+        return loaded != null ? loaded : ProductivityConfig.SortMode.PRIORITY;
     }
 
     private void initializeUI() {
@@ -334,9 +363,29 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             }
         });
 
+        sortComboBox = new ComboBox<>();
+        sortComboBox.getItems().addAll(
+            ProductivityConfig.SortMode.PRIORITY,
+            ProductivityConfig.SortMode.CREATED_TIME,
+            ProductivityConfig.SortMode.REMAINING_TIME
+        );
+        sortComboBox.setValue(currentSortMode != null ? currentSortMode : ProductivityConfig.SortMode.PRIORITY);
+        sortComboBox.getStyleClass().add("schedule-sort-combo");
+        sortComboBox.setButtonCell(createSortButtonCell());
+        sortComboBox.setCellFactory(listView -> createSortDropdownCell());
+        sortComboBox.setOnAction(event -> {
+            ProductivityConfig.SortMode selected = sortComboBox.getValue();
+            if (selected == null || selected == currentSortMode) {
+                return;
+            }
+            currentSortMode = selected;
+            persistSortMode(selected);
+            renderSchedules();
+        });
+
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        toolbar.getChildren().addAll(titleLabel, filterComboBox, spacer);
+        toolbar.getChildren().addAll(titleLabel, filterComboBox, sortComboBox, spacer);
         return toolbar;
     }
 
@@ -348,6 +397,8 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         quickAddIcon.setMouseTransparent(true);
         StackPane quickAddBadge = new StackPane(quickAddIcon);
         quickAddBadge.getStyleClass().add("quick-add-badge");
+        quickAddBadge.setAlignment(Pos.CENTER);
+        quickAddBadge.setPadding(Insets.EMPTY);
         quickAddBadge.setMouseTransparent(true);
 
         quickAddField = new TextField();
@@ -518,6 +569,8 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         pendingCardsBox.getChildren().setAll(pendingNodes);
         completedCardsBox.getChildren().setAll(completedNodes);
 
+        pendingHeader.updateCount(pendingNodes.size());
+        completedHeader.updateCount(completedNodes.size());
         pendingHeader.updateCollapsed(pendingCollapsed);
         completedHeader.updateCollapsed(completedCollapsed);
 
@@ -542,7 +595,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     }
 
     private List<Schedule> buildDisplayedSchedules() {
-        Comparator<Schedule> comparator = buildDisplayComparator();
+        Comparator<Schedule> comparator = buildDisplayComparator(currentSortMode);
         ProjectionWindow projectionWindow = resolveProjectionWindow(
             showingSearchResults ? FILTER_ALL : (filterComboBox != null ? filterComboBox.getValue() : FILTER_MY_DAY),
             LocalDate.now()
@@ -645,11 +698,15 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     }
 
     static Comparator<Schedule> buildDisplayComparator() {
-        Comparator<Schedule> pendingComparator = buildPendingComparator();
-        Comparator<Schedule> completedComparator = Comparator
-            .comparing(Schedule::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
-            .thenComparing(Schedule::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
-            .thenComparing(Schedule::getId, Comparator.reverseOrder());
+        return buildDisplayComparator(null);
+    }
+
+    static Comparator<Schedule> buildDisplayComparator(ProductivityConfig.SortMode sortMode) {
+        ProductivityConfig.SortMode resolvedMode = sortMode != null ? sortMode : ProductivityConfig.SortMode.PRIORITY;
+        Comparator<Schedule> pinComparator = Comparator.comparing(Schedule::isPinned, Comparator.reverseOrder());
+        Comparator<Schedule> modeComparator = buildSortModeComparator(resolvedMode);
+        Comparator<Schedule> pendingComparator = buildPendingComparator(pinComparator, modeComparator);
+        Comparator<Schedule> completedComparator = buildCompletedComparator(pinComparator, modeComparator);
 
         return (left, right) -> {
             int completedGroup = Boolean.compare(left.isCompleted(), right.isCompleted());
@@ -663,11 +720,39 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         };
     }
 
-    private static Comparator<Schedule> buildPendingComparator() {
-        return Comparator
-            .comparing(Schedule::getDueAt, Comparator.nullsLast(Comparator.naturalOrder()))
+    static String formatGroupCount(int count) {
+        return "(" + Math.max(0, count) + ")";
+    }
+
+    private static Comparator<Schedule> buildPendingComparator(
+        Comparator<Schedule> pinComparator,
+        Comparator<Schedule> modeComparator
+    ) {
+        return pinComparator
+            .thenComparing(modeComparator)
+            .thenComparing(Schedule::getDueAt, Comparator.nullsLast(Comparator.naturalOrder()))
             .thenComparing(Schedule::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
             .thenComparing(Schedule::getId);
+    }
+
+    private static Comparator<Schedule> buildCompletedComparator(
+        Comparator<Schedule> pinComparator,
+        Comparator<Schedule> modeComparator
+    ) {
+        return pinComparator
+            .thenComparing(modeComparator)
+            .thenComparing(Schedule::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+            .thenComparing(Schedule::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+            .thenComparing(Schedule::getId, Comparator.reverseOrder());
+    }
+
+    private static Comparator<Schedule> buildSortModeComparator(ProductivityConfig.SortMode sortMode) {
+        ProductivityConfig.SortMode resolved = sortMode != null ? sortMode : ProductivityConfig.SortMode.PRIORITY;
+        return switch (resolved) {
+            case CREATED_TIME -> Comparator.comparing(Schedule::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()));
+            case REMAINING_TIME -> Comparator.comparing(Schedule::getEffectiveEndAt, Comparator.nullsLast(Comparator.naturalOrder()));
+            default -> Comparator.comparingInt(Schedule::getPriorityValue).reversed();
+        };
     }
 
     public void addSchedule(Schedule schedule) throws SQLException {
@@ -875,6 +960,66 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             return controller.text("time.start.summary", controller.format("format.list.dateTime", schedule.getStartAt()));
         }
         return "";
+    }
+
+    private void persistSortMode(ProductivityConfig.SortMode sortMode) {
+        if (controller == null || sortMode == null) {
+            return;
+        }
+        ProductivityConfigService service = controller.getProductivityConfigService();
+        if (service == null) {
+            return;
+        }
+        service.update(config -> new ProductivityConfig(
+            config.searchFields(),
+            sortMode,
+            config.heatmapPreset(),
+            config.heatmapThresholds(),
+            config.heatmapColors(),
+            config.presetTags(),
+            config.clockDisplay(),
+            config.searchHistory(),
+            config.suggestionSeeds()
+        ));
+    }
+
+    private ListCell<ProductivityConfig.SortMode> createSortButtonCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(ProductivityConfig.SortMode item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : sortModeLabel(item));
+                setTooltip(null);
+            }
+        };
+    }
+
+    private ListCell<ProductivityConfig.SortMode> createSortDropdownCell() {
+        return new ListCell<>() {
+            @Override
+            protected void updateItem(ProductivityConfig.SortMode item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setTooltip(null);
+                    return;
+                }
+                setText(sortModeLabel(item));
+                setTooltip(null);
+            }
+        };
+    }
+
+    private String sortModeLabel(ProductivityConfig.SortMode sortMode) {
+        if (sortMode == null) {
+            return "";
+        }
+        return switch (sortMode) {
+            case PRIORITY -> controller.text("schedule.sort.priority");
+            case CREATED_TIME -> controller.text("schedule.sort.created");
+            case REMAINING_TIME -> controller.text("schedule.sort.remaining");
+            default -> sortMode.name();
+        };
     }
 
     private ListCell<String> createFilterButtonCell() {

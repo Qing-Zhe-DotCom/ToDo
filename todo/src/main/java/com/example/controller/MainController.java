@@ -7,10 +7,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -30,7 +34,10 @@ import com.example.application.RecurrenceSummaryFormatter;
 import com.example.application.ScheduleItemService;
 import com.example.application.ThemeAppearance;
 import com.example.application.ThemeFamily;
+import com.example.application.ProductivityConfig;
+import com.example.application.ProductivityConfigService;
 import com.example.application.ThemeService;
+import com.example.config.UserPreferencesStore;
 import com.example.model.ScheduleItem;
 import com.example.model.Schedule;
 import com.example.model.RecurrenceRule;
@@ -44,6 +51,7 @@ import com.example.view.TimelineView;
 import com.example.view.View;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.animation.FadeTransition;
 import javafx.animation.ParallelTransition;
 import javafx.animation.TranslateTransition;
@@ -55,6 +63,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ComboBox;
@@ -114,6 +123,16 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
 public class MainController {
+    private static final double SETTINGS_DIALOG_PREF_WIDTH = 940;
+    private static final double SETTINGS_DIALOG_PREF_HEIGHT = 720;
+    private static final double SETTINGS_DIALOG_MIN_HEIGHT = 600;
+    private static final double SETTINGS_SHELL_BASE_HEIGHT = 640;
+    private static final double SETTINGS_SHELL_MIN_HEIGHT = 520;
+    private static final double SETTINGS_DIALOG_CHROME_HEIGHT = 86;
+    private static final int SEARCH_HISTORY_MAX_ENTRIES = 30;
+    private static final int SEARCH_SUGGESTION_LIMIT = 6;
+    private static final int SCHEDULE_SEED_MAX_ENTRIES = 60;
+
     private final ApplicationContext applicationContext;
     private final MainViewModel mainViewModel;
     private final ScheduleItemService scheduleItemService;
@@ -144,6 +163,10 @@ public class MainController {
     private Separator bottomActionsSeparator;
     private Label functionTitle;
     private TextField searchField;
+    private ContextMenu searchSuggestionMenu;
+    private List<String> scheduleSuggestionSeeds = List.of();
+    private HBox searchFieldShell;
+    private Button clearSearchButton;
     private ToggleButton collapseToggle;
     private ToggleButton featurePanelToggle;
     private Button themeButton;
@@ -344,12 +367,46 @@ public class MainController {
         searchField = new TextField();
         searchField.getStyleClass().add("search-field");
         searchField.setPromptText(text("sidebar.search.prompt"));
+        HBox.setHgrow(searchField, Priority.ALWAYS);
+        searchSuggestionMenu = new ContextMenu();
+        searchSuggestionMenu.setAutoHide(true);
+        searchSuggestionMenu.setHideOnEscape(true);
         searchField.textProperty().addListener((observable, oldValue, newValue) -> {
             if (shouldClearSearchResults(oldValue, newValue)) {
                 clearScheduleSearch();
             }
+            showSearchSuggestions(newValue);
         });
-        searchField.setOnAction(e -> performSearch(searchField.getText()));
+        searchField.focusedProperty().addListener((obs, oldFocused, focused) -> {
+            if (focused) {
+                showSearchSuggestions(searchField.getText());
+            } else {
+                hideSearchSuggestions();
+            }
+        });
+        searchField.setOnAction(e -> {
+            performSearch(searchField.getText());
+            hideSearchSuggestions();
+        });
+
+        clearSearchButton = new Button();
+        clearSearchButton.getStyleClass().addAll("icon-button", "search-clear-button");
+        clearSearchButton.setFocusTraversable(false);
+        clearSearchButton.setGraphic(createSvgIcon("/icons/macaron_info-close_icon.svg", text("common.clear"), 16));
+        clearSearchButton.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        clearSearchButton.setAccessibleText(text("common.clear"));
+        clearSearchButton.setTooltip(new Tooltip(text("common.clear")));
+        clearSearchButton.visibleProperty().bind(Bindings.createBooleanBinding(
+            () -> shouldShowClearSearchButton(searchField.getText()),
+            searchField.textProperty()
+        ));
+        clearSearchButton.managedProperty().bind(clearSearchButton.visibleProperty());
+        clearSearchButton.setOnAction(event -> clearSearchField());
+
+        searchFieldShell = new HBox(searchField, clearSearchButton);
+        searchFieldShell.getStyleClass().add("sidebar-search-shell");
+        searchFieldShell.setAlignment(Pos.CENTER_LEFT);
+        searchFieldShell.setMaxWidth(Double.MAX_VALUE);
 
         // 导航按钮
         ToggleGroup navGroup = new ToggleGroup();
@@ -404,7 +461,7 @@ public class MainController {
 
         sidebar.getChildren().addAll(
             collapseToggle,
-            searchField,
+            searchFieldShell,
             new Separator(),
             scheduleBtn,
             timelineBtn,
@@ -521,9 +578,12 @@ public class MainController {
             functionTitle.setManaged(!sidebarCollapsed);
         }
         
-        if (searchField != null) {
-            searchField.setVisible(!sidebarCollapsed);
-            searchField.setManaged(!sidebarCollapsed);
+        if (searchFieldShell != null) {
+            searchFieldShell.setVisible(!sidebarCollapsed);
+            searchFieldShell.setManaged(!sidebarCollapsed);
+            if (sidebarCollapsed) {
+                hideSearchSuggestions();
+            }
         }
 
         updateFeaturePanelState();
@@ -908,7 +968,19 @@ public class MainController {
         }
         infoPanelView.refresh();
         updatePendingCountBadge();
+        refreshScheduleSuggestionSeeds();
         requestGlassRefresh();
+    }
+
+    private void refreshScheduleSuggestionSeeds() {
+        try {
+            scheduleSuggestionSeeds = SearchSuggestionHelper.extractSeedsFromScheduleItems(
+                scheduleItemService.getActiveScheduleItems(),
+                SCHEDULE_SEED_MAX_ENTRIES
+            );
+        } catch (SQLException exception) {
+            scheduleSuggestionSeeds = List.of();
+        }
     }
 
     public void refreshCurrentViewAndPendingCount() {
@@ -978,7 +1050,80 @@ public class MainController {
     }
 
     public List<Schedule> searchSchedules(String keyword) throws SQLException {
-        return toLegacySchedules(scheduleItemService.searchActiveScheduleItems(keyword));
+        List<Schedule> schedules = toLegacySchedules(scheduleItemService.searchActiveScheduleItems(keyword));
+        Set<ProductivityConfig.SearchField> searchFields = resolveConfiguredSearchFields(getProductivityConfigService());
+        return filterSchedulesBySearchScope(schedules, keyword, searchFields);
+    }
+
+    private static List<Schedule> filterSchedulesBySearchScope(
+        List<Schedule> schedules,
+        String keyword,
+        Set<ProductivityConfig.SearchField> searchFields
+    ) {
+        if (schedules == null || schedules.isEmpty()) {
+            return schedules;
+        }
+        String normalized = normalizeSearchKeyword(keyword);
+        if (normalized.isEmpty()) {
+            return schedules;
+        }
+        Set<ProductivityConfig.SearchField> activeFields = normalizeSearchScope(searchFields);
+        List<Schedule> filtered = new ArrayList<>();
+        for (Schedule schedule : schedules) {
+            if (matchesSearchFields(schedule, normalized, activeFields)) {
+                filtered.add(schedule);
+            }
+        }
+        return filtered;
+    }
+
+    static boolean matchesSearchFields(
+        Schedule schedule,
+        String normalizedKeyword,
+        Set<ProductivityConfig.SearchField> searchFields
+    ) {
+        if (schedule == null || normalizedKeyword == null || normalizedKeyword.isBlank()) {
+            return false;
+        }
+        Set<ProductivityConfig.SearchField> activeFields = normalizeSearchScope(searchFields);
+        for (ProductivityConfig.SearchField field : activeFields) {
+            if (matchesSearchField(schedule, normalizedKeyword, field)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean matchesSearchField(
+        Schedule schedule,
+        String normalizedKeyword,
+        ProductivityConfig.SearchField field
+    ) {
+        switch (field) {
+            case TITLE:
+                return containsNormalized(schedule.getName(), normalizedKeyword);
+            case DESCRIPTION:
+                return containsNormalized(schedule.getDescription(), normalizedKeyword);
+            case NOTES:
+                return containsNormalized(schedule.getNotes(), normalizedKeyword);
+            case CATEGORY:
+                return containsNormalized(schedule.getCategory(), normalizedKeyword);
+            case TAGS:
+                return containsNormalized(schedule.getTags(), normalizedKeyword);
+            default:
+                return false;
+        }
+    }
+
+    private static boolean containsNormalized(String value, String normalizedKeyword) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(normalizedKeyword);
+    }
+
+    private static String normalizeSearchKeyword(String keyword) {
+        if (keyword == null) {
+            return "";
+        }
+        return keyword.trim().toLowerCase(Locale.ROOT);
     }
 
     public List<Schedule> loadDeletedSchedules() throws SQLException {
@@ -1264,8 +1409,85 @@ public class MainController {
             clearScheduleSearch();
             return;
         }
-        scheduleListView.searchSchedules(keyword.trim());
+        String normalized = keyword.trim();
+        recordSearchHistory(normalized);
+        scheduleListView.searchSchedules(normalized);
         showView(scheduleListView);
+        hideSearchSuggestions();
+    }
+
+    private void recordSearchHistory(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return;
+        }
+        ProductivityConfigService service = getProductivityConfigService();
+        if (service == null) {
+            return;
+        }
+        service.update(config -> {
+            ProductivityConfig effective = config != null ? config : ProductivityConfig.defaultValue();
+            List<String> updatedHistory = SearchSuggestionHelper.updateSearchHistory(
+                effective.searchHistory(),
+                keyword,
+                SEARCH_HISTORY_MAX_ENTRIES
+            );
+            return new ProductivityConfig(
+                effective.searchFields(),
+                effective.defaultSortMode(),
+                effective.heatmapPreset(),
+                effective.heatmapThresholds(),
+                effective.heatmapColors(),
+                effective.presetTags(),
+                effective.clockDisplay(),
+                updatedHistory,
+                effective.suggestionSeeds()
+            );
+        });
+    }
+
+    private List<String> buildSearchSuggestionCandidates() {
+        ProductivityConfigService service = getProductivityConfigService();
+        List<String> history = List.of();
+        List<String> persistedSeeds = List.of();
+        if (service != null) {
+            ProductivityConfig config = service.load();
+            if (config != null) {
+                history = config.searchHistory();
+                persistedSeeds = config.suggestionSeeds();
+            }
+        }
+        return SearchSuggestionHelper.buildSuggestionCandidates(history, persistedSeeds, scheduleSuggestionSeeds);
+    }
+
+    private void showSearchSuggestions(String input) {
+        if (searchSuggestionMenu == null || searchField == null || !searchField.isFocused()) {
+            return;
+        }
+        List<String> candidates = buildSearchSuggestionCandidates();
+        List<String> suggestions = SearchSuggestionHelper.filterSuggestions(candidates, input, SEARCH_SUGGESTION_LIMIT);
+        if (suggestions.isEmpty()) {
+            hideSearchSuggestions();
+            return;
+        }
+        searchSuggestionMenu.getItems().clear();
+        for (String suggestion : suggestions) {
+            MenuItem item = new MenuItem(suggestion);
+            item.setOnAction(event -> {
+                searchField.setText(suggestion);
+                searchField.positionCaret(suggestion.length());
+                performSearch(suggestion);
+            });
+            searchSuggestionMenu.getItems().add(item);
+        }
+        if (!searchSuggestionMenu.isShowing()) {
+            searchSuggestionMenu.show(searchField, Side.BOTTOM, 0, 4);
+        }
+    }
+
+    private void hideSearchSuggestions() {
+        if (searchSuggestionMenu != null && searchSuggestionMenu.isShowing()) {
+            searchSuggestionMenu.hide();
+        }
     }
 
     private void clearScheduleSearch() {
@@ -1275,8 +1497,22 @@ public class MainController {
         scheduleListView.clearSearch();
     }
 
+    private void clearSearchField() {
+        if (searchField == null) {
+            return;
+        }
+        searchField.clear();
+        clearScheduleSearch();
+        hideSearchSuggestions();
+        searchField.requestFocus();
+    }
+
     static boolean shouldClearSearchResults(String previousText, String currentText) {
         return !isBlankSearchText(previousText) && isBlankSearchText(currentText);
+    }
+
+    static boolean shouldShowClearSearchButton(String text) {
+        return text != null && !text.isEmpty();
     }
 
     private static boolean isBlankSearchText(String text) {
@@ -1310,16 +1546,17 @@ public class MainController {
         dialog.getDialogPane().getStylesheets().setAll(getCurrentThemeStylesheets());
         dialog.getDialogPane().getStyleClass().add("settings-dialog-pane");
         applyDialogPreferences(dialog.getDialogPane());
-        dialog.getDialogPane().setPrefWidth(940);
-        dialog.getDialogPane().setPrefHeight(720);
-        dialog.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
+        dialog.getDialogPane().setPrefWidth(SETTINGS_DIALOG_PREF_WIDTH);
+        dialog.getDialogPane().setPrefHeight(SETTINGS_DIALOG_PREF_HEIGHT);
+        dialog.getDialogPane().setMinHeight(SETTINGS_DIALOG_MIN_HEIGHT);
+        dialog.getDialogPane().setMaxHeight(Double.MAX_VALUE);
 
         BorderPane shell = new BorderPane();
         shell.getStyleClass().add("settings-shell");
-        shell.setPrefWidth(940);
-        shell.setPrefHeight(640);
-        shell.setMinHeight(640);
-        shell.setMaxHeight(640);
+        shell.setPrefWidth(SETTINGS_DIALOG_PREF_WIDTH);
+        shell.setPrefHeight(resolveSettingsShellHeight(SETTINGS_DIALOG_PREF_HEIGHT));
+        shell.setMinHeight(SETTINGS_SHELL_MIN_HEIGHT);
+        shell.setMaxHeight(Double.MAX_VALUE);
 
         VBox navBar = new VBox(8);
         navBar.getStyleClass().addAll("sidebar", "settings-nav");
@@ -1353,7 +1590,7 @@ public class MainController {
         StackPane contentHost = new StackPane();
         contentHost.getStyleClass().add("settings-content-host");
         contentHost.setMinHeight(0);
-        contentHost.setPrefHeight(0);
+        contentHost.setPrefHeight(Region.USE_COMPUTED_SIZE);
         contentHost.setMaxHeight(Double.MAX_VALUE);
 
         String appVersion = applicationContext.getAppProperties().getAppVersion();
@@ -1393,6 +1630,10 @@ public class MainController {
         boolean[] selectedLabsEnabled = new boolean[] { originalLabsEnabled };
 
         VBox languageFontCard = createSettingsCard(text("settings.preferences.title"), text("settings.preferences.subtitle"));
+        ProductivityConfigService searchConfigService = getProductivityConfigService();
+        Set<ProductivityConfig.SearchField> originalSearchFields = resolveConfiguredSearchFields(searchConfigService);
+        Set<ProductivityConfig.SearchField> selectedSearchFields = EnumSet.copyOf(originalSearchFields);
+
         ComboBox<AppLanguage> languageComboBox = new ComboBox<>();
         languageComboBox.getItems().setAll(AppLanguage.supportedValues());
         languageComboBox.setValue(originalPreferredLanguage);
@@ -1439,6 +1680,24 @@ public class MainController {
             createSettingRow(text("settings.preferences.language.label"), text("settings.preferences.language.description"), languageComboBox),
             createSettingRow(text("settings.preferences.font.label"), text("settings.preferences.font.description"), fontChipRow)
         );
+        VBox searchScopeCard = createSettingsCard(text("settings.search.title"), text("settings.search.subtitle"));
+        FlowPane searchFieldPane = new FlowPane(10, 8);
+        searchFieldPane.setAlignment(Pos.CENTER_LEFT);
+        searchFieldPane.setPrefWrapLength(520);
+        for (ProductivityConfig.SearchField field : ProductivityConfig.SearchField.values()) {
+            CheckBox checkBox = new CheckBox(searchFieldLabel(field));
+            checkBox.setSelected(selectedSearchFields.contains(field));
+            checkBox.setMnemonicParsing(false);
+            checkBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
+                if (Boolean.TRUE.equals(newValue)) {
+                    selectedSearchFields.add(field);
+                } else {
+                    selectedSearchFields.remove(field);
+                }
+            });
+            searchFieldPane.getChildren().add(checkBox);
+        }
+        searchScopeCard.getChildren().add(searchFieldPane);
         VBox labsCard = createSettingsCard(text("settings.labs.title"), text("settings.labs.subtitle"));
         ToggleButton labsToggle = new ToggleButton();
         labsToggle.getStyleClass().add("modern-toggle-switch");
@@ -1454,7 +1713,7 @@ public class MainController {
             createSettingRow(text("settings.labs.toggle.label"), text("settings.labs.toggle.description"), labsToggle),
             labsFootnote
         );
-        generalPage.getChildren().addAll(aboutCard, currentCard, languageFontCard, labsCard);
+        generalPage.getChildren().addAll(aboutCard, currentCard, languageFontCard, searchScopeCard, labsCard);
 
         VBox personalizationPage = new VBox(18);
         personalizationPage.getStyleClass().add("settings-page");
@@ -1644,6 +1903,9 @@ public class MainController {
         shell.setLeft(navBar);
         shell.setCenter(contentHost);
         dialog.getDialogPane().setContent(shell);
+        dialog.getDialogPane().heightProperty().addListener((obs, oldValue, newValue) ->
+            shell.setPrefHeight(resolveSettingsShellHeight(newValue.doubleValue()))
+        );
         Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveButtonType);
         Button cancelButton = (Button) dialog.getDialogPane().lookupButton(cancelButtonType);
         if (saveButton != null) {
@@ -1657,6 +1919,7 @@ public class MainController {
             cancelButton.setCursor(Cursor.HAND);
         }
         dialog.setOnShown(event -> {
+            shell.setPrefHeight(resolveSettingsShellHeight(dialog.getDialogPane().getHeight()));
             Node buttonBar = dialog.getDialogPane().lookup(".button-bar");
             if (buttonBar != null) {
                 buttonBar.toFront();
@@ -1694,6 +1957,9 @@ public class MainController {
             fontService.selectFontWeight(selectedFontWeight[0]);
             applyCurrentFont();
         }
+        if (!selectedSearchFields.equals(originalSearchFields)) {
+            persistSearchFieldPreferences(searchConfigService, selectedSearchFields);
+        }
         refreshAllViews();
         if (selectedLanguage[0] != null && selectedLanguage[0] != originalPreferredLanguage) {
             showRestartLanguageNotice(selectedLanguage[0]);
@@ -1716,7 +1982,7 @@ public class MainController {
         ScrollPane scrollPane = new ScrollPane(page);
         scrollPane.getStyleClass().add("settings-page-scroll");
         scrollPane.setFitToWidth(true);
-        scrollPane.setFitToHeight(false);
+        scrollPane.setFitToHeight(true);
         scrollPane.setMinHeight(0);
         scrollPane.setMaxHeight(Double.MAX_VALUE);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
@@ -1724,6 +1990,13 @@ public class MainController {
         scrollPane.setPannable(true);
         scrollPane.setFocusTraversable(false);
         return scrollPane;
+    }
+
+    static double resolveSettingsShellHeight(double dialogPaneHeight) {
+        if (Double.isNaN(dialogPaneHeight) || Double.isInfinite(dialogPaneHeight) || dialogPaneHeight <= 0) {
+            return SETTINGS_SHELL_BASE_HEIGHT;
+        }
+        return Math.max(SETTINGS_SHELL_MIN_HEIGHT, dialogPaneHeight - SETTINGS_DIALOG_CHROME_HEIGHT);
     }
 
     static <K, V> V resolveSettingsPage(K selectedKey, Map<K, V> pages, V generalPage) {
@@ -1745,6 +2018,49 @@ public class MainController {
         HBox.setHgrow(spacer, Priority.ALWAYS);
         row.getChildren().addAll(textBox, spacer, control);
         return row;
+    }
+
+    private String searchFieldLabel(ProductivityConfig.SearchField field) {
+        if (field == null) {
+            return "";
+        }
+        return text("settings.searchField." + field.getId());
+    }
+
+    private static Set<ProductivityConfig.SearchField> resolveConfiguredSearchFields(ProductivityConfigService service) {
+        if (service == null) {
+            return EnumSet.allOf(ProductivityConfig.SearchField.class);
+        }
+        ProductivityConfig config = service.load();
+        if (config == null || config.searchFields() == null || config.searchFields().isEmpty()) {
+            return EnumSet.allOf(ProductivityConfig.SearchField.class);
+        }
+        return EnumSet.copyOf(config.searchFields());
+    }
+
+    private static void persistSearchFieldPreferences(ProductivityConfigService service, Set<ProductivityConfig.SearchField> searchFields) {
+        if (service == null) {
+            return;
+        }
+        Set<ProductivityConfig.SearchField> normalized = normalizeSearchScope(searchFields);
+        service.update(config -> new ProductivityConfig(
+            normalized,
+            config.defaultSortMode(),
+            config.heatmapPreset(),
+            config.heatmapThresholds(),
+            config.heatmapColors(),
+            config.presetTags(),
+            config.clockDisplay(),
+            config.searchHistory(),
+            config.suggestionSeeds()
+        ));
+    }
+
+    private static Set<ProductivityConfig.SearchField> normalizeSearchScope(Set<ProductivityConfig.SearchField> searchFields) {
+        if (searchFields == null || searchFields.isEmpty()) {
+            return EnumSet.allOf(ProductivityConfig.SearchField.class);
+        }
+        return EnumSet.copyOf(searchFields);
     }
 
     private VBox createStackedSettingRow(String title, String description, Node control) {
@@ -1925,6 +2241,14 @@ public class MainController {
 
     public FontService getFontService() {
         return fontService;
+    }
+
+    public UserPreferencesStore getPreferencesStore() {
+        return applicationContext.getPreferencesStore();
+    }
+
+    public ProductivityConfigService getProductivityConfigService() {
+        return applicationContext.getProductivityConfigService();
     }
 
     public void applyDialogPreferences(DialogPane pane) {
