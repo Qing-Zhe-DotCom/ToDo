@@ -242,6 +242,18 @@ class ThemeCssTest {
     }
 
     @Test
+    void baseCssMakesScheduleListScrollViewportTransparent() throws IOException {
+        String baseContent = readCss("/styles/base.css");
+        String viewportBlock = extractCssBlock(baseContent, ".schedule-list-scroll > .viewport");
+        String cornerBlock = extractCssBlock(baseContent, ".schedule-list-scroll > .corner");
+
+        assertAll(
+            () -> assertTrue(viewportBlock != null && viewportBlock.contains("-fx-background-color: transparent")),
+            () -> assertTrue(cornerBlock != null && cornerBlock.contains("-fx-background-color: transparent"))
+        );
+    }
+
+    @Test
     void baseCssContainsInfoPanelSelectors() throws IOException {
         String baseContent = readCss("/styles/base.css");
 
