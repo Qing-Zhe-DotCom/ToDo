@@ -229,6 +229,19 @@ class ThemeCssTest {
     }
 
     @Test
+    void baseCssKeepsTimelineRangeSingleSurfaceContract() throws IOException {
+        String baseContent = readCss("/styles/base.css");
+        String rangeGroupBlock = extractCssBlock(baseContent, ".timeline-range-group");
+        String rangePillBlock = extractCssBlock(baseContent, ".timeline-range-pill");
+
+        assertAll(
+            () -> assertTrue(rangeGroupBlock != null && rangeGroupBlock.contains("-fx-background-color: transparent")),
+            () -> assertTrue(rangeGroupBlock != null && rangeGroupBlock.contains("-fx-effect: none")),
+            () -> assertTrue(rangePillBlock != null && rangePillBlock.contains("-fx-background-color: -color-bg-panel"))
+        );
+    }
+
+    @Test
     void baseCssContainsInfoPanelSelectors() throws IOException {
         String baseContent = readCss("/styles/base.css");
 
@@ -347,6 +360,29 @@ class ThemeCssTest {
         );
     }
 
+    @Test
+    void themeFilesFlattenTimelineRangeSecondarySurfaces() throws IOException {
+        String classic = readCss("/styles/theme-classic-light.css");
+        String fresh = readCss("/styles/theme-fresh-light.css");
+        String cozy = readCss("/styles/theme-cozy-light.css");
+        String macaron = readCss("/styles/theme-macaron-light.css");
+        String modernMinimal = readCss("/styles/theme-modern-minimal-light.css");
+        String neoBrutalism = readCss("/styles/theme-neo-brutalism-light.css");
+        String materialYou = readCss("/styles/theme-material-you-light.css");
+        String neumorphism = readCss("/styles/theme-neumorphism-light.css");
+
+        assertAll(
+            () -> assertTimelineRangeThemeSurfaceReset(classic),
+            () -> assertTimelineRangeThemeSurfaceReset(fresh),
+            () -> assertTimelineRangeThemeSurfaceReset(cozy),
+            () -> assertTimelineRangeThemeSurfaceReset(macaron),
+            () -> assertTimelineRangeThemeSurfaceReset(modernMinimal),
+            () -> assertTimelineRangeThemeSurfaceReset(neoBrutalism),
+            () -> assertTimelineRangeThemeSurfaceReset(materialYou),
+            () -> assertTimelineRangeThemeSurfaceReset(neumorphism)
+        );
+    }
+
     private String readCss(String resourcePath) throws IOException {
         try (InputStream inputStream = getClass().getResourceAsStream(resourcePath)) {
             assertNotNull(inputStream);
@@ -418,6 +454,21 @@ class ThemeCssTest {
             () -> assertTrue(quickAddInputBlock != null && quickAddInputBlock.contains("-fx-effect: none")),
             () -> assertTrue(quickAddInputFocusedBlock != null && quickAddInputFocusedBlock.contains("-fx-background-color: transparent")),
             () -> assertTrue(quickAddInputFocusedBlock != null && quickAddInputFocusedBlock.contains("-fx-effect: none"))
+        );
+    }
+
+    private void assertTimelineRangeThemeSurfaceReset(String content) {
+        String rangeGroupBlock = extractLastCssBlock(content, ".timeline-range-group");
+        String rangePickerBlock = extractLastCssBlock(content, ".timeline-range-picker");
+        String rangeIconWrapBlock = extractLastCssBlock(content, ".timeline-range-icon-wrap");
+
+        assertAll(
+            () -> assertTrue(rangeGroupBlock != null && rangeGroupBlock.contains("-fx-background-color: transparent")),
+            () -> assertTrue(rangeGroupBlock != null && rangeGroupBlock.contains("-fx-effect: none")),
+            () -> assertTrue(rangePickerBlock != null && rangePickerBlock.contains("-fx-background-color: transparent")),
+            () -> assertTrue(rangePickerBlock != null && rangePickerBlock.contains("-fx-effect: none")),
+            () -> assertTrue(rangeIconWrapBlock != null && rangeIconWrapBlock.contains("-fx-background-color: transparent")),
+            () -> assertTrue(rangeIconWrapBlock != null && rangeIconWrapBlock.contains("-fx-effect: none"))
         );
     }
 }

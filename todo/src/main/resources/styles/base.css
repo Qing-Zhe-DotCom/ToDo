@@ -1528,6 +1528,12 @@
 .timeline-range-group {
 
     -fx-alignment: center-right;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-effect: none;
 
 }
 
@@ -1600,6 +1606,12 @@
     -fx-pref-width: 28;
 
     -fx-max-width: 28;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-effect: none;
 
 }
 
@@ -1632,12 +1644,16 @@
     -fx-background-color: transparent;
 
     -fx-border-color: transparent;
+    -fx-border-width: 0;
 
     -fx-background-insets: 0;
 
     -fx-border-insets: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
 
     -fx-padding: 0;
+    -fx-effect: none;
 
 }
 

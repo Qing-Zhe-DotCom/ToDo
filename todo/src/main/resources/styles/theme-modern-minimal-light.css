@@ -337,3 +337,50 @@
     -fx-border-radius: 0;
     -fx-effect: none;
 }
+
+/* Timeline Range Single Surface */
+.timeline-range-group {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-effect: none;
+}
+
+.timeline-range-picker {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-effect: none;
+}
+
+.timeline-range-icon-wrap {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-effect: none;
+}
+
+.timeline-range-picker > .text-field {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-effect: none;
+}
+
+.timeline-range-picker:focused > .text-field,
+.timeline-range-picker:showing > .text-field {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-effect: none;
+}

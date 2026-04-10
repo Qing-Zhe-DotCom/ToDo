@@ -269,9 +269,6 @@ public final class GlassBackdropCoordinator {
         variants.put("info-panel-borderless-combo", GlassSurfaceVariant.PANEL);
         variants.put("info-panel-notes-input", GlassSurfaceVariant.PANEL);
         variants.put("info-panel-title-input", GlassSurfaceVariant.PANEL);
-        variants.put("timeline-range-group", GlassSurfaceVariant.PANEL);
-        variants.put("timeline-range-picker", GlassSurfaceVariant.PANEL);
-        variants.put("timeline-range-icon-wrap", GlassSurfaceVariant.PANEL);
         variants.put("heatmap-sidebar", GlassSurfaceVariant.PANEL);
         variants.put("heatmap-day-rail", GlassSurfaceVariant.PANEL);
 
