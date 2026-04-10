@@ -5,6 +5,9 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
 public class FlowchartView implements View {
@@ -18,13 +21,26 @@ public class FlowchartView implements View {
     }
 
     private void initializeUI() {
-        root = new VBox(20);
+        root = new VBox(16);
         root.getStyleClass().add("main-content");
         root.setPadding(new Insets(15));
-        root.setAlignment(Pos.CENTER);
+        root.setAlignment(Pos.TOP_LEFT);
+
+        HBox header = new HBox(12);
+        header.setAlignment(Pos.CENTER_LEFT);
 
         Label titleLabel = new Label(controller.text("view.flowchart.title"));
         titleLabel.getStyleClass().add("label-title");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Label clockLabel = controller.createHeaderClockLabel();
+        header.getChildren().addAll(titleLabel, spacer, clockLabel);
+
+        VBox content = new VBox(20);
+        content.setAlignment(Pos.CENTER);
+        VBox.setVgrow(content, Priority.ALWAYS);
 
         Label developingLabel = new Label(controller.text("view.flowchart.developing"));
         developingLabel.getStyleClass().add("developing-label");
@@ -33,7 +49,8 @@ public class FlowchartView implements View {
         descriptionLabel.getStyleClass().add("label-subtitle");
         descriptionLabel.setAlignment(Pos.CENTER);
 
-        root.getChildren().addAll(titleLabel, developingLabel, descriptionLabel);
+        content.getChildren().addAll(developingLabel, descriptionLabel);
+        root.getChildren().addAll(header, content);
     }
 
     @Override

@@ -198,7 +198,8 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         rangeGroup.setAlignment(Pos.CENTER_RIGHT);
         rangeGroup.getStyleClass().add("timeline-range-group");
 
-        header.getChildren().addAll(titleLabel, spacer, rangeGroup);
+        Label clockLabel = controller.createHeaderClockLabel();
+        header.getChildren().addAll(titleLabel, spacer, rangeGroup, clockLabel);
 
         return header;
     }

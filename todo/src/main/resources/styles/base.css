@@ -393,6 +393,19 @@
 
 }
 
+.schedule-list-scroll {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.schedule-list-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.schedule-list-scroll > .corner {
+    -fx-background-color: transparent;
+}
+
 .schedule-list-pane {
     -fx-background-color: transparent;
     -fx-padding: 0 10 0 10;
@@ -1439,6 +1452,12 @@
 
     -fx-text-fill: -color-text-hint;
 
+}
+
+.header-clock {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-sub;
 }
 
 
