@@ -49,7 +49,7 @@ import java.util.Objects;
 
 public class InfoPanelView implements ScheduleCompletionParticipant {
     private static final double TIME_TOGGLE_SLOT_WIDTH = 96.0;
-    private static final double TIME_TRIGGER_WIDTH = 148.0;
+    private static final double TIME_TRIGGER_WIDTH = 170.0;
     private static final double TIME_TRIGGER_HEIGHT = 54.0;
     private static final String TITLE_PROMPT = "输入日程标题";
     private static final String EMPTY_TITLE_TEXT = "请选择日程";
@@ -84,8 +84,6 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     private Button deleteButton;
     private Label statusLabel;
     private FlowPane chipPane;
-    private Label summaryPrimary;
-    private Label summarySecondary;
     private TextField titleField;
     private CheckBox allDayToggle;
     private CheckBox dueToggle;
@@ -404,16 +402,16 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
             if (value == null) {
                 return new TimeTriggerPresentation(UNSET_TRIGGER_TEXT, "", true);
             }
-            String shortYear = String.format("%02d", Math.floorMod(value.getYear(), 100));
-            String primary = (allDay ? formatDaySummary(value) : SUMMARY_FORMATTER.format(value)) + " " + shortYear;
-            return new TimeTriggerPresentation(primary, "", false);
+            String primary = allDay ? formatDaySummary(value) : SUMMARY_FORMATTER.format(value);
+            String secondary = String.format("%02d", Math.floorMod(value.getYear(), 100));
+            return new TimeTriggerPresentation(primary, secondary, false);
         }
         if (value == null) {
             return new TimeTriggerPresentation(controller.text("common.unset"), "", true);
         }
         return new TimeTriggerPresentation(
-            controller.format(allDay ? "format.info.daySummaryWithShortYear" : "format.info.dateTimeSummaryWithShortYear", value),
-            "",
+            controller.format(allDay ? "format.info.daySummary" : "format.info.dateTimeSummary", value),
+            controller.format("format.info.shortYearSummary", value),
             false
         );
     }
@@ -489,28 +487,27 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         titleField.getStyleClass().add("info-panel-title-input");
         titleField.setPromptText(text("info.title.prompt"));
 
-        summaryPrimary = summaryLabel("info-panel-date-primary");
-        summaryPrimary.setText(text("time.unset"));
-        summarySecondary = summaryLabel("info-panel-date-secondary");
         allDayToggle = rowToggle(text("info.allDay"));
 
         dueToggle = rowToggle(text("info.due"));
         dueTrigger = timeTrigger();
         dueTriggerTitle = triggerLabel("info-panel-time-trigger-title");
         dueTriggerSubtitle = triggerLabel("info-panel-time-trigger-subtitle");
-        attachTriggerGraphic(dueTrigger, dueTriggerTitle, dueTriggerSubtitle);
+        dueTriggerSubtitle.getStyleClass().add("info-panel-time-trigger-year");
+        attachInlineYearTriggerGraphic(dueTrigger, dueTriggerSubtitle, dueTriggerTitle);
 
         startToggle = rowToggle(text("info.start"));
         startTrigger = timeTrigger();
         startTriggerTitle = triggerLabel("info-panel-time-trigger-title");
         startTriggerSubtitle = triggerLabel("info-panel-time-trigger-subtitle");
-        attachTriggerGraphic(startTrigger, startTriggerTitle, startTriggerSubtitle);
+        startTriggerSubtitle.getStyleClass().add("info-panel-time-trigger-year");
+        attachInlineYearTriggerGraphic(startTrigger, startTriggerSubtitle, startTriggerTitle);
 
         reminderToggle = rowToggle(text("info.reminder"));
         reminderTrigger = timeTrigger();
         reminderTriggerTitle = triggerLabel("info-panel-time-trigger-title");
         reminderTriggerSubtitle = triggerLabel("info-panel-time-trigger-subtitle");
-        attachTriggerGraphic(reminderTrigger, reminderTriggerTitle, reminderTriggerSubtitle);
+        attachStackedTriggerGraphic(reminderTrigger, reminderTriggerTitle, reminderTriggerSubtitle);
 
         priorityBox = new ComboBox<>();
         priorityBox.getItems().setAll(Schedule.PRIORITY_HIGH, Schedule.PRIORITY_MEDIUM, Schedule.PRIORITY_LOW);
@@ -561,8 +558,6 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         content.getChildren().addAll(
             chipPane,
             titleField,
-            summaryPrimary,
-            summarySecondary,
             section(text("info.section.allDay"), toggleOnlyRow(allDayToggle)),
             section(text("info.section.time"), timeRow(dueToggle, dueTrigger), timeRow(startToggle, startTrigger), timeRow(reminderToggle, reminderTrigger)),
             section(text("info.section.priority"), priorityEditor),
@@ -800,7 +795,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         if (reminder == null || reminder.getRemindAtUtc() == null) {
             return text("common.unset");
         }
-        TimeTriggerPresentation presentation = buildTimeTriggerPresentation(controller, reminder.getRemindAtUtc(), false);
+        TimeTriggerPresentation presentation = buildTimeTriggerPresentation(controller, reminder.getRemindAtUtc());
         if (presentation.getSecondaryText().isBlank()) {
             return presentation.getPrimaryText();
         }
@@ -1026,11 +1021,6 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         reminderListBox.setManaged(false);
         recurrenceSummaryLabel.setText(text("recurrence.none"));
 
-        summaryPrimary.setText(text("time.unset"));
-        summarySecondary.setText("");
-        summarySecondary.setVisible(false);
-        summarySecondary.setManaged(false);
-
         completeControl.syncCompleted(false);
         setDisabled(true);
         updateTimeTriggers();
@@ -1060,17 +1050,6 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         statusLabel.setManaged(true);
         completeControl.syncCompleted(currentSchedule.isCompleted());
         setDisabled(false);
-
-        DatePresentation presentation = buildDatePresentation(
-            controller,
-            currentSchedule.getStartAt(),
-            currentSchedule.getDueAt(),
-            currentSchedule.isAllDay()
-        );
-        summaryPrimary.setText(presentation.getPrimaryText());
-        summarySecondary.setText(presentation.getSecondaryText());
-        summarySecondary.setVisible(!presentation.getSecondaryText().isBlank());
-        summarySecondary.setManaged(!presentation.getSecondaryText().isBlank());
 
         updateTimeTriggers();
         updateChips(currentSchedule.getCategory(), currentSchedule.getTags());
@@ -1208,15 +1187,6 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         return Schedule.normalizeCategory(normalized);
     }
 
-    private Label summaryLabel(String styleClass) {
-        Label label = new Label();
-        label.getStyleClass().add(styleClass);
-        label.setWrapText(true);
-        label.setTextOverrun(OverrunStyle.CLIP);
-        label.setMaxWidth(Double.MAX_VALUE);
-        return label;
-    }
-
     public void refreshIcons() {
         if (deleteButton != null) {
             deleteButton.setGraphic(controller.createSvgIcon(IconKey.DELETE, text("info.delete"), 16));
@@ -1277,12 +1247,21 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         return button;
     }
 
-    private void attachTriggerGraphic(Button trigger, Label titleLabel, Label subtitleLabel) {
+    private void attachStackedTriggerGraphic(Button trigger, Label titleLabel, Label subtitleLabel) {
         VBox textBox = new VBox(2, titleLabel, subtitleLabel);
         textBox.setAlignment(Pos.CENTER_LEFT);
         textBox.setFillWidth(false);
         textBox.setMouseTransparent(true);
         trigger.setGraphic(textBox);
+    }
+
+    private void attachInlineYearTriggerGraphic(Button trigger, Label yearLabel, Label mainLabel) {
+        HBox line = new HBox(8, yearLabel, mainLabel);
+        line.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(mainLabel, Priority.ALWAYS);
+        mainLabel.setMaxWidth(Double.MAX_VALUE);
+        line.setMouseTransparent(true);
+        trigger.setGraphic(line);
     }
 
     private Label triggerLabel(String styleClass) {

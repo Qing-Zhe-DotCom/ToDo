@@ -314,9 +314,9 @@ class ThemeCssTest {
 
         assertAll(
             () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-padding: 6 10")),
-            () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-min-width: 148")),
-            () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-pref-width: 148")),
-            () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-max-width: 148")),
+            () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-min-width: 170")),
+            () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-pref-width: 170")),
+            () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-max-width: 170")),
             () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-min-height: 54")),
             () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-pref-height: 54")),
             () -> assertTrue(triggerBlock != null && triggerBlock.contains("-fx-max-height: 54")),

@@ -109,7 +109,8 @@ class InfoPanelViewTest {
             false
         );
 
-        assertTrue(presentation.getSecondaryText().isBlank());
+        assertEquals("99", presentation.getSecondaryText());
+        assertFalse(presentation.getPrimaryText().contains("2099"));
         assertFalse(presentation.isUnset());
     }
 }

@@ -3263,9 +3263,9 @@
     -fx-cursor: hand;
     -fx-effect: none;
     -fx-graphic-text-gap: 0;
-    -fx-min-width: 148;
-    -fx-pref-width: 148;
-    -fx-max-width: 148;
+    -fx-min-width: 170;
+    -fx-pref-width: 170;
+    -fx-max-width: 170;
     -fx-min-height: 54;
     -fx-pref-height: 54;
     -fx-max-height: 54;
@@ -3290,14 +3290,21 @@
 }
 
 .info-panel-time-trigger-title {
-    -fx-font-size: 14px;
+    -fx-font-size: 15px;
     -fx-font-weight: 700;
     -fx-text-fill: -color-text-main;
 }
 
 .info-panel-time-trigger-subtitle {
-    -fx-font-size: 12px;
+    -fx-font-size: 14px;
     -fx-text-fill: -color-text-hint;
+}
+
+.info-panel-time-trigger-year {
+    -fx-min-width: 34px;
+    -fx-pref-width: 34px;
+    -fx-font-weight: 800;
+    -fx-text-fill: -color-text-sub;
 }
 
 .info-panel-time-trigger-unset .info-panel-time-trigger-title {
@@ -3557,13 +3564,13 @@
 }
 
 .info-panel-meta-label {
-    -fx-font-size: 15px;
+    -fx-font-size: 16px;
     -fx-font-weight: 600;
     -fx-text-fill: -color-text-sub;
 }
 
 .info-panel-meta-value {
-    -fx-font-size: 15px;
+    -fx-font-size: 16px;
     -fx-text-fill: -color-text-main;
 }
 
@@ -3595,7 +3602,7 @@
 .info-panel-chip {
     -fx-padding: 4 10;
     -fx-background-radius: 8;
-    -fx-font-size: 13px;
+    -fx-font-size: 14px;
     -fx-font-weight: 600;
 }
 
@@ -3624,7 +3631,7 @@
 }
 
 .info-panel-section-title {
-    -fx-font-size: 17px;
+    -fx-font-size: 18px;
     -fx-font-weight: 700;
     -fx-text-fill: -color-text-main;
 }
@@ -3644,7 +3651,7 @@
 }
 
 .info-panel-description-text {
-    -fx-font-size: 13px;
+    -fx-font-size: 14px;
     -fx-text-fill: -color-text-sub;
     -fx-line-spacing: 3;
 }
@@ -3770,7 +3777,7 @@
 }
 
 .info-panel-editor-toggle {
-    -fx-font-size: 13px;
+    -fx-font-size: 14px;
     -fx-font-weight: 700;
     -fx-text-fill: -color-text-sub;
     -fx-padding: 0 6 0 0;
