@@ -100,4 +100,16 @@ class InfoPanelViewTest {
         assertEquals(2000, IosWheelDateTimePopup.clampYear(1999));
         assertEquals(2099, IosWheelDateTimePopup.clampYear(2100));
     }
+
+    @Test
+    void timeTriggerPresentationForDueStartUsesSingleLineContract() {
+        InfoPanelView.TimeTriggerPresentation presentation = InfoPanelView.buildTimeTriggerPresentation(
+            null,
+            LocalDateTime.of(2099, 8, 29, 23, 59),
+            false
+        );
+
+        assertTrue(presentation.getSecondaryText().isBlank());
+        assertFalse(presentation.isUnset());
+    }
 }

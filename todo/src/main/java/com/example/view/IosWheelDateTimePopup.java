@@ -75,7 +75,7 @@ final class IosWheelDateTimePopup {
     private final WheelColumn dayColumn = new WheelColumn(BASE_DAY_WIDTH, this::formatDay);
     private final WheelColumn hourColumn = new WheelColumn(BASE_HOUR_WIDTH, value -> String.format("%02d", value));
     private final WheelColumn minuteColumn = new WheelColumn(BASE_MINUTE_WIDTH, value -> String.format("%02d", value));
-    private final WheelColumn yearColumn = new WheelColumn(BASE_YEAR_WIDTH, IosWheelDateTimePopup::formatYear2);
+    private final WheelColumn yearColumn = new WheelColumn(BASE_YEAR_WIDTH, this::formatYear);
 
     private int selectedYear;
     private Consumer<LocalDateTime> onSave = value -> { };
@@ -162,11 +162,11 @@ final class IosWheelDateTimePopup {
         header.getStyleClass().add("ios-wheel-header");
 
         columns.getChildren().addAll(
+            yearColumn.getView(),
             monthColumn.getView(),
             dayColumn.getView(),
             hourColumn.getView(),
-            minuteColumn.getView(),
-            yearColumn.getView()
+            minuteColumn.getView()
         );
         columns.setAlignment(Pos.CENTER);
         columns.getStyleClass().add("ios-wheel-columns");
@@ -412,6 +412,10 @@ final class IosWheelDateTimePopup {
         return text("wheel.day.option", value);
     }
 
+    private String formatYear(int value) {
+        return text("wheel.year.option", formatYear2(value));
+    }
+
     private String text(String key, Object... args) {
         if (controller != null) {
             return controller.text(key, args);
@@ -422,6 +426,7 @@ final class IosWheelDateTimePopup {
             case "wheel.year.label" -> args[0] + "年";
             case "wheel.month.option" -> args[0] + "月";
             case "wheel.day.option" -> args[0] + "日";
+            case "wheel.year.option" -> args[0] + "年";
             default -> key;
         };
     }
@@ -441,6 +446,7 @@ final class IosWheelDateTimePopup {
         private int selectedIndex;
         private boolean dragging;
         private boolean suppressClick;
+        private boolean pressing;
         private double dragPressScreenY;
         private double dragPressOffset;
 
@@ -454,6 +460,7 @@ final class IosWheelDateTimePopup {
         private WheelColumn(double width, IntFunction<String> formatter) {
             this.formatter = formatter;
             root.getStyleClass().add("ios-wheel-column");
+            root.setPickOnBounds(true);
 
             content.getStyleClass().add("ios-wheel-column-box");
             scrollPane.setContent(content);
@@ -479,10 +486,11 @@ final class IosWheelDateTimePopup {
             });
             scrollPane.setOnScroll(event -> snapDelay.playFromStart());
 
-            scrollPane.addEventHandler(MouseEvent.MOUSE_PRESSED, event -> {
+            root.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
                 if (event.getButton() != MouseButton.PRIMARY) {
                     return;
                 }
+                pressing = true;
                 dragging = false;
                 suppressClick = false;
                 dragPressScreenY = event.getScreenY();
@@ -490,8 +498,8 @@ final class IosWheelDateTimePopup {
                 snapDelay.stop();
             });
 
-            scrollPane.addEventHandler(MouseEvent.MOUSE_DRAGGED, event -> {
-                if (!event.isPrimaryButtonDown()) {
+            root.addEventFilter(MouseEvent.MOUSE_DRAGGED, event -> {
+                if (!pressing) {
                     return;
                 }
                 double deltaY = event.getScreenY() - dragPressScreenY;
@@ -509,7 +517,11 @@ final class IosWheelDateTimePopup {
                 event.consume();
             });
 
-            scrollPane.addEventHandler(MouseEvent.MOUSE_RELEASED, event -> {
+            root.addEventFilter(MouseEvent.MOUSE_RELEASED, event -> {
+                if (!pressing) {
+                    return;
+                }
+                pressing = false;
                 if (!dragging) {
                     return;
                 }

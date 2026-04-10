@@ -400,18 +400,20 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     }
 
     static TimeTriggerPresentation buildTimeTriggerPresentation(MainController controller, LocalDateTime value, boolean allDay) {
-        if (!allDay) {
-            return buildTimeTriggerPresentation(controller, value);
-        }
         if (controller == null) {
-            return buildTimeTriggerPresentation(value, true);
+            if (value == null) {
+                return new TimeTriggerPresentation(UNSET_TRIGGER_TEXT, "", true);
+            }
+            String shortYear = String.format("%02d", Math.floorMod(value.getYear(), 100));
+            String primary = (allDay ? formatDaySummary(value) : SUMMARY_FORMATTER.format(value)) + " " + shortYear;
+            return new TimeTriggerPresentation(primary, "", false);
         }
         if (value == null) {
             return new TimeTriggerPresentation(controller.text("common.unset"), "", true);
         }
         return new TimeTriggerPresentation(
-            controller.format("format.info.daySummary", value),
-            controller.format("format.info.yearSummary", value),
+            controller.format(allDay ? "format.info.daySummaryWithShortYear" : "format.info.dateTimeSummaryWithShortYear", value),
+            "",
             false
         );
     }
