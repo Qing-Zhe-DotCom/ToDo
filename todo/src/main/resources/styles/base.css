@@ -3755,12 +3755,17 @@
 .info-panel-title-input {
     -fx-background-color: transparent;
     -fx-text-fill: -color-text-main;
-    -fx-font-size: 30px;
+    -fx-font-size: 32px;
     -fx-font-weight: 800;
     -fx-padding: 0;
     -fx-border-color: transparent transparent -color-border transparent;
     -fx-border-width: 0 0 1 0;
     -fx-background-insets: 0;
+}
+
+.text-field.info-panel-title-input {
+    -fx-font-size: 32px;
+    -fx-font-weight: 800;
 }
 
 .info-panel-title-input:focused {
