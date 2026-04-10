@@ -349,7 +349,8 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        toolbar.getChildren().addAll(titleLabel, filterComboBox, spacer);
+        Label clockLabel = controller.createHeaderClockLabel();
+        toolbar.getChildren().addAll(titleLabel, filterComboBox, spacer, clockLabel);
         return toolbar;
     }
 

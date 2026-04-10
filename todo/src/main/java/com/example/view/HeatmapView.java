@@ -230,7 +230,8 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             viewLabel,
             viewModes,
             spacer,
-            navButtons
+            navButtons,
+            controller.createHeaderClockLabel()
         );
 
         return header;

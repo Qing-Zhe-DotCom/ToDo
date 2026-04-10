@@ -1454,6 +1454,12 @@
 
 }
 
+.header-clock {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-sub;
+}
+
 
 
 .sidebar-function-title {

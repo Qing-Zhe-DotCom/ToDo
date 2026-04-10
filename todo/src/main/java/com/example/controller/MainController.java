@@ -5,6 +5,8 @@ import java.io.InputStream;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -50,10 +52,16 @@ import com.example.view.TimelineView;
 import com.example.view.View;
 
 import javafx.application.Platform;
+import javafx.animation.Animation;
 import javafx.animation.FadeTransition;
+import javafx.animation.KeyFrame;
 import javafx.animation.ParallelTransition;
 import javafx.animation.PauseTransition;
+import javafx.animation.Timeline;
 import javafx.animation.TranslateTransition;
+import javafx.beans.property.ReadOnlyStringProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.fxml.FXML;
 import javafx.scene.Scene;
 import javafx.scene.Node;
@@ -171,6 +179,9 @@ public class MainController {
     private boolean sidebarCollapsed = false;
     private boolean featurePanelExpanded = false;
     private boolean uiInitialized = false;
+    private static final DateTimeFormatter HEADER_CLOCK_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+    private final StringProperty headerClockText = new SimpleStringProperty("");
+    private Timeline headerClockTimeline;
     private final Map<Labeled, String[]> collapsibleLabels = new LinkedHashMap<>();
     private final List<ThemeFamily> availableThemeFamilies;
     private final List<ClassicThemePalette> classicThemePalettes;
@@ -268,6 +279,7 @@ public class MainController {
         if (root.getChildren().isEmpty()) {
             root.getChildren().setAll(macaronBackgroundLayer, appShell);
         }
+        startHeaderClock();
 
         // 创建左侧导航栏
         createSidebar();
@@ -592,6 +604,45 @@ public class MainController {
 
     public Pane createSvgIcon(IconKey iconKey, String title, double size) {
         return createSvgIcon(iconService.resolveResourcePath(iconKey), title, size);
+    }
+
+    public Label createHeaderClockLabel() {
+        Label label = new Label();
+        label.getStyleClass().add("header-clock");
+        label.textProperty().bind(headerClockText);
+        label.setMinWidth(Region.USE_PREF_SIZE);
+        label.setMouseTransparent(true);
+        label.setFocusTraversable(false);
+        return label;
+    }
+
+    public ReadOnlyStringProperty headerClockTextProperty() {
+        return headerClockText;
+    }
+
+    private void startHeaderClock() {
+        if (headerClockTimeline != null) {
+            return;
+        }
+        updateHeaderClockText();
+        headerClockTimeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> updateHeaderClockText()));
+        headerClockTimeline.setCycleCount(Animation.INDEFINITE);
+        headerClockTimeline.play();
+    }
+
+    private void stopHeaderClock() {
+        if (headerClockTimeline == null) {
+            return;
+        }
+        headerClockTimeline.stop();
+        headerClockTimeline = null;
+    }
+
+    private void updateHeaderClockText() {
+        String next = HEADER_CLOCK_FORMATTER.format(LocalTime.now());
+        if (!next.equals(headerClockText.get())) {
+            headerClockText.set(next);
+        }
     }
 
     private Group loadSvgGraphic(String resourcePath, double targetSize) {
@@ -2637,6 +2688,7 @@ public class MainController {
     }
     
     public void shutdown() {
+        stopHeaderClock();
         scheduleCompletionExecutor.shutdownNow();
     }
 

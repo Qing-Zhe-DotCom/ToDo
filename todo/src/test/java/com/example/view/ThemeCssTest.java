@@ -254,6 +254,18 @@ class ThemeCssTest {
     }
 
     @Test
+    void baseCssContainsHeaderClockSelector() throws IOException {
+        String baseContent = readCss("/styles/base.css");
+        String clockBlock = extractCssBlock(baseContent, ".header-clock");
+
+        assertAll(
+            () -> assertTrue(baseContent.contains(".header-clock {")),
+            () -> assertTrue(clockBlock != null && clockBlock.contains("-fx-text-fill: -color-text-sub")),
+            () -> assertTrue(clockBlock != null && clockBlock.contains("-fx-font-size: 12px"))
+        );
+    }
+
+    @Test
     void baseCssContainsInfoPanelSelectors() throws IOException {
         String baseContent = readCss("/styles/base.css");
 
