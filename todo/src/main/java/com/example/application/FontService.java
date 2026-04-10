@@ -43,14 +43,16 @@ public final class FontService {
 
     public String getInlineStyle(AppLanguage language) {
         String fontName = resolveFontName(language, currentFontWeight);
-        return "-fx-font: " + formatFontSize(DEFAULT_FONT_SIZE) + "px \"" + escape(fontName) + "\";";
+        return "-fx-font-family: \"" + escape(fontName) + "\";";
     }
 
     public void applyTo(Node node, AppLanguage language) {
         if (node == null) {
             return;
         }
-        node.setStyle(getInlineStyle(language));
+        // Keep existing inline styles intact. FontService should only "stamp" the family selection.
+        String mergedStyle = mergeInlineStyle(node.getStyle(), getInlineStyle(language));
+        node.setStyle(mergedStyle);
     }
 
     public String resolveFamily(AppLanguage language) {
@@ -104,11 +106,28 @@ public final class FontService {
         };
     }
 
-    private String formatFontSize(double size) {
-        return size == Math.rint(size) ? Integer.toString((int) size) : Double.toString(size);
-    }
-
     private String escape(String fontName) {
         return fontName.replace("\"", "\\\"");
+    }
+
+    private String mergeInlineStyle(String existingStyle, String stampedStyle) {
+        String existing = existingStyle == null ? "" : existingStyle.trim();
+        if (!existing.isEmpty()) {
+            // Remove any previous FontService stamps to avoid growth and to ensure updates take effect.
+            existing = existing.replaceAll("(?i)-fx-font\\s*:[^;]*;?", "");
+            existing = existing.replaceAll("(?i)-fx-font-family\\s*:[^;]*;?", "");
+            existing = existing.trim();
+        }
+        String stamp = stampedStyle == null ? "" : stampedStyle.trim();
+        if (existing.isEmpty()) {
+            return stamp;
+        }
+        if (stamp.isEmpty()) {
+            return existing;
+        }
+        if (!existing.endsWith(";")) {
+            existing += ";";
+        }
+        return existing + " " + stamp;
     }
 }

@@ -41,8 +41,8 @@ class FontServiceTest {
         String simplifiedStyle = service.getInlineStyle(AppLanguage.SIMPLIFIED_CHINESE);
         String traditionalStyle = service.getInlineStyle(AppLanguage.TRADITIONAL_CHINESE);
 
-        assertTrue(simplifiedStyle.contains("-fx-font:"));
-        assertTrue(traditionalStyle.contains("-fx-font:"));
+        assertTrue(simplifiedStyle.contains("-fx-font-family:"));
+        assertTrue(traditionalStyle.contains("-fx-font-family:"));
         assertTrue(simplifiedStyle.contains("\"HarmonyOS Sans SC\""));
         assertTrue(traditionalStyle.contains("\"HarmonyOS Sans TC\""));
         assertFalse(service.resolveFontName(AppLanguage.SIMPLIFIED_CHINESE, AppFontWeight.REGULAR).isBlank());
