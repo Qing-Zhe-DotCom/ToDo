@@ -110,6 +110,36 @@ class SqliteScheduleRepositoryTest {
     }
 
     @Test
+    void suggestQueriesReturnDistinctActiveTitlesTagsAndCategories() throws SQLException {
+        Schedule first = buildSchedule("Migrate database", "Replace single table");
+        first.setCategory("Infrastructure");
+        first.setTags("SQLite, Local");
+        repository.addScheduleItem(first);
+
+        Schedule second = buildSchedule("Migrate UI", "Polish UI");
+        second.setCategory("Infrastructure");
+        second.setTags("SQLite, Other");
+        repository.addScheduleItem(second);
+
+        Schedule deleted = buildSchedule("Old plan", "Archived");
+        deleted.setCategory("Archived");
+        deleted.setTags("DeprecatedTag");
+        repository.addScheduleItem(deleted);
+        assertTrue(repository.softDeleteScheduleItem(deleted.getId(), "device-a"));
+
+        assertEquals(
+            List.of("Migrate database", "Migrate UI"),
+            repository.suggestActiveScheduleTitles("mig", 10)
+        );
+        assertEquals(List.of("SQLite"), repository.suggestActiveTagNames("sql", 10));
+        assertEquals(List.of("Infrastructure"), repository.suggestActiveCategories("infra", 10));
+
+        assertTrue(repository.suggestActiveScheduleTitles("old", 10).isEmpty());
+        assertTrue(repository.suggestActiveTagNames("deprecated", 10).isEmpty());
+        assertTrue(repository.suggestActiveCategories("arch", 10).isEmpty());
+    }
+
+    @Test
     void registeredDeviceAppearsInRegistry() throws SQLException {
         repository.ensureDeviceRegistered("device-x", "test-device", "0.1.0");
         assertEquals(1, countRows("device_registry"));

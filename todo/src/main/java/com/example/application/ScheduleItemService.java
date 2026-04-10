@@ -107,6 +107,18 @@ public final class ScheduleItemService {
         return repository.searchActiveScheduleItems(keyword);
     }
 
+    public List<String> suggestActiveScheduleTitles(String keyword, int limit) throws SQLException {
+        return repository.suggestActiveScheduleTitles(keyword, limit);
+    }
+
+    public List<String> suggestActiveTagNames(String keyword, int limit) throws SQLException {
+        return repository.suggestActiveTagNames(keyword, limit);
+    }
+
+    public List<String> suggestActiveCategories(String keyword, int limit) throws SQLException {
+        return repository.suggestActiveCategories(keyword, limit);
+    }
+
     public boolean updateScheduleItemCompletion(String scheduleItemId, boolean completed) throws SQLException {
         return repository.updateScheduleItemCompletion(scheduleItemId, completed, deviceId);
     }

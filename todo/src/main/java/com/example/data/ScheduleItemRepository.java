@@ -26,6 +26,12 @@ public interface ScheduleItemRepository {
 
     List<ScheduleItem> searchActiveScheduleItems(String keyword) throws SQLException;
 
+    List<String> suggestActiveScheduleTitles(String keyword, int limit) throws SQLException;
+
+    List<String> suggestActiveTagNames(String keyword, int limit) throws SQLException;
+
+    List<String> suggestActiveCategories(String keyword, int limit) throws SQLException;
+
     boolean updateScheduleItemCompletion(String scheduleItemId, boolean completed, String deviceId) throws SQLException;
 
     Map<LocalDate, Integer> getDailyCompletionStats(LocalDate startDate, LocalDate endDate) throws SQLException;
