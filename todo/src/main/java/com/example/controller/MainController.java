@@ -8,7 +8,9 @@ import java.time.LocalDateTime;
 import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -34,6 +36,7 @@ import com.example.application.ScheduleItemService;
 import com.example.application.ThemeAppearance;
 import com.example.application.ThemeFamily;
 import com.example.application.ThemeService;
+import com.example.config.UserPreferencesStore;
 import com.example.model.ScheduleItem;
 import com.example.model.Schedule;
 import com.example.model.RecurrenceRule;
@@ -49,6 +52,7 @@ import com.example.view.View;
 import javafx.application.Platform;
 import javafx.animation.FadeTransition;
 import javafx.animation.ParallelTransition;
+import javafx.animation.PauseTransition;
 import javafx.animation.TranslateTransition;
 import javafx.fxml.FXML;
 import javafx.scene.Scene;
@@ -148,6 +152,9 @@ public class MainController {
     private Separator bottomActionsSeparator;
     private Label functionTitle;
     private TextField searchField;
+    private ContextMenu searchSuggestionMenu;
+    private PauseTransition searchSuggestionDebounce;
+    private final List<String> searchHistory = new ArrayList<>();
     private ToggleButton scheduleNavButton;
     private ToggleButton timelineNavButton;
     private ToggleButton heatmapNavButton;
@@ -181,6 +188,14 @@ public class MainController {
     private String currentScheduleCardStyle = DEFAULT_SCHEDULE_CARD_STYLE;
     private IconPack currentIconPack = IconPack.CLASSIC;
     private boolean currentThemeIconBinding = true;
+
+    private static final String SEARCH_HISTORY_PREFERENCE_KEY = "todo.search.history";
+    private static final int SEARCH_HISTORY_MAX_ENTRIES = 20;
+    private static final int SEARCH_SUGGESTION_HISTORY_WHEN_EMPTY_LIMIT = 8;
+    private static final int SEARCH_SUGGESTION_TOTAL_LIMIT = 12;
+    private static final int SEARCH_SUGGESTION_BUCKET_LIMIT = 3;
+    private static final Duration SEARCH_SUGGESTION_DEBOUNCE_DURATION = Duration.millis(120);
+    private static final Pattern SEARCH_HISTORY_WHITESPACE = Pattern.compile("\\s+");
     
     public MainController() {
         this(ApplicationContext.createDefault());
@@ -202,6 +217,7 @@ public class MainController {
         syncThemeState();
         syncIconState();
         iconService.addChangeListener(this::refreshIconography);
+        searchHistory.addAll(loadSearchHistory(applicationContext.getPreferencesStore()));
         scheduleCompletionExecutor = Executors.newSingleThreadExecutor(createCompletionThreadFactory());
         scheduleCompletionCoordinator = new ScheduleCompletionCoordinator(
             scheduleItemService::updateScheduleItemCompletion,
@@ -362,10 +378,12 @@ public class MainController {
         searchField = new TextField();
         searchField.getStyleClass().add("search-field");
         searchField.setPromptText(text("sidebar.search.prompt"));
+        installSidebarSearchSuggestions();
         searchField.textProperty().addListener((observable, oldValue, newValue) -> {
             if (shouldClearSearchResults(oldValue, newValue)) {
                 clearScheduleSearch();
             }
+            queueSidebarSearchSuggestionRefresh();
         });
         searchField.setOnAction(e -> performSearch(searchField.getText()));
 
@@ -542,6 +560,10 @@ public class MainController {
         if (searchField != null) {
             searchField.setVisible(!sidebarCollapsed);
             searchField.setManaged(!sidebarCollapsed);
+        }
+
+        if (sidebarCollapsed) {
+            hideSidebarSearchSuggestions();
         }
 
         updateFeaturePanelState();
@@ -1341,12 +1363,241 @@ public class MainController {
             exitActionButton.setGraphic(createSvgIcon(IconKey.LOGOUT, text("sidebar.exit"), 24));
         }
     }
+
+    private void installSidebarSearchSuggestions() {
+        if (searchField == null) {
+            return;
+        }
+        if (searchSuggestionMenu == null) {
+            searchSuggestionMenu = new ContextMenu();
+            searchSuggestionMenu.getStyleClass().add("search-suggestion-menu");
+            searchSuggestionMenu.setAutoHide(true);
+            searchSuggestionMenu.setHideOnEscape(true);
+        }
+        if (searchSuggestionDebounce == null) {
+            searchSuggestionDebounce = new PauseTransition(SEARCH_SUGGESTION_DEBOUNCE_DURATION);
+            searchSuggestionDebounce.setOnFinished(event -> refreshSidebarSearchSuggestions());
+        }
+
+        searchField.focusedProperty().addListener((observable, oldValue, focused) -> {
+            if (focused) {
+                refreshSidebarSearchSuggestions();
+            } else {
+                // Defer to allow context-menu clicks to register before hiding.
+                Platform.runLater(this::hideSidebarSearchSuggestions);
+            }
+        });
+        searchField.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                hideSidebarSearchSuggestions();
+            }
+        });
+    }
+
+    private void queueSidebarSearchSuggestionRefresh() {
+        if (searchSuggestionDebounce == null || searchField == null) {
+            return;
+        }
+        if (!searchField.isFocused()) {
+            return;
+        }
+        searchSuggestionDebounce.playFromStart();
+    }
+
+    private void refreshSidebarSearchSuggestions() {
+        if (searchSuggestionMenu == null || searchField == null) {
+            return;
+        }
+        if (!searchField.isFocused() || !searchField.isVisible() || sidebarCollapsed) {
+            hideSidebarSearchSuggestions();
+            return;
+        }
+
+        String rawInput = searchField.getText();
+        String trimmedInput = rawInput == null ? "" : rawInput.trim();
+
+        List<SearchSuggestion> suggestions = buildSearchSuggestions(trimmedInput);
+        if (suggestions.isEmpty()) {
+            hideSidebarSearchSuggestions();
+            return;
+        }
+
+        List<MenuItem> items = new ArrayList<>();
+        for (SearchSuggestion suggestion : suggestions) {
+            MenuItem item = new MenuItem(suggestion.displayText);
+            item.setGraphic(createSvgIcon(suggestion.iconKey, suggestion.displayText, 16));
+            item.setOnAction(event -> {
+                searchField.setText(suggestion.insertText);
+                searchField.positionCaret(suggestion.insertText.length());
+                performSearch(suggestion.insertText);
+            });
+            items.add(item);
+        }
+        searchSuggestionMenu.getItems().setAll(items);
+
+        if (!searchSuggestionMenu.isShowing()) {
+            searchSuggestionMenu.show(searchField, Side.BOTTOM, 0, 4);
+        }
+    }
+
+    private List<SearchSuggestion> buildSearchSuggestions(String trimmedInput) {
+        List<SearchSuggestion> suggestions = new ArrayList<>();
+        LinkedHashSet<String> dedupeKeys = new LinkedHashSet<>();
+
+        if (trimmedInput == null || trimmedInput.isEmpty()) {
+            int count = 0;
+            for (String entry : searchHistory) {
+                if (entry == null || entry.isBlank()) {
+                    continue;
+                }
+                String insert = entry;
+                String key = insert.toLowerCase(Locale.ROOT);
+                if (!dedupeKeys.add(key)) {
+                    continue;
+                }
+                suggestions.add(new SearchSuggestion(insert, insert, IconKey.RESET));
+                if (++count >= SEARCH_SUGGESTION_HISTORY_WHEN_EMPTY_LIMIT) {
+                    break;
+                }
+            }
+            return suggestions;
+        }
+
+        String needle = trimmedInput.toLowerCase(Locale.ROOT);
+        addSuggestionsFromHistory(suggestions, dedupeKeys, needle, SEARCH_SUGGESTION_BUCKET_LIMIT);
+
+        int remaining = SEARCH_SUGGESTION_TOTAL_LIMIT - suggestions.size();
+        if (remaining <= 0) {
+            return suggestions;
+        }
+
+        try {
+            addSuggestionsFromValues(
+                suggestions,
+                dedupeKeys,
+                scheduleItemService.suggestActiveScheduleTitles(trimmedInput, SEARCH_SUGGESTION_BUCKET_LIMIT),
+                IconKey.NOTES,
+                remaining
+            );
+            remaining = SEARCH_SUGGESTION_TOTAL_LIMIT - suggestions.size();
+            if (remaining <= 0) {
+                return suggestions;
+            }
+
+            addSuggestionsFromValues(
+                suggestions,
+                dedupeKeys,
+                scheduleItemService.suggestActiveTagNames(trimmedInput, SEARCH_SUGGESTION_BUCKET_LIMIT),
+                IconKey.TAG,
+                remaining
+            );
+            remaining = SEARCH_SUGGESTION_TOTAL_LIMIT - suggestions.size();
+            if (remaining <= 0) {
+                return suggestions;
+            }
+
+            List<String> categories = scheduleItemService.suggestActiveCategories(trimmedInput, SEARCH_SUGGESTION_BUCKET_LIMIT);
+            for (String rawCategory : categories) {
+                if (rawCategory == null || rawCategory.isBlank()) {
+                    continue;
+                }
+                String insert = rawCategory;
+                String key = insert.toLowerCase(Locale.ROOT);
+                if (!dedupeKeys.add(key)) {
+                    continue;
+                }
+                suggestions.add(new SearchSuggestion(categoryDisplayName(rawCategory), insert, IconKey.FOLDER));
+                if (suggestions.size() >= SEARCH_SUGGESTION_TOTAL_LIMIT) {
+                    break;
+                }
+            }
+        } catch (SQLException ignored) {
+            // Suggestions are best-effort. The main search path should remain usable.
+        }
+
+        return suggestions;
+    }
+
+    private void addSuggestionsFromHistory(
+        List<SearchSuggestion> suggestions,
+        LinkedHashSet<String> dedupeKeys,
+        String needle,
+        int limit
+    ) {
+        int count = 0;
+        for (String entry : searchHistory) {
+            if (entry == null || entry.isBlank()) {
+                continue;
+            }
+            if (!entry.toLowerCase(Locale.ROOT).contains(needle)) {
+                continue;
+            }
+            String insert = entry;
+            String key = insert.toLowerCase(Locale.ROOT);
+            if (!dedupeKeys.add(key)) {
+                continue;
+            }
+            suggestions.add(new SearchSuggestion(insert, insert, IconKey.RESET));
+            if (++count >= limit || suggestions.size() >= SEARCH_SUGGESTION_TOTAL_LIMIT) {
+                break;
+            }
+        }
+    }
+
+    private static void addSuggestionsFromValues(
+        List<SearchSuggestion> suggestions,
+        LinkedHashSet<String> dedupeKeys,
+        List<String> values,
+        IconKey iconKey,
+        int remaining
+    ) {
+        if (values == null || values.isEmpty() || remaining <= 0) {
+            return;
+        }
+        for (String value : values) {
+            if (value == null || value.isBlank()) {
+                continue;
+            }
+            String insert = value;
+            String key = insert.toLowerCase(Locale.ROOT);
+            if (!dedupeKeys.add(key)) {
+                continue;
+            }
+            suggestions.add(new SearchSuggestion(insert, insert, iconKey));
+            if (--remaining <= 0 || suggestions.size() >= SEARCH_SUGGESTION_TOTAL_LIMIT) {
+                break;
+            }
+        }
+    }
+
+    private void hideSidebarSearchSuggestions() {
+        if (searchSuggestionDebounce != null) {
+            searchSuggestionDebounce.stop();
+        }
+        if (searchSuggestionMenu != null) {
+            searchSuggestionMenu.hide();
+        }
+    }
+
+    private static final class SearchSuggestion {
+        private final String displayText;
+        private final String insertText;
+        private final IconKey iconKey;
+
+        private SearchSuggestion(String displayText, String insertText, IconKey iconKey) {
+            this.displayText = displayText;
+            this.insertText = insertText;
+            this.iconKey = iconKey;
+        }
+    }
     
     private void performSearch(String keyword) {
+        hideSidebarSearchSuggestions();
         if (isBlankSearchText(keyword)) {
             clearScheduleSearch();
             return;
         }
+        rememberSearchHistory(applicationContext.getPreferencesStore(), searchHistory, keyword);
         scheduleListView.searchSchedules(keyword.trim());
         showView(scheduleListView);
     }
@@ -1364,6 +1615,108 @@ public class MainController {
 
     private static boolean isBlankSearchText(String text) {
         return text == null || text.trim().isEmpty();
+    }
+
+    static List<String> loadSearchHistory(UserPreferencesStore preferencesStore) {
+        if (preferencesStore == null) {
+            return List.of();
+        }
+        return parseSearchHistory(preferencesStore.get(SEARCH_HISTORY_PREFERENCE_KEY, ""));
+    }
+
+    static void rememberSearchHistory(
+        UserPreferencesStore preferencesStore,
+        List<String> historyBuffer,
+        String rawKeyword
+    ) {
+        if (preferencesStore == null || historyBuffer == null) {
+            return;
+        }
+
+        List<String> updated = appendSearchHistory(historyBuffer, rawKeyword, SEARCH_HISTORY_MAX_ENTRIES);
+        if (updated.equals(historyBuffer)) {
+            return;
+        }
+
+        historyBuffer.clear();
+        historyBuffer.addAll(updated);
+        if (historyBuffer.isEmpty()) {
+            preferencesStore.remove(SEARCH_HISTORY_PREFERENCE_KEY);
+        } else {
+            preferencesStore.put(SEARCH_HISTORY_PREFERENCE_KEY, String.join("\n", historyBuffer));
+        }
+    }
+
+    static List<String> appendSearchHistory(List<String> existing, String rawEntry, int maxEntries) {
+        if (maxEntries <= 0) {
+            return List.of();
+        }
+
+        String normalizedEntry = normalizeSearchHistoryEntry(rawEntry);
+        if (normalizedEntry == null) {
+            return existing == null ? List.of() : List.copyOf(existing);
+        }
+
+        List<String> updated = new ArrayList<>();
+        LinkedHashSet<String> seen = new LinkedHashSet<>();
+
+        updated.add(normalizedEntry);
+        seen.add(normalizedEntry.toLowerCase(Locale.ROOT));
+
+        if (existing != null) {
+            for (String entry : existing) {
+                String normalizedExisting = normalizeSearchHistoryEntry(entry);
+                if (normalizedExisting == null) {
+                    continue;
+                }
+                String key = normalizedExisting.toLowerCase(Locale.ROOT);
+                if (!seen.add(key)) {
+                    continue;
+                }
+                updated.add(normalizedExisting);
+                if (updated.size() >= maxEntries) {
+                    break;
+                }
+            }
+        }
+
+        return updated;
+    }
+
+    static List<String> parseSearchHistory(String rawHistory) {
+        if (rawHistory == null || rawHistory.isBlank()) {
+            return List.of();
+        }
+
+        String[] lines = rawHistory.replace("\r", "").split("\n");
+        List<String> parsed = new ArrayList<>();
+        LinkedHashSet<String> seen = new LinkedHashSet<>();
+        for (String line : lines) {
+            String normalized = normalizeSearchHistoryEntry(line);
+            if (normalized == null) {
+                continue;
+            }
+            String key = normalized.toLowerCase(Locale.ROOT);
+            if (!seen.add(key)) {
+                continue;
+            }
+            parsed.add(normalized);
+            if (parsed.size() >= SEARCH_HISTORY_MAX_ENTRIES) {
+                break;
+            }
+        }
+        return parsed;
+    }
+
+    static String normalizeSearchHistoryEntry(String rawEntry) {
+        if (rawEntry == null) {
+            return null;
+        }
+        String sanitized = rawEntry.replace('\r', ' ').replace('\n', ' ').trim();
+        if (sanitized.isEmpty()) {
+            return null;
+        }
+        return SEARCH_HISTORY_WHITESPACE.matcher(sanitized).replaceAll(" ");
     }
     
     public void openNewScheduleDialog() {

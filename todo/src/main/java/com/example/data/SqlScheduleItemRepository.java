@@ -300,6 +300,125 @@ public final class SqlScheduleItemRepository implements ScheduleItemRepository {
     }
 
     @Override
+    public List<String> suggestActiveScheduleTitles(String keyword, int limit) throws SQLException {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        String normalizedKeyword = keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT);
+        if (normalizedKeyword.isEmpty()) {
+            return List.of();
+        }
+        String searchPattern = "%" + normalizedKeyword + "%";
+
+        List<String> suggestions = new ArrayList<>();
+        try (Connection connection = openConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                 """
+                 SELECT DISTINCT si.title AS value
+                 FROM schedule_item si
+                 WHERE si.deleted_at_utc IS NULL
+                   AND TRIM(COALESCE(si.title, '')) <> ''
+                   AND LOWER(COALESCE(si.title, '')) LIKE ?
+                 ORDER BY LOWER(si.title), si.title
+                 LIMIT ?
+                 """
+             )) {
+            statement.setString(1, searchPattern);
+            statement.setInt(2, limit);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    String value = resultSet.getString("value");
+                    if (value != null && !value.isBlank()) {
+                        suggestions.add(value);
+                    }
+                }
+            }
+        }
+        return suggestions;
+    }
+
+    @Override
+    public List<String> suggestActiveTagNames(String keyword, int limit) throws SQLException {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        String normalizedKeyword = keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT);
+        if (normalizedKeyword.isEmpty()) {
+            return List.of();
+        }
+        String searchPattern = "%" + normalizedKeyword + "%";
+
+        List<String> suggestions = new ArrayList<>();
+        try (Connection connection = openConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                 """
+                 SELECT DISTINCT t.name AS value
+                 FROM tag t
+                 JOIN schedule_item_tag sit ON sit.tag_id = t.id
+                 JOIN schedule_item si ON si.id = sit.schedule_item_id
+                 WHERE si.deleted_at_utc IS NULL
+                   AND TRIM(COALESCE(t.name, '')) <> ''
+                   AND LOWER(COALESCE(t.name, '')) LIKE ?
+                 ORDER BY LOWER(t.name), t.name
+                 LIMIT ?
+                 """
+             )) {
+            statement.setString(1, searchPattern);
+            statement.setInt(2, limit);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    String value = resultSet.getString("value");
+                    if (value != null && !value.isBlank()) {
+                        suggestions.add(value);
+                    }
+                }
+            }
+        }
+        return suggestions;
+    }
+
+    @Override
+    public List<String> suggestActiveCategories(String keyword, int limit) throws SQLException {
+        if (limit <= 0) {
+            return List.of();
+        }
+
+        String normalizedKeyword = keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT);
+        if (normalizedKeyword.isEmpty()) {
+            return List.of();
+        }
+        String searchPattern = "%" + normalizedKeyword + "%";
+
+        List<String> suggestions = new ArrayList<>();
+        try (Connection connection = openConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                 """
+                 SELECT DISTINCT si.category AS value
+                 FROM schedule_item si
+                 WHERE si.deleted_at_utc IS NULL
+                   AND TRIM(COALESCE(si.category, '')) <> ''
+                   AND LOWER(COALESCE(si.category, '')) LIKE ?
+                 ORDER BY LOWER(si.category), si.category
+                 LIMIT ?
+                 """
+             )) {
+            statement.setString(1, searchPattern);
+            statement.setInt(2, limit);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    String value = resultSet.getString("value");
+                    if (value != null && !value.isBlank()) {
+                        suggestions.add(value);
+                    }
+                }
+            }
+        }
+        return suggestions;
+    }
+
+    @Override
     public boolean updateScheduleItemCompletion(String scheduleItemId, boolean completed, String deviceId) throws SQLException {
         if (scheduleItemId == null || scheduleItemId.isBlank()) {
             return false;
