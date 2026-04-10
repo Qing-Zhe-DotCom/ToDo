@@ -165,6 +165,7 @@ class ThemeCssTest {
             () -> assertTrue(infoPanelInlineEditorBlock != null && infoPanelInlineEditorBlock.contains("-fx-border-width: 0")),
             () -> assertTrue(infoPanelInlineEditorActiveBlock != null && infoPanelInlineEditorActiveBlock.contains("-fx-border-color: transparent")),
             () -> assertTrue(heroTitleFocusBlock != null && heroTitleFocusBlock.contains("-fx-border-color: transparent")),
+            () -> assertTrue(quickAddInputBlock != null && quickAddInputBlock.contains("-fx-background-color: transparent")),
             () -> assertTrue(quickAddInputBlock != null && quickAddInputBlock.contains("-fx-border-width: 0")),
             () -> assertTrue(scheduleDialogFieldBlock != null && scheduleDialogFieldBlock.contains("-fx-border-color: transparent")),
             () -> assertTrue(scheduleDialogFieldBlock != null && scheduleDialogFieldBlock.contains("-fx-border-width: 0")),
@@ -297,7 +298,52 @@ class ThemeCssTest {
             () -> assertTrue(baseContent.contains(".quick-add-shell-hover {")),
             () -> assertTrue(baseContent.contains(".quick-add-shell-focused {")),
             () -> assertTrue(baseContent.contains(".quick-add-badge {")),
-            () -> assertTrue(baseContent.contains(".quick-add-input {"))
+            () -> assertTrue(baseContent.contains(".quick-add-input {")),
+            () -> assertTrue(baseContent.contains(".quick-add-feedback {"))
+        );
+    }
+
+    @Test
+    void baseCssKeepsQuickAddSingleSurfaceContract() throws IOException {
+        String baseContent = readCss("/styles/base.css");
+        String quickAddSectionBlock = extractCssBlock(baseContent, ".quick-add-section");
+        String quickAddShellBlock = extractCssBlock(baseContent, ".quick-add-shell");
+        String quickAddBadgeBlock = extractCssBlock(baseContent, ".quick-add-badge");
+        String quickAddInputBlock = extractCssBlock(baseContent, ".quick-add-input");
+        String quickAddFeedbackBlock = extractCssBlock(baseContent, ".quick-add-feedback");
+
+        assertAll(
+            () -> assertTrue(quickAddSectionBlock != null && quickAddSectionBlock.contains("-fx-background-color: transparent")),
+            () -> assertTrue(quickAddSectionBlock != null && quickAddSectionBlock.contains("-fx-effect: none")),
+            () -> assertTrue(quickAddShellBlock != null && quickAddShellBlock.contains("-fx-background-color: -color-bg-panel")),
+            () -> assertTrue(quickAddBadgeBlock != null && quickAddBadgeBlock.contains("-fx-background-color: transparent")),
+            () -> assertTrue(quickAddBadgeBlock != null && quickAddBadgeBlock.contains("-fx-pref-width: 36px")),
+            () -> assertTrue(quickAddInputBlock != null && quickAddInputBlock.contains("-fx-background-color: transparent")),
+            () -> assertTrue(quickAddInputBlock != null && quickAddInputBlock.contains("-fx-padding: 0")),
+            () -> assertTrue(quickAddFeedbackBlock != null && quickAddFeedbackBlock.contains("-fx-background-color: -color-primary-soft"))
+        );
+    }
+
+    @Test
+    void themeFilesFlattenQuickAddSecondarySurfaces() throws IOException {
+        String classic = readCss("/styles/theme-classic-light.css");
+        String fresh = readCss("/styles/theme-fresh-light.css");
+        String cozy = readCss("/styles/theme-cozy-light.css");
+        String macaron = readCss("/styles/theme-macaron-light.css");
+        String modernMinimal = readCss("/styles/theme-modern-minimal-light.css");
+        String neoBrutalism = readCss("/styles/theme-neo-brutalism-light.css");
+        String materialYou = readCss("/styles/theme-material-you-light.css");
+        String neumorphism = readCss("/styles/theme-neumorphism-light.css");
+
+        assertAll(
+            () -> assertQuickAddThemeSurfaceReset(classic),
+            () -> assertQuickAddThemeSurfaceReset(fresh),
+            () -> assertQuickAddThemeSurfaceReset(cozy),
+            () -> assertQuickAddThemeSurfaceReset(macaron),
+            () -> assertQuickAddThemeSurfaceReset(modernMinimal),
+            () -> assertQuickAddThemeSurfaceReset(neoBrutalism),
+            () -> assertQuickAddThemeSurfaceReset(materialYou),
+            () -> assertQuickAddThemeSurfaceReset(neumorphism)
         );
     }
 
@@ -310,6 +356,18 @@ class ThemeCssTest {
 
     private String extractCssBlock(String content, String selector) {
         int start = content.indexOf(selector + " {");
+        if (start < 0) {
+            return null;
+        }
+        int end = content.indexOf("}", start);
+        if (end < 0) {
+            return null;
+        }
+        return content.substring(start, end + 1);
+    }
+
+    private String extractLastCssBlock(String content, String selector) {
+        int start = content.lastIndexOf(selector + " {");
         if (start < 0) {
             return null;
         }
@@ -339,7 +397,27 @@ class ThemeCssTest {
             () -> assertTrue(content.contains(".timeline-header")),
             () -> assertTrue(content.contains(".heatmap-meta-bar")),
             () -> assertTrue(content.contains(".schedule-card-surface")),
+            () -> assertTrue(content.contains(".quick-add-shell")),
             () -> assertTrue(content.contains(".quick-add-badge"))
+        );
+    }
+
+    private void assertQuickAddThemeSurfaceReset(String content) {
+        String quickAddSectionBlock = extractLastCssBlock(content, ".quick-add-section");
+        String quickAddBadgeBlock = extractLastCssBlock(content, ".quick-add-badge");
+        String quickAddInputBlock = extractLastCssBlock(content, ".quick-add-input");
+        String quickAddInputFocusedBlock = extractLastCssBlock(content, ".quick-add-input:focused");
+
+        assertAll(
+            () -> assertTrue(content.contains(".quick-add-shell")),
+            () -> assertTrue(quickAddSectionBlock != null && quickAddSectionBlock.contains("-fx-background-color: transparent")),
+            () -> assertTrue(quickAddSectionBlock != null && quickAddSectionBlock.contains("-fx-effect: none")),
+            () -> assertTrue(quickAddBadgeBlock != null && quickAddBadgeBlock.contains("-fx-background-color: transparent")),
+            () -> assertTrue(quickAddBadgeBlock != null && quickAddBadgeBlock.contains("-fx-effect: none")),
+            () -> assertTrue(quickAddInputBlock != null && quickAddInputBlock.contains("-fx-background-color: transparent")),
+            () -> assertTrue(quickAddInputBlock != null && quickAddInputBlock.contains("-fx-effect: none")),
+            () -> assertTrue(quickAddInputFocusedBlock != null && quickAddInputFocusedBlock.contains("-fx-background-color: transparent")),
+            () -> assertTrue(quickAddInputFocusedBlock != null && quickAddInputFocusedBlock.contains("-fx-effect: none"))
         );
     }
 }

@@ -263,7 +263,6 @@ public final class GlassBackdropCoordinator {
         Map<String, GlassSurfaceVariant> variants = new LinkedHashMap<>();
         variants.put("settings-inline-value", GlassSurfaceVariant.BADGE);
         variants.put("info-panel-status-pill", GlassSurfaceVariant.BADGE);
-        variants.put("quick-add-badge", GlassSurfaceVariant.BADGE);
         variants.put("heatmap-day-rail-badge", GlassSurfaceVariant.BADGE);
 
         variants.put("info-panel-inline-editor", GlassSurfaceVariant.PANEL);
@@ -302,7 +301,6 @@ public final class GlassBackdropCoordinator {
         variants.put("heatmap-meta-bar", GlassSurfaceVariant.SHELL);
         variants.put("heatmap-sidebar-shell", GlassSurfaceVariant.SHELL);
         variants.put("info-panel-header", GlassSurfaceVariant.SHELL);
-        variants.put("quick-add-section", GlassSurfaceVariant.SHELL);
         return variants;
     }
 

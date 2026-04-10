@@ -1,5 +1,6 @@
 package com.example.view;
 
+import java.text.MessageFormat;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -20,6 +21,8 @@ import com.example.controller.ScheduleCompletionCoordinator;
 import com.example.controller.ScheduleCompletionMutation;
 import com.example.model.Schedule;
 
+import javafx.animation.FadeTransition;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
@@ -39,6 +42,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
+import javafx.util.Duration;
 
 public class ScheduleListView implements View, ScheduleCompletionParticipant {
     private static final double COMPLETED_CARD_OPACITY = 0.7;
@@ -46,6 +50,9 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     private static final int SEARCH_LOOKAHEAD_DAYS = 90;
     private static final int UPCOMING_LOOKAHEAD_DAYS = 30;
     private static final int OVERDUE_LOOKBACK_DAYS = 90;
+    private static final Duration QUICK_ADD_FEEDBACK_FADE_IN_DURATION = Duration.millis(140);
+    private static final Duration QUICK_ADD_FEEDBACK_HOLD_DURATION = Duration.seconds(2.2);
+    private static final Duration QUICK_ADD_FEEDBACK_FADE_OUT_DURATION = Duration.millis(180);
     static final String FILTER_MY_DAY = "my-day";
     static final String FILTER_OVERDUE = "overdue";
     static final String FILTER_ALL = "all";
@@ -69,6 +76,10 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     private ComboBox<String> filterComboBox;
     private TextField quickAddField;
     private StackPane quickAddBadge;
+    private Label quickAddFeedback;
+    private FadeTransition quickAddFeedbackFadeIn;
+    private FadeTransition quickAddFeedbackFadeOut;
+    private PauseTransition quickAddFeedbackHold;
     private boolean quickAddComposing;
 
     private boolean showingSearchResults = false;
@@ -364,23 +375,11 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         quickAddField.addEventHandler(InputMethodEvent.INPUT_METHOD_TEXT_CHANGED, event -> {
             quickAddComposing = !event.getComposed().isEmpty();
         });
-        quickAddField.focusedProperty().addListener((obs, oldFocused, focused) -> {
-            if (!focused) {
-                quickAddComposing = false;
-            }
-        });
 
-        /*
+        quickAddFeedback = createQuickAddFeedbackLabel();
+        initializeQuickAddFeedbackTransitions();
 
-        quickAddButton = new Button("新建日程");
-        quickAddButton.getStyleClass().add("quick-add-action");
-        quickAddButton.setGraphic(controller.createSvgIcon("/icons/macaron-logo-simple-plus-blue.svg", null, 18));
-        quickAddButton.setGraphicTextGap(10);
-        quickAddButton.setFocusTraversable(false);
-        quickAddButton.setOnAction(event -> submitQuickAdd());
-
-        */
-        HBox quickAddBar = new HBox(16, quickAddBadge, quickAddField);
+        HBox quickAddBar = new HBox(12, quickAddBadge, quickAddField);
         quickAddBar.setAlignment(Pos.CENTER_LEFT);
         quickAddBar.getStyleClass().add("quick-add-shell");
         quickAddBar.hoverProperty().addListener((obs, oldHover, hovered) ->
@@ -394,10 +393,44 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             toggleStyleClass(quickAddBar, "quick-add-shell-focused", focused);
         });
 
-        VBox quickAddSection = new VBox(8, quickAddTitle, quickAddBar);
+        VBox quickAddSection = new VBox(8, quickAddTitle, quickAddFeedback, quickAddBar);
         quickAddSection.setPadding(new Insets(14, 0, 0, 0));
         quickAddSection.getStyleClass().add("quick-add-section");
         return quickAddSection;
+    }
+
+    private Label createQuickAddFeedbackLabel() {
+        Label feedbackLabel = new Label();
+        feedbackLabel.getStyleClass().add("quick-add-feedback");
+        feedbackLabel.setVisible(false);
+        feedbackLabel.setOpacity(0);
+        feedbackLabel.setMouseTransparent(true);
+        feedbackLabel.setFocusTraversable(false);
+        feedbackLabel.setWrapText(true);
+        feedbackLabel.managedProperty().bind(feedbackLabel.visibleProperty());
+        return feedbackLabel;
+    }
+
+    private void initializeQuickAddFeedbackTransitions() {
+        if (quickAddFeedback == null) {
+            return;
+        }
+
+        quickAddFeedbackFadeIn = new FadeTransition(QUICK_ADD_FEEDBACK_FADE_IN_DURATION, quickAddFeedback);
+        quickAddFeedbackFadeIn.setFromValue(0);
+        quickAddFeedbackFadeIn.setToValue(1);
+
+        quickAddFeedbackHold = new PauseTransition(QUICK_ADD_FEEDBACK_HOLD_DURATION);
+        quickAddFeedbackHold.setOnFinished(event -> {
+            if (quickAddFeedback != null && quickAddFeedback.isVisible()) {
+                quickAddFeedbackFadeOut.playFromStart();
+            }
+        });
+
+        quickAddFeedbackFadeOut = new FadeTransition(QUICK_ADD_FEEDBACK_FADE_OUT_DURATION, quickAddFeedback);
+        quickAddFeedbackFadeOut.setFromValue(1);
+        quickAddFeedbackFadeOut.setToValue(0);
+        quickAddFeedbackFadeOut.setOnFinished(event -> hideQuickAddFeedback());
     }
 
     @Override
@@ -421,12 +454,61 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         }
 
         try {
-            controller.quickCreateSchedule(title);
+            Schedule createdSchedule = controller.quickCreateSchedule(title);
             quickAddField.clear();
-            quickAddField.requestFocus();
+            focusQuickAddInput();
+            showQuickAddFeedback(buildQuickAddSuccessText(
+                controller.text("schedule.list.quickAddSuccess"),
+                createdSchedule != null ? createdSchedule.getName() : title
+            ));
         } catch (SQLException exception) {
+            stopQuickAddFeedbackTransitions();
+            hideQuickAddFeedback();
             controller.showError(controller.text("error.createSchedule.title"), exception.getMessage());
         }
+    }
+
+    private void showQuickAddFeedback(String message) {
+        if (quickAddFeedback == null || message == null || message.isBlank()) {
+            return;
+        }
+
+        stopQuickAddFeedbackTransitions();
+        quickAddFeedback.setText(message);
+        quickAddFeedback.setAccessibleText(message);
+        quickAddFeedback.setVisible(true);
+        quickAddFeedback.setOpacity(0);
+        quickAddFeedbackFadeIn.playFromStart();
+        quickAddFeedbackHold.playFromStart();
+    }
+
+    private void hideQuickAddFeedback() {
+        if (quickAddFeedback == null) {
+            return;
+        }
+
+        quickAddFeedback.setVisible(false);
+        quickAddFeedback.setOpacity(0);
+        quickAddFeedback.setText("");
+        quickAddFeedback.setAccessibleText("");
+    }
+
+    private void stopQuickAddFeedbackTransitions() {
+        if (quickAddFeedbackFadeIn != null) {
+            quickAddFeedbackFadeIn.stop();
+        }
+        if (quickAddFeedbackHold != null) {
+            quickAddFeedbackHold.stop();
+        }
+        if (quickAddFeedbackFadeOut != null) {
+            quickAddFeedbackFadeOut.stop();
+        }
+    }
+
+    static String buildQuickAddSuccessText(String template, String title) {
+        String resolvedTemplate = (template == null || template.isBlank()) ? "{0}" : template;
+        String resolvedTitle = title == null ? "" : title.strip();
+        return MessageFormat.format(resolvedTemplate, resolvedTitle);
     }
 
     @Override

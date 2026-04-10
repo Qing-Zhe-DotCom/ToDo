@@ -63,6 +63,18 @@ class ScheduleListViewSortTest {
         assertEquals("04-04 09:00 - 23:59", ScheduleListView.buildScheduleDateText(schedule));
     }
 
+    @Test
+    void quickAddSuccessTextTrimsTitleAndHandlesNull() {
+        assertEquals(
+            "Created schedule: Sprint review",
+            ScheduleListView.buildQuickAddSuccessText("Created schedule: {0}", "  Sprint review  ")
+        );
+        assertEquals(
+            "Created schedule: ",
+            ScheduleListView.buildQuickAddSuccessText("Created schedule: {0}", null)
+        );
+    }
+
     private Schedule schedule(
         int id,
         String name,

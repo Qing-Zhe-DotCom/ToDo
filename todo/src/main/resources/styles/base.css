@@ -1069,45 +1069,59 @@
 
 .quick-add-section {
     -fx-spacing: 6;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-effect: none;
 }
 
 .quick-add-title {
     -fx-text-fill: -color-text-sub;
     -fx-font-size: 13px;
     -fx-font-weight: 700;
+    -fx-padding: 0 2 0 2;
 }
 
 .quick-add-shell {
     -fx-alignment: center-left;
-    -fx-spacing: 12;
-    -fx-padding: 0;
-    -fx-background-color: transparent;
+    -fx-spacing: 10;
+    -fx-padding: 12 16 12 14;
+    -fx-min-height: 48px;
+    -fx-pref-height: 48px;
+    -fx-background-color: -color-bg-panel;
     -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 18;
+    -fx-border-radius: 18;
+    -fx-background-insets: 0;
     -fx-effect: none;
 }
 
 .quick-add-shell-hover {
-    -fx-background-color: transparent;
+    -fx-background-color: derive(-color-bg-hover, 4%);
     -fx-border-color: transparent;
 }
 
 .quick-add-shell-focused {
-    -fx-background-color: transparent;
+    -fx-background-color: derive(-color-bg-hover, 6%);
     -fx-border-color: transparent;
-    -fx-effect: none;
+    -fx-effect: dropshadow(gaussian, -color-primary-glow, 12, 0.12, 0, 0);
 }
 
 .quick-add-badge {
     -fx-alignment: center;
-    -fx-min-width: 32px;
-    -fx-min-height: 32px;
-    -fx-pref-width: 32px;
-    -fx-pref-height: 32px;
-    -fx-max-width: 32px;
-    -fx-max-height: 32px;
+    -fx-min-width: 36px;
+    -fx-min-height: 36px;
+    -fx-pref-width: 36px;
+    -fx-pref-height: 36px;
+    -fx-max-width: 36px;
+    -fx-max-height: 36px;
     -fx-padding: 0;
     -fx-background-color: transparent;
     -fx-border-color: transparent;
+    -fx-border-width: 0;
     -fx-effect: none;
 }
 
@@ -1118,24 +1132,38 @@
 }
 
 .quick-add-input {
-    -fx-background-color: -color-bg-panel;
+    -fx-background-color: transparent;
     -fx-text-fill: -color-text-main;
     -fx-font-size: 15px;
     -fx-font-weight: 600;
-    -fx-padding: 10 16;
-    -fx-pref-height: 42px;
-    -fx-background-radius: 14;
-    -fx-border-radius: 14;
+    -fx-padding: 0;
+    -fx-pref-height: 24px;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
     -fx-border-color: transparent;
     -fx-border-width: 0;
     -fx-background-insets: 0;
     -fx-prompt-text-fill: -color-text-hint;
+    -fx-effect: none;
 }
 
 .quick-add-input:focused {
-    -fx-background-color: derive(-color-bg-hover, 6%);
+    -fx-background-color: transparent;
     -fx-border-color: transparent;
-    -fx-effect: dropshadow(gaussian, -color-primary-glow, 10, 0.12, 0, 0);
+    -fx-border-width: 0;
+    -fx-effect: none;
+}
+
+.quick-add-feedback {
+    -fx-text-fill: -color-primary;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-padding: 6 12;
+    -fx-background-color: -color-primary-soft;
+    -fx-background-radius: 999;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-opacity: 0;
 }
 
 .icon-button {
