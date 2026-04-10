@@ -296,7 +296,7 @@ class ThemeCssTest {
             () -> assertTrue(baseContent.contains(".info-panel-borderless-combo {")),
             () -> assertTrue(baseContent.contains(".ios-wheel-popup {")),
             () -> assertTrue(baseContent.contains(".ios-wheel-header {")),
-            () -> assertTrue(baseContent.contains(".ios-wheel-year-switch {")),
+            () -> assertTrue(baseContent.contains(".ios-wheel-columns {")),
             () -> assertTrue(baseContent.contains(".ios-wheel-column {")),
             () -> assertTrue(baseContent.contains(".ios-wheel-cell {")),
             () -> assertTrue(baseContent.contains(".ios-wheel-selection-box {")),

@@ -92,4 +92,12 @@ class InfoPanelViewTest {
         assertFalse(InfoPanelView.shouldShowCategoryChip("   "));
         assertFalse(InfoPanelView.shouldShowCategoryChip(null));
     }
+
+    @Test
+    void wheelPopupHelpersFormatAndClampYearRange() {
+        assertEquals("26", IosWheelDateTimePopup.formatYear2(2026));
+        assertEquals("00", IosWheelDateTimePopup.formatYear2(2000));
+        assertEquals(2000, IosWheelDateTimePopup.clampYear(1999));
+        assertEquals(2099, IosWheelDateTimePopup.clampYear(2100));
+    }
 }

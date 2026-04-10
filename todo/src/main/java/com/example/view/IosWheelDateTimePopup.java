@@ -3,21 +3,22 @@ package com.example.view;
 import com.example.controller.MainController;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
 import javafx.geometry.Bounds;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.geometry.Rectangle2D;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Popup;
-import javafx.stage.Screen;
 import javafx.stage.Window;
 import javafx.util.Duration;
 
@@ -30,28 +31,60 @@ import java.util.function.IntFunction;
 
 final class IosWheelDateTimePopup {
     private MainController controller;
-    private static final double POPUP_WIDTH = 336;
-    private static final double POPUP_HEIGHT = 352;
+
+    private static final double BASE_POPUP_WIDTH = 328;
+    private static final double BASE_POPUP_HEIGHT = 288;
     private static final double POPUP_GAP = 8;
-    private static final double CELL_HEIGHT = 40;
     private static final int VISIBLE_ROWS = 5;
-    private static final double WHEEL_HEIGHT = CELL_HEIGHT * VISIBLE_ROWS;
-    private static final double WHEEL_PADDING = CELL_HEIGHT * ((VISIBLE_ROWS - 1) / 2.0);
+
+    private static final double BASE_CELL_HEIGHT = 34;
+
+    private static final double BASE_POPUP_PADDING = 14;
+    private static final double BASE_POPUP_SPACING = 12;
+    private static final double BASE_COLUMN_SPACING = 6;
+
+    private static final double BASE_MONTH_WIDTH = 66;
+    private static final double BASE_DAY_WIDTH = 66;
+    private static final double BASE_HOUR_WIDTH = 50;
+    private static final double BASE_MINUTE_WIDTH = 50;
+    private static final double BASE_YEAR_WIDTH = 44;
+
+    private static final double BASE_TITLE_FONT_SIZE = 15;
+    private static final double BASE_CELL_FONT_SIZE = 15;
+    private static final double BASE_SAVE_BUTTON_PADDING_V = 9;
+    private static final double BASE_SAVE_BUTTON_PADDING_H = 16;
+
+    private static final int YEAR_MIN = 2000;
+    private static final int YEAR_MAX = 2099;
+
+    private static final double WINDOW_MARGIN = 12;
 
     private final Popup popup = new Popup();
-    private final VBox root = new VBox(16);
+    private final VBox root = new VBox();
+    private final HBox header = new HBox();
+    private final HBox columns = new HBox();
+    private final StackPane wheelHost = new StackPane();
+
+    private final Region selectionBox = new Region();
+    private final Region topMask = new Region();
+    private final Region bottomMask = new Region();
+
     private final Label titleLabel = new Label();
-    private final Label yearLabel = new Label();
-    private final Button previousYearButton = new Button("<");
-    private final Button nextYearButton = new Button(">");
     private final Button saveButton = new Button();
-    private final WheelColumn monthColumn = new WheelColumn(84, this::formatMonth);
-    private final WheelColumn dayColumn = new WheelColumn(84, this::formatDay);
-    private final WheelColumn hourColumn = new WheelColumn(64, value -> String.format("%02d", value));
-    private final WheelColumn minuteColumn = new WheelColumn(64, value -> String.format("%02d", value));
+    private final WheelColumn monthColumn = new WheelColumn(BASE_MONTH_WIDTH, this::formatMonth);
+    private final WheelColumn dayColumn = new WheelColumn(BASE_DAY_WIDTH, this::formatDay);
+    private final WheelColumn hourColumn = new WheelColumn(BASE_HOUR_WIDTH, value -> String.format("%02d", value));
+    private final WheelColumn minuteColumn = new WheelColumn(BASE_MINUTE_WIDTH, value -> String.format("%02d", value));
+    private final WheelColumn yearColumn = new WheelColumn(BASE_YEAR_WIDTH, IosWheelDateTimePopup::formatYear2);
 
     private int selectedYear;
     private Consumer<LocalDateTime> onSave = value -> { };
+
+    private Window monitoredWindow;
+    private Node monitoredOwner;
+    private final ChangeListener<Number> windowBoundsListener = (obs, oldValue, newValue) -> repositionAndResize();
+
+    private WheelSizing sizing = WheelSizing.base();
 
     IosWheelDateTimePopup() {
         this(null);
@@ -72,6 +105,10 @@ final class IosWheelDateTimePopup {
         if (window == null) {
             return;
         }
+
+        WheelSizing newSizing = resolveSizing(window);
+        applySizing(newSizing);
+
         this.onSave = saveAction != null ? saveAction : value -> { };
         refreshLocalizedText();
         titleLabel.setText(title == null ? text("info.time") : title);
@@ -80,6 +117,8 @@ final class IosWheelDateTimePopup {
         if (popup.isShowing()) {
             popup.hide();
         }
+        monitoredOwner = owner;
+        attachWindowListeners(window);
         popup.show(window, position[0], position[1]);
         Platform.runLater(() -> {
             alignColumns();
@@ -99,51 +138,50 @@ final class IosWheelDateTimePopup {
         return Math.max(1, Math.min(day, daysInMonth(year, month)));
     }
 
+    static String formatYear2(int year) {
+        return String.format("%02d", Math.floorMod(year, 100));
+    }
+
+    static int clampYear(int year) {
+        return Math.max(YEAR_MIN, Math.min(year, YEAR_MAX));
+    }
+
     private void buildUi() {
         popup.setAutoHide(true);
         popup.setAutoFix(false);
         popup.setHideOnEscape(true);
+        popup.setOnHidden(event -> {
+            monitoredOwner = null;
+            detachWindowListeners();
+        });
 
         titleLabel.getStyleClass().add("ios-wheel-title");
 
-        previousYearButton.getStyleClass().add("ios-wheel-year-button");
-        nextYearButton.getStyleClass().add("ios-wheel-year-button");
-        yearLabel.getStyleClass().add("ios-wheel-year-label");
-
-        HBox yearSwitch = new HBox(8, previousYearButton, yearLabel, nextYearButton);
-        yearSwitch.setAlignment(Pos.CENTER_RIGHT);
-        yearSwitch.getStyleClass().add("ios-wheel-year-switch");
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox header = new HBox(12, titleLabel, spacer, yearSwitch);
+        header.getChildren().add(titleLabel);
         header.setAlignment(Pos.CENTER_LEFT);
         header.getStyleClass().add("ios-wheel-header");
 
-        HBox columns = new HBox(10, monthColumn.getView(), dayColumn.getView(), hourColumn.getView(), minuteColumn.getView());
+        columns.getChildren().addAll(
+            monthColumn.getView(),
+            dayColumn.getView(),
+            hourColumn.getView(),
+            minuteColumn.getView(),
+            yearColumn.getView()
+        );
         columns.setAlignment(Pos.CENTER);
         columns.getStyleClass().add("ios-wheel-columns");
 
-        Region selectionBox = new Region();
         selectionBox.getStyleClass().add("ios-wheel-selection-box");
         selectionBox.setMouseTransparent(true);
-        selectionBox.setMinHeight(CELL_HEIGHT);
-        selectionBox.setPrefHeight(CELL_HEIGHT);
-        selectionBox.setMaxHeight(CELL_HEIGHT);
 
-        Region topMask = new Region();
         topMask.getStyleClass().add("ios-wheel-mask-top");
         topMask.setMouseTransparent(true);
-        topMask.setPrefHeight(WHEEL_PADDING);
 
-        Region bottomMask = new Region();
         bottomMask.getStyleClass().add("ios-wheel-mask-bottom");
         bottomMask.setMouseTransparent(true);
-        bottomMask.setPrefHeight(WHEEL_PADDING);
 
-        StackPane wheelHost = new StackPane(columns, selectionBox, topMask, bottomMask);
+        wheelHost.getChildren().addAll(columns, selectionBox, topMask, bottomMask);
         wheelHost.getStyleClass().add("ios-wheel-wheel-host");
-        wheelHost.setPrefHeight(WHEEL_HEIGHT);
         StackPane.setAlignment(selectionBox, Pos.CENTER);
         StackPane.setAlignment(topMask, Pos.TOP_CENTER);
         StackPane.setAlignment(bottomMask, Pos.BOTTOM_CENTER);
@@ -152,17 +190,14 @@ final class IosWheelDateTimePopup {
         saveButton.setMaxWidth(Double.MAX_VALUE);
 
         root.getStyleClass().add("ios-wheel-popup");
-        root.setPrefWidth(POPUP_WIDTH);
-        root.setPrefHeight(POPUP_HEIGHT);
-        root.setMinWidth(POPUP_WIDTH);
         root.setFocusTraversable(true);
-        root.getChildren().addAll(header, wheelHost, saveButton);
+        root.getChildren().addAll(this.header, wheelHost, saveButton);
         popup.getContent().add(root);
+
+        applySizing(WheelSizing.base());
     }
 
     private void wireInteractions() {
-        previousYearButton.setOnAction(event -> adjustYear(-1));
-        nextYearButton.setOnAction(event -> adjustYear(1));
         saveButton.setOnAction(event -> {
             hide();
             onSave.accept(buildSelection());
@@ -174,11 +209,15 @@ final class IosWheelDateTimePopup {
             }
         });
         monthColumn.setSelectionListener(value -> refreshDayColumn(dayColumn.getSelectedValue()));
+        yearColumn.setSelectionListener(value -> {
+            selectedYear = value;
+            refreshDayColumn(dayColumn.getSelectedValue());
+        });
     }
 
     private void applySeed(LocalDateTime seed) {
-        selectedYear = seed.getYear();
-        updateYearLabel();
+        selectedYear = clampYear(seed.getYear());
+        yearColumn.setItems(range(YEAR_MIN, YEAR_MAX), selectedYear);
         monthColumn.setItems(range(1, 12), seed.getMonthValue());
         refreshDayColumn(seed.getDayOfMonth());
         hourColumn.setItems(range(0, 23), seed.getHour());
@@ -189,16 +228,6 @@ final class IosWheelDateTimePopup {
         int month = monthColumn.getSelectedValue();
         int selectedDay = clampDay(selectedYear, month, preferredDay);
         dayColumn.setItems(range(1, daysInMonth(selectedYear, month)), selectedDay);
-    }
-
-    private void adjustYear(int delta) {
-        selectedYear += delta;
-        updateYearLabel();
-        refreshDayColumn(dayColumn.getSelectedValue());
-    }
-
-    private void updateYearLabel() {
-        yearLabel.setText(text("wheel.year.label", selectedYear));
     }
 
     private LocalDateTime buildSelection() {
@@ -216,6 +245,102 @@ final class IosWheelDateTimePopup {
         dayColumn.snapToSelection();
         hourColumn.snapToSelection();
         minuteColumn.snapToSelection();
+        yearColumn.snapToSelection();
+    }
+
+    private WheelSizing resolveSizing(Window window) {
+        if (window == null) {
+            return WheelSizing.base();
+        }
+        double availW = Math.max(0, window.getWidth() - WINDOW_MARGIN * 2);
+        double availH = Math.max(0, window.getHeight() - WINDOW_MARGIN * 2);
+        double scaleW = availW / BASE_POPUP_WIDTH;
+        double scaleH = availH / BASE_POPUP_HEIGHT;
+        double scale = Math.min(1.0, Math.min(scaleW, scaleH));
+        if (!Double.isFinite(scale) || scale <= 0) {
+            scale = 1.0;
+        }
+        return new WheelSizing(scale);
+    }
+
+    private void applySizing(WheelSizing sizing) {
+        this.sizing = sizing;
+
+        root.setPrefSize(sizing.popupWidth, sizing.popupHeight);
+        root.setMinSize(sizing.popupWidth, sizing.popupHeight);
+        root.setPadding(new Insets(sizing.popupPadding));
+        root.setSpacing(sizing.popupSpacing);
+
+        titleLabel.setStyle(String.format("-fx-font-size: %.1fpx;", sizing.titleFontSize));
+
+        columns.setSpacing(sizing.columnSpacing);
+
+        wheelHost.setPrefHeight(sizing.wheelHeight);
+        wheelHost.setMinHeight(sizing.wheelHeight);
+
+        selectionBox.setMinHeight(sizing.cellHeight);
+        selectionBox.setPrefHeight(sizing.cellHeight);
+        selectionBox.setMaxHeight(sizing.cellHeight);
+
+        topMask.setPrefHeight(sizing.wheelPadding);
+        bottomMask.setPrefHeight(sizing.wheelPadding);
+
+        saveButton.setPadding(new Insets(
+            sizing.saveButtonPaddingV,
+            sizing.saveButtonPaddingH,
+            sizing.saveButtonPaddingV,
+            sizing.saveButtonPaddingH
+        ));
+
+        monthColumn.applySizing(sizing.monthWidth, sizing);
+        dayColumn.applySizing(sizing.dayWidth, sizing);
+        hourColumn.applySizing(sizing.hourWidth, sizing);
+        minuteColumn.applySizing(sizing.minuteWidth, sizing);
+        yearColumn.applySizing(sizing.yearWidth, sizing);
+
+        Platform.runLater(this::alignColumns);
+    }
+
+    private void repositionAndResize() {
+        if (!popup.isShowing() || monitoredOwner == null) {
+            return;
+        }
+        Window window = monitoredOwner.getScene() != null ? monitoredOwner.getScene().getWindow() : monitoredWindow;
+        if (window == null) {
+            return;
+        }
+
+        LocalDateTime current = buildSelection();
+        WheelSizing newSizing = resolveSizing(window);
+        applySizing(newSizing);
+        applySeed(current);
+
+        double[] position = resolvePosition(monitoredOwner);
+        popup.setX(position[0]);
+        popup.setY(position[1]);
+    }
+
+    private void attachWindowListeners(Window window) {
+        detachWindowListeners();
+        if (window == null) {
+            return;
+        }
+        monitoredWindow = window;
+        monitoredWindow.xProperty().addListener(windowBoundsListener);
+        monitoredWindow.yProperty().addListener(windowBoundsListener);
+        monitoredWindow.widthProperty().addListener(windowBoundsListener);
+        monitoredWindow.heightProperty().addListener(windowBoundsListener);
+    }
+
+    private void detachWindowListeners() {
+        if (monitoredWindow == null) {
+            return;
+        }
+        monitoredWindow.xProperty().removeListener(windowBoundsListener);
+        monitoredWindow.yProperty().removeListener(windowBoundsListener);
+        monitoredWindow.widthProperty().removeListener(windowBoundsListener);
+        monitoredWindow.heightProperty().removeListener(windowBoundsListener);
+        monitoredWindow = null;
     }
 
     private double[] resolvePosition(Node owner) {
@@ -223,25 +348,48 @@ final class IosWheelDateTimePopup {
         if (bounds == null) {
             return new double[] {0, 0};
         }
-        Rectangle2D screenBounds = Screen.getScreensForRectangle(bounds.getMinX(), bounds.getMinY(), bounds.getWidth(), bounds.getHeight())
-            .stream()
-            .findFirst()
-            .orElse(Screen.getPrimary())
-            .getVisualBounds();
-        double minX = screenBounds.getMinX() + 12;
-        double maxX = screenBounds.getMaxX() - POPUP_WIDTH - 12;
-        double x = Math.max(minX, Math.min(bounds.getMinX(), maxX));
+        Window window = owner.getScene() != null ? owner.getScene().getWindow() : null;
+        if (window == null) {
+            return new double[] {bounds.getMinX(), bounds.getMaxY() + POPUP_GAP};
+        }
+
+        double windowMinX = window.getX();
+        double windowMinY = window.getY();
+        double windowMaxX = windowMinX + window.getWidth();
+        double windowMaxY = windowMinY + window.getHeight();
+
+        double minX = windowMinX + WINDOW_MARGIN;
+        double maxX = windowMaxX - sizing.popupWidth - WINDOW_MARGIN;
+        double x;
+        if (maxX < minX) {
+            x = windowMinX + Math.max(0, (window.getWidth() - sizing.popupWidth) / 2.0);
+        } else {
+            x = clamp(bounds.getMinX(), minX, maxX);
+        }
         double belowY = bounds.getMaxY() + POPUP_GAP;
-        double aboveY = bounds.getMinY() - POPUP_HEIGHT - POPUP_GAP;
+        double aboveY = bounds.getMinY() - sizing.popupHeight - POPUP_GAP;
         double y;
-        if (belowY + POPUP_HEIGHT <= screenBounds.getMaxY() - 12) {
+        if (belowY + sizing.popupHeight <= windowMaxY - WINDOW_MARGIN) {
             y = belowY;
-        } else if (aboveY >= screenBounds.getMinY() + 12) {
+        } else if (aboveY >= windowMinY + WINDOW_MARGIN) {
             y = aboveY;
         } else {
-            y = Math.max(screenBounds.getMinY() + 12, Math.min(belowY, screenBounds.getMaxY() - POPUP_HEIGHT - 12));
+            double minY = windowMinY + WINDOW_MARGIN;
+            double maxY = windowMaxY - sizing.popupHeight - WINDOW_MARGIN;
+            if (maxY < minY) {
+                y = windowMinY + Math.max(0, (window.getHeight() - sizing.popupHeight) / 2.0);
+            } else {
+                y = clamp(belowY, minY, maxY);
+            }
         }
         return new double[] {x, y};
+    }
+
+    private static double clamp(double value, double min, double max) {
+        if (max < min) {
+            return min;
+        }
+        return Math.max(min, Math.min(value, max));
     }
 
     private List<Integer> range(int start, int endInclusive) {
@@ -279,6 +427,7 @@ final class IosWheelDateTimePopup {
     }
 
     private static final class WheelColumn {
+        private static final double DRAG_START_THRESHOLD = 3;
         private final StackPane root = new StackPane();
         private final ScrollPane scrollPane = new ScrollPane();
         private final VBox content = new VBox();
@@ -290,14 +439,21 @@ final class IosWheelDateTimePopup {
         private java.util.function.IntConsumer selectionListener = value -> { };
         private boolean adjusting;
         private int selectedIndex;
+        private boolean dragging;
+        private boolean suppressClick;
+        private double dragPressScreenY;
+        private double dragPressOffset;
+
+        private double cellHeight;
+        private double wheelPadding;
+        private double wheelHeight;
+        private double fontSize;
+        private Region topSpacer;
+        private Region bottomSpacer;
 
         private WheelColumn(double width, IntFunction<String> formatter) {
             this.formatter = formatter;
             root.getStyleClass().add("ios-wheel-column");
-            root.setPrefWidth(width);
-            root.setMinWidth(width);
-            root.setMaxWidth(width);
-            root.setPrefHeight(WHEEL_HEIGHT);
 
             content.getStyleClass().add("ios-wheel-column-box");
             scrollPane.setContent(content);
@@ -305,9 +461,9 @@ final class IosWheelDateTimePopup {
             scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
             scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
             scrollPane.getStyleClass().add("ios-wheel-column-scroll");
-            scrollPane.setPrefHeight(WHEEL_HEIGHT);
 
             root.getChildren().add(scrollPane);
+            applySizing(width, WheelSizing.base());
             wire();
         }
 
@@ -317,10 +473,50 @@ final class IosWheelDateTimePopup {
                     return;
                 }
                 updateSelectionFromScroll();
-                snapDelay.playFromStart();
+                if (!dragging) {
+                    snapDelay.playFromStart();
+                }
             });
-            scrollPane.setOnMouseReleased(event -> snapToSelection());
             scrollPane.setOnScroll(event -> snapDelay.playFromStart());
+
+            scrollPane.addEventHandler(MouseEvent.MOUSE_PRESSED, event -> {
+                if (event.getButton() != MouseButton.PRIMARY) {
+                    return;
+                }
+                dragging = false;
+                suppressClick = false;
+                dragPressScreenY = event.getScreenY();
+                dragPressOffset = currentOffset();
+                snapDelay.stop();
+            });
+
+            scrollPane.addEventHandler(MouseEvent.MOUSE_DRAGGED, event -> {
+                if (!event.isPrimaryButtonDown()) {
+                    return;
+                }
+                double deltaY = event.getScreenY() - dragPressScreenY;
+                if (!dragging) {
+                    if (Math.abs(deltaY) < DRAG_START_THRESHOLD) {
+                        return;
+                    }
+                    dragging = true;
+                    suppressClick = true;
+                }
+                double maxOffset = maxOffset();
+                double targetOffset = clamp(dragPressOffset - deltaY, 0, maxOffset);
+                scrollPane.setVvalue(maxOffset <= 0 ? 0 : targetOffset / maxOffset);
+                snapDelay.stop();
+                event.consume();
+            });
+
+            scrollPane.addEventHandler(MouseEvent.MOUSE_RELEASED, event -> {
+                if (!dragging) {
+                    return;
+                }
+                dragging = false;
+                snapToSelection();
+                event.consume();
+            });
             snapDelay.setOnFinished(event -> snapToSelection());
         }
 
@@ -335,8 +531,8 @@ final class IosWheelDateTimePopup {
         private void setItems(List<Integer> values, int selectedValue) {
             this.values = List.copyOf(values);
             List<Label> newLabels = new ArrayList<>(values.size());
-            Region topSpacer = spacer();
-            Region bottomSpacer = spacer();
+            topSpacer = spacer();
+            bottomSpacer = spacer();
             List<Node> children = new ArrayList<>(values.size() + 2);
             children.add(topSpacer);
             for (int index = 0; index < values.size(); index++) {
@@ -346,13 +542,19 @@ final class IosWheelDateTimePopup {
                 label.getStyleClass().add("ios-wheel-cell");
                 label.setAlignment(Pos.CENTER);
                 label.setMaxWidth(Double.MAX_VALUE);
-                label.setMinHeight(CELL_HEIGHT);
-                label.setPrefHeight(CELL_HEIGHT);
-                label.setOnMouseClicked(event -> selectIndex(itemIndex, true));
+                label.setMinHeight(cellHeight);
+                label.setPrefHeight(cellHeight);
+                label.setStyle(String.format("-fx-font-size: %.1fpx;", fontSize));
+                label.setOnMouseClicked(event -> {
+                    if (suppressClick) {
+                        return;
+                    }
+                    selectIndex(itemIndex, true);
+                });
                 newLabels.add(label);
                 children.add(label);
             }
-            children.add(bottomSpacer);
+            children.add(this.bottomSpacer);
             content.getChildren().setAll(children);
             this.labels = List.copyOf(newLabels);
 
@@ -404,7 +606,7 @@ final class IosWheelDateTimePopup {
                 return;
             }
             double maxOffset = maxOffset();
-            double targetOffset = selectedIndex * CELL_HEIGHT;
+            double targetOffset = selectedIndex * cellHeight;
             adjusting = true;
             scrollPane.setVvalue(maxOffset <= 0 ? 0 : targetOffset / maxOffset);
             Platform.runLater(() -> adjusting = false);
@@ -415,14 +617,14 @@ final class IosWheelDateTimePopup {
         }
 
         private double maxOffset() {
-            return Math.max((values.size() - 1) * CELL_HEIGHT, 0);
+            return Math.max((values.size() - 1) * cellHeight, 0);
         }
 
         private int indexForOffset(double offset) {
             if (values.isEmpty()) {
                 return 0;
             }
-            int index = (int) Math.round(offset / CELL_HEIGHT);
+            int index = (int) Math.round(offset / cellHeight);
             return Math.max(0, Math.min(index, values.size() - 1));
         }
 
@@ -435,9 +637,85 @@ final class IosWheelDateTimePopup {
 
         private Region spacer() {
             Region spacer = new Region();
-            spacer.setMinHeight(WHEEL_PADDING);
-            spacer.setPrefHeight(WHEEL_PADDING);
+            spacer.setMinHeight(wheelPadding);
+            spacer.setPrefHeight(wheelPadding);
             return spacer;
+        }
+
+        private void applySizing(double width, WheelSizing sizing) {
+            root.setPrefWidth(width);
+            root.setMinWidth(width);
+            root.setMaxWidth(width);
+
+            cellHeight = Math.max(1, sizing.cellHeight);
+            wheelPadding = Math.max(0, sizing.wheelPadding);
+            wheelHeight = Math.max(1, sizing.wheelHeight);
+            fontSize = Math.max(1, sizing.cellFontSize);
+
+            root.setPrefHeight(wheelHeight);
+            scrollPane.setPrefHeight(wheelHeight);
+
+            if (topSpacer != null) {
+                topSpacer.setMinHeight(wheelPadding);
+                topSpacer.setPrefHeight(wheelPadding);
+            }
+            if (bottomSpacer != null) {
+                bottomSpacer.setMinHeight(wheelPadding);
+                bottomSpacer.setPrefHeight(wheelPadding);
+            }
+            for (Label label : labels) {
+                label.setMinHeight(cellHeight);
+                label.setPrefHeight(cellHeight);
+                label.setStyle(String.format("-fx-font-size: %.1fpx;", fontSize));
+            }
+
+            Platform.runLater(this::snapToSelection);
+        }
+    }
+
+    private static final class WheelSizing {
+        final double scale;
+        final double popupWidth;
+        final double popupHeight;
+        final double popupPadding;
+        final double popupSpacing;
+        final double columnSpacing;
+        final double cellHeight;
+        final double wheelHeight;
+        final double wheelPadding;
+        final double titleFontSize;
+        final double cellFontSize;
+        final double monthWidth;
+        final double dayWidth;
+        final double hourWidth;
+        final double minuteWidth;
+        final double yearWidth;
+        final double saveButtonPaddingV;
+        final double saveButtonPaddingH;
+
+        private WheelSizing(double scale) {
+            this.scale = scale;
+            popupWidth = Math.round(BASE_POPUP_WIDTH * scale);
+            popupHeight = Math.round(BASE_POPUP_HEIGHT * scale);
+            popupPadding = Math.round(BASE_POPUP_PADDING * scale);
+            popupSpacing = Math.round(BASE_POPUP_SPACING * scale);
+            columnSpacing = Math.round(BASE_COLUMN_SPACING * scale);
+            cellHeight = Math.round(BASE_CELL_HEIGHT * scale);
+            wheelHeight = cellHeight * VISIBLE_ROWS;
+            wheelPadding = cellHeight * ((VISIBLE_ROWS - 1) / 2.0);
+            titleFontSize = BASE_TITLE_FONT_SIZE * scale;
+            cellFontSize = BASE_CELL_FONT_SIZE * scale;
+            monthWidth = Math.round(BASE_MONTH_WIDTH * scale);
+            dayWidth = Math.round(BASE_DAY_WIDTH * scale);
+            hourWidth = Math.round(BASE_HOUR_WIDTH * scale);
+            minuteWidth = Math.round(BASE_MINUTE_WIDTH * scale);
+            yearWidth = Math.round(BASE_YEAR_WIDTH * scale);
+            saveButtonPaddingV = Math.round(BASE_SAVE_BUTTON_PADDING_V * scale);
+            saveButtonPaddingH = Math.round(BASE_SAVE_BUTTON_PADDING_H * scale);
+        }
+
+        static WheelSizing base() {
+            return new WheelSizing(1.0);
         }
     }
 }
