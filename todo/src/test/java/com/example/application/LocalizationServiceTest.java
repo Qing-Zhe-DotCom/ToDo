@@ -74,6 +74,15 @@ class LocalizationServiceTest {
     }
 
     @Test
+    void languageLabelsUseAutonymAcrossActiveLanguage() {
+        LocalizationService english = serviceFor(AppLanguage.ENGLISH);
+
+        assertEquals("\u7b80\u4f53\u4e2d\u6587", english.languageLabel(AppLanguage.SIMPLIFIED_CHINESE));
+        assertEquals("\u7e41\u9ad4\u4e2d\u6587", english.languageLabel(AppLanguage.TRADITIONAL_CHINESE));
+        assertEquals("English", english.languageLabel(AppLanguage.ENGLISH));
+    }
+
+    @Test
     void weekdayAndDateFormattingFollowLanguage() {
         LocalDate sampleDate = LocalDate.of(2026, 4, 7);
 
