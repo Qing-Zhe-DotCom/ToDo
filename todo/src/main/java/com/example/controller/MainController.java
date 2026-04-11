@@ -36,6 +36,7 @@ import com.example.application.LocalizationService;
 import com.example.application.MainViewModel;
 import com.example.application.NavigationService;
 import com.example.application.RecurrenceSummaryFormatter;
+import com.example.application.ReminderNotificationService;
 import com.example.application.ScheduleItemService;
 import com.example.application.ShortcutSpec;
 import com.example.application.ThemeAppearance;
@@ -198,6 +199,7 @@ public class MainController {
     private static final String DEFAULT_SCHEDULE_CARD_STYLE = ScheduleCardStyleSupport.getDefaultStyleId();
     private final ExecutorService scheduleCompletionExecutor;
     private final ScheduleCompletionCoordinator scheduleCompletionCoordinator;
+    private ReminderNotificationService reminderNotificationService;
     private IntConsumer pendingCountListener;
     private int lastKnownPendingCount = -1;
     
@@ -1118,7 +1120,9 @@ public class MainController {
     }
 
     public String createSchedule(Schedule schedule) throws SQLException {
-        return scheduleItemService.addScheduleItem(schedule);
+        String createdId = scheduleItemService.addScheduleItem(schedule);
+        requestReminderResync();
+        return createdId;
     }
 
     public Schedule quickCreateSchedule(String rawTitle) throws SQLException {
@@ -1143,11 +1147,19 @@ public class MainController {
     }
 
     public boolean saveSchedule(Schedule schedule) throws SQLException {
-        return scheduleItemService.updateScheduleItem(schedule);
+        boolean updated = scheduleItemService.updateScheduleItem(schedule);
+        if (updated) {
+            requestReminderResync();
+        }
+        return updated;
     }
 
     public boolean removeSchedule(String scheduleId) throws SQLException {
-        return scheduleItemService.softDeleteScheduleItem(scheduleId);
+        boolean removed = scheduleItemService.softDeleteScheduleItem(scheduleId);
+        if (removed) {
+            requestReminderResync();
+        }
+        return removed;
     }
 
     public Schedule findScheduleById(String scheduleId) throws SQLException {
@@ -1167,11 +1179,37 @@ public class MainController {
     }
 
     public boolean restoreDeletedSchedule(String scheduleId) throws SQLException {
-        return scheduleItemService.restoreScheduleItem(scheduleId);
+        boolean restored = scheduleItemService.restoreScheduleItem(scheduleId);
+        if (restored) {
+            requestReminderResync();
+        }
+        return restored;
     }
 
     public boolean permanentlyDeleteSchedule(String scheduleId) throws SQLException {
-        return scheduleItemService.permanentlyDeleteScheduleItem(scheduleId);
+        boolean deleted = scheduleItemService.permanentlyDeleteScheduleItem(scheduleId);
+        if (deleted) {
+            requestReminderResync();
+        }
+        return deleted;
+    }
+
+    private void ensureReminderNotificationService() {
+        if (reminderNotificationService != null) {
+            return;
+        }
+        reminderNotificationService = new ReminderNotificationService(
+            scheduleItemService,
+            localizationService,
+            message -> Platform.runLater(() -> showInfo(text("notification.reminder.unavailable.title"), message))
+        );
+    }
+
+    private void requestReminderResync() {
+        if (reminderNotificationService == null) {
+            return;
+        }
+        reminderNotificationService.requestResync();
     }
 
     public void focusScheduleQuickAdd() {
@@ -1199,6 +1237,7 @@ public class MainController {
             participant.applyCompletionMutation(mutation);
         }
         adjustPendingCountOptimistically(mutation.pendingCountDelta());
+        requestReminderResync();
     }
 
     private void confirmCompletionMutationLocally(ScheduleCompletionMutation mutation) {
@@ -1206,6 +1245,7 @@ public class MainController {
         for (ScheduleCompletionParticipant participant : collectCompletionParticipants()) {
             participant.confirmCompletionMutation(mutation);
         }
+        requestReminderResync();
     }
 
     private void revertCompletionMutationLocally(ScheduleCompletionMutation mutation) {
@@ -1214,6 +1254,7 @@ public class MainController {
             participant.revertCompletionMutation(mutation);
         }
         adjustPendingCountOptimistically(-mutation.pendingCountDelta());
+        requestReminderResync();
     }
 
     private List<ScheduleCompletionParticipant> collectCompletionParticipants() {
@@ -3530,11 +3571,16 @@ public class MainController {
     
     public void initializeApplication() {
         refreshAllViews();
+        ensureReminderNotificationService();
+        requestReminderResync();
     }
     
     public void shutdown() {
         stopHeaderClock();
         scheduleCompletionExecutor.shutdownNow();
+        if (reminderNotificationService != null) {
+            reminderNotificationService.shutdown();
+        }
     }
 
     private void updatePendingCountBadge() {

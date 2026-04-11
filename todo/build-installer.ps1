@@ -160,6 +160,8 @@ Invoke-ExternalCommand -FilePath $jpackage -Arguments @(
     $version,
     "--vendor",
     "ToDo",
+    "--win-app-user-model-id",
+    "{D2232C75-43A9-4C4D-B1A9-92E2A67B6631}",
     "--icon",
     $iconPath,
     "--input",
