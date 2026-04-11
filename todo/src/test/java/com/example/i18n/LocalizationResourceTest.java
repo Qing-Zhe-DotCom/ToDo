@@ -37,7 +37,7 @@ class LocalizationResourceTest {
     }
 
     @Test
-    void customOptionsKeysExistInAllLocales() throws IOException {
+    void customOptionsAndWheelInputKeysExistInAllLocales() throws IOException {
         for (String resource : new String[] {
             "/i18n/messages.properties",
             "/i18n/messages_zh_CN.properties",
@@ -57,6 +57,12 @@ class LocalizationResourceTest {
             assertTrue(content.contains("error.customOptions.save.title="));
             assertTrue(content.contains("error.customOptions.taskLimit.title="));
             assertTrue(content.contains("error.customOptions.tagLimit.title="));
+
+            assertTrue(content.contains("settings.custom.title="));
+            assertTrue(content.contains("settings.custom.subtitle="));
+            assertTrue(content.contains("settings.custom.timeInput.label="));
+            assertTrue(content.contains("settings.custom.timeInput.description="));
+            assertTrue(content.contains("iosWheel.input.placeholder="));
         }
     }
 

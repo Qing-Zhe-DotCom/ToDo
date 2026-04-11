@@ -2,6 +2,7 @@ package com.example.view;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalDate;
@@ -99,6 +100,26 @@ class InfoPanelViewTest {
         assertEquals("00", IosWheelDateTimePopup.formatYear2(2000));
         assertEquals(2000, IosWheelDateTimePopup.clampYear(1999));
         assertEquals(2099, IosWheelDateTimePopup.clampYear(2100));
+    }
+
+    @Test
+    void wheelPopupCompactInputParsesAsciiAndFullwidthColon() {
+        assertEquals(
+            LocalDateTime.of(2026, 5, 26, 18, 0),
+            IosWheelDateTimePopup.parseCompactInput("26:05:26:18:00")
+        );
+        assertEquals(
+            LocalDateTime.of(2026, 5, 26, 18, 0),
+            IosWheelDateTimePopup.parseCompactInput("26：05：26：18：00")
+        );
+    }
+
+    @Test
+    void wheelPopupCompactInputRejectsInvalidDates() {
+        assertNull(IosWheelDateTimePopup.parseCompactInput("26:02:31:10:00"));
+        assertNull(IosWheelDateTimePopup.parseCompactInput("bad"));
+        assertNull(IosWheelDateTimePopup.parseCompactInput(""));
+        assertNull(IosWheelDateTimePopup.parseCompactInput(null));
     }
 
     @Test

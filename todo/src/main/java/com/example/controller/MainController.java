@@ -1913,6 +1913,7 @@ public class MainController {
         BooleanProperty customOptionsValid = new SimpleBooleanProperty(true);
         List<CustomOptionRow> customTaskRows = new ArrayList<>();
         List<CustomOptionRow> customTagRows = new ArrayList<>();
+        boolean originalTimeTextInputEnabled = customOptionsService != null && customOptionsService.isTimeTextInputEnabled();
 
         VBox generalPage = new VBox(18);
         generalPage.getStyleClass().add("settings-page");
@@ -2236,7 +2237,34 @@ public class MainController {
             createSettingRow(text("settings.icon.binding.label"), text("settings.icon.binding.description"), iconBindingToggle),
             createStackedSettingRow(text("settings.icon.pack.label"), text("settings.icon.pack.description"), iconPackFlow)
         );
-        personalizationPage.getChildren().addAll(themeCard, iconCard);
+
+        VBox customCard = createSettingsCard(text("settings.custom.title"), text("settings.custom.subtitle"));
+        boolean[] selectedTimeTextInputEnabled = new boolean[] { originalTimeTextInputEnabled };
+        ToggleButton timeTextInputToggle = new ToggleButton();
+        timeTextInputToggle.getStyleClass().add("modern-toggle-switch");
+        timeTextInputToggle.setCursor(Cursor.HAND);
+        timeTextInputToggle.setSelected(originalTimeTextInputEnabled);
+        if (originalTimeTextInputEnabled) {
+            timeTextInputToggle.getStyleClass().add("on");
+        }
+        timeTextInputToggle.selectedProperty().addListener((obs, oldValue, newValue) -> {
+            boolean enabled = Boolean.TRUE.equals(newValue);
+            selectedTimeTextInputEnabled[0] = enabled;
+            if (enabled) {
+                timeTextInputToggle.getStyleClass().add("on");
+            } else {
+                timeTextInputToggle.getStyleClass().remove("on");
+            }
+        });
+        customCard.getChildren().add(
+            createSettingRow(
+                text("settings.custom.timeInput.label"),
+                text("settings.custom.timeInput.description"),
+                timeTextInputToggle
+            )
+        );
+
+        personalizationPage.getChildren().addAll(themeCard, iconCard, customCard);
         VBox dataPage = new VBox(18);
         dataPage.getStyleClass().add("settings-page");
         dataPage.setFillWidth(true);
@@ -2464,10 +2492,17 @@ public class MainController {
             applyCurrentFont();
         }
         commitCustomOptionsFromSettingsDialog(originalCustomTasks, originalCustomTags, customTaskRows, customTagRows);
+        if (selectedTimeTextInputEnabled[0] != originalTimeTextInputEnabled && customOptionsService != null) {
+            customOptionsService.setTimeTextInputEnabled(selectedTimeTextInputEnabled[0]);
+        }
         refreshAllViews();
         if (selectedLanguage[0] != null && selectedLanguage[0] != originalPreferredLanguage) {
             showRestartLanguageNotice(selectedLanguage[0]);
         }
+    }
+
+    public boolean isTimeTextInputEnabled() {
+        return customOptionsService != null && customOptionsService.isTimeTextInputEnabled();
     }
 
     private VBox createSettingsCard(String title, String subtitle) {

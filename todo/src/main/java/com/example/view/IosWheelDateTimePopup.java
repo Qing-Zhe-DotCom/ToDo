@@ -11,6 +11,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -34,6 +35,7 @@ final class IosWheelDateTimePopup {
 
     private static final double BASE_POPUP_WIDTH = 328;
     private static final double BASE_POPUP_HEIGHT = 288;
+    private static final double BASE_INPUT_HEIGHT = 38;
     private static final double POPUP_GAP = 8;
     private static final int VISIBLE_ROWS = 5;
 
@@ -51,6 +53,7 @@ final class IosWheelDateTimePopup {
 
     private static final double BASE_TITLE_FONT_SIZE = 15;
     private static final double BASE_CELL_FONT_SIZE = 15;
+    private static final double BASE_INPUT_FONT_SIZE = 14;
     private static final double BASE_SAVE_BUTTON_PADDING_V = 9;
     private static final double BASE_SAVE_BUTTON_PADDING_H = 16;
 
@@ -64,6 +67,7 @@ final class IosWheelDateTimePopup {
     private final HBox header = new HBox();
     private final HBox columns = new HBox();
     private final StackPane wheelHost = new StackPane();
+    private final TextField compactInput = new TextField();
 
     private final Region selectionBox = new Region();
     private final Region topMask = new Region();
@@ -79,6 +83,7 @@ final class IosWheelDateTimePopup {
 
     private int selectedYear;
     private Consumer<LocalDateTime> onSave = value -> { };
+    private boolean compactInputEnabled;
 
     private Window monitoredWindow;
     private Node monitoredOwner;
@@ -106,13 +111,18 @@ final class IosWheelDateTimePopup {
             return;
         }
 
-        WheelSizing newSizing = resolveSizing(window);
+        compactInputEnabled = controller != null && controller.isTimeTextInputEnabled();
+        compactInput.setManaged(compactInputEnabled);
+        compactInput.setVisible(compactInputEnabled);
+
+        WheelSizing newSizing = resolveSizing(window, compactInputEnabled);
         applySizing(newSizing);
 
         this.onSave = saveAction != null ? saveAction : value -> { };
         refreshLocalizedText();
         titleLabel.setText(title == null ? text("info.time") : title);
         applySeed(seed != null ? seed : LocalDateTime.now());
+        syncCompactInputFromWheel(true);
         double[] position = resolvePosition(owner);
         if (popup.isShowing()) {
             popup.hide();
@@ -144,6 +154,52 @@ final class IosWheelDateTimePopup {
 
     static int clampYear(int year) {
         return Math.max(YEAR_MIN, Math.min(year, YEAR_MAX));
+    }
+
+    static LocalDateTime parseCompactInput(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String normalized = raw.trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        normalized = normalized.replace('：', ':');
+        String[] parts = normalized.split(":");
+        if (parts.length != 5) {
+            return null;
+        }
+        try {
+            int year2 = Integer.parseInt(parts[0].trim());
+            int month = Integer.parseInt(parts[1].trim());
+            int day = Integer.parseInt(parts[2].trim());
+            int hour = Integer.parseInt(parts[3].trim());
+            int minute = Integer.parseInt(parts[4].trim());
+
+            if (year2 < 0 || year2 > 99) {
+                return null;
+            }
+            int year = 2000 + year2;
+            if (year < YEAR_MIN || year > YEAR_MAX) {
+                return null;
+            }
+            if (month < 1 || month > 12) {
+                return null;
+            }
+            if (hour < 0 || hour > 23) {
+                return null;
+            }
+            if (minute < 0 || minute > 59) {
+                return null;
+            }
+            int maxDay = daysInMonth(year, month);
+            if (day < 1 || day > maxDay) {
+                return null;
+            }
+            return LocalDateTime.of(year, month, day, hour, minute);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private void buildUi() {
@@ -189,9 +245,15 @@ final class IosWheelDateTimePopup {
         saveButton.getStyleClass().add("ios-wheel-save-button");
         saveButton.setMaxWidth(Double.MAX_VALUE);
 
+        compactInput.getStyleClass().addAll("modern-input", "ios-wheel-input");
+        compactInput.setPromptText(text("iosWheel.input.placeholder"));
+        compactInput.setMaxWidth(Double.MAX_VALUE);
+        compactInput.setManaged(false);
+        compactInput.setVisible(false);
+
         root.getStyleClass().add("ios-wheel-popup");
         root.setFocusTraversable(true);
-        root.getChildren().addAll(this.header, wheelHost, saveButton);
+        root.getChildren().addAll(this.header, wheelHost, compactInput, saveButton);
         popup.getContent().add(root);
 
         applySizing(WheelSizing.base());
@@ -199,19 +261,31 @@ final class IosWheelDateTimePopup {
 
     private void wireInteractions() {
         saveButton.setOnAction(event -> {
+            if (compactInputEnabled && !tryApplyCompactInput()) {
+                return;
+            }
             hide();
             onSave.accept(buildSelection());
         });
+        compactInput.setOnAction(event -> tryApplyCompactInput());
+        compactInput.textProperty().addListener((obs, oldValue, newValue) -> clearCompactInputError());
         root.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ESCAPE) {
                 hide();
                 event.consume();
             }
         });
-        monthColumn.setSelectionListener(value -> refreshDayColumn(dayColumn.getSelectedValue()));
+        monthColumn.setSelectionListener(value -> {
+            refreshDayColumn(dayColumn.getSelectedValue());
+            syncCompactInputFromWheel(false);
+        });
+        dayColumn.setSelectionListener(value -> syncCompactInputFromWheel(false));
+        hourColumn.setSelectionListener(value -> syncCompactInputFromWheel(false));
+        minuteColumn.setSelectionListener(value -> syncCompactInputFromWheel(false));
         yearColumn.setSelectionListener(value -> {
             selectedYear = value;
             refreshDayColumn(dayColumn.getSelectedValue());
+            syncCompactInputFromWheel(false);
         });
     }
 
@@ -248,19 +322,20 @@ final class IosWheelDateTimePopup {
         yearColumn.snapToSelection();
     }
 
-    private WheelSizing resolveSizing(Window window) {
+    private WheelSizing resolveSizing(Window window, boolean withCompactInput) {
         if (window == null) {
             return WheelSizing.base();
         }
         double availW = Math.max(0, window.getWidth() - WINDOW_MARGIN * 2);
         double availH = Math.max(0, window.getHeight() - WINDOW_MARGIN * 2);
         double scaleW = availW / BASE_POPUP_WIDTH;
-        double scaleH = availH / BASE_POPUP_HEIGHT;
+        double baseHeight = BASE_POPUP_HEIGHT + (withCompactInput ? BASE_INPUT_HEIGHT + BASE_POPUP_SPACING : 0);
+        double scaleH = availH / baseHeight;
         double scale = Math.min(1.0, Math.min(scaleW, scaleH));
         if (!Double.isFinite(scale) || scale <= 0) {
             scale = 1.0;
         }
-        return new WheelSizing(scale);
+        return new WheelSizing(scale, withCompactInput);
     }
 
     private void applySizing(WheelSizing sizing) {
@@ -277,6 +352,10 @@ final class IosWheelDateTimePopup {
 
         wheelHost.setPrefHeight(sizing.wheelHeight);
         wheelHost.setMinHeight(sizing.wheelHeight);
+
+        compactInput.setPrefHeight(sizing.inputHeight);
+        compactInput.setMinHeight(sizing.inputHeight);
+        compactInput.setStyle(String.format("-fx-font-size: %.1fpx;", sizing.inputFontSize));
 
         selectionBox.setMinHeight(sizing.cellHeight);
         selectionBox.setPrefHeight(sizing.cellHeight);
@@ -311,9 +390,10 @@ final class IosWheelDateTimePopup {
         }
 
         LocalDateTime current = buildSelection();
-        WheelSizing newSizing = resolveSizing(window);
+        WheelSizing newSizing = resolveSizing(window, compactInputEnabled);
         applySizing(newSizing);
         applySeed(current);
+        syncCompactInputFromWheel(false);
 
         double[] position = resolvePosition(monitoredOwner);
         popup.setX(position[0]);
@@ -402,6 +482,7 @@ final class IosWheelDateTimePopup {
 
     private void refreshLocalizedText() {
         saveButton.setText(text("common.save"));
+        compactInput.setPromptText(text("iosWheel.input.placeholder"));
     }
 
     private String formatMonth(int value) {
@@ -416,6 +497,60 @@ final class IosWheelDateTimePopup {
         return text("wheel.year.option", formatYear2(value));
     }
 
+    private boolean tryApplyCompactInput() {
+        clearCompactInputError();
+        if (!compactInputEnabled) {
+            return true;
+        }
+        String raw = compactInput.getText();
+        if (raw == null || raw.trim().isEmpty()) {
+            syncCompactInputFromWheel(true);
+            return true;
+        }
+        LocalDateTime parsed = parseCompactInput(raw);
+        if (parsed == null) {
+            markCompactInputError();
+            return false;
+        }
+        applySeed(parsed);
+        syncCompactInputFromWheel(true);
+        return true;
+    }
+
+    private void markCompactInputError() {
+        if (!compactInput.getStyleClass().contains("error-border")) {
+            compactInput.getStyleClass().add("error-border");
+        }
+    }
+
+    private void clearCompactInputError() {
+        compactInput.getStyleClass().remove("error-border");
+    }
+
+    private void syncCompactInputFromWheel(boolean force) {
+        if (!compactInputEnabled) {
+            return;
+        }
+        if (!force && compactInput.isFocused()) {
+            return;
+        }
+        compactInput.setText(formatCompactInput(buildSelection()));
+    }
+
+    private String formatCompactInput(LocalDateTime value) {
+        if (value == null) {
+            return "";
+        }
+        return String.format(
+            "%s:%02d:%02d:%02d:%02d",
+            formatYear2(value.getYear()),
+            value.getMonthValue(),
+            value.getDayOfMonth(),
+            value.getHour(),
+            value.getMinute()
+        );
+    }
+
     private String text(String key, Object... args) {
         if (controller != null) {
             return controller.text(key, args);
@@ -423,6 +558,7 @@ final class IosWheelDateTimePopup {
         return switch (key) {
             case "common.save" -> "保存";
             case "info.time" -> "时间";
+            case "iosWheel.input.placeholder" -> "YY:MM:DD:HH:MM";
             case "wheel.year.label" -> args[0] + "年";
             case "wheel.month.option" -> args[0] + "月";
             case "wheel.day.option" -> args[0] + "日";
@@ -697,6 +833,8 @@ final class IosWheelDateTimePopup {
         final double wheelPadding;
         final double titleFontSize;
         final double cellFontSize;
+        final double inputHeight;
+        final double inputFontSize;
         final double monthWidth;
         final double dayWidth;
         final double hourWidth;
@@ -705,10 +843,11 @@ final class IosWheelDateTimePopup {
         final double saveButtonPaddingV;
         final double saveButtonPaddingH;
 
-        private WheelSizing(double scale) {
+        private WheelSizing(double scale, boolean withCompactInput) {
             this.scale = scale;
             popupWidth = Math.round(BASE_POPUP_WIDTH * scale);
-            popupHeight = Math.round(BASE_POPUP_HEIGHT * scale);
+            double baseHeight = BASE_POPUP_HEIGHT + (withCompactInput ? BASE_INPUT_HEIGHT + BASE_POPUP_SPACING : 0);
+            popupHeight = Math.round(baseHeight * scale);
             popupPadding = Math.round(BASE_POPUP_PADDING * scale);
             popupSpacing = Math.round(BASE_POPUP_SPACING * scale);
             columnSpacing = Math.round(BASE_COLUMN_SPACING * scale);
@@ -717,6 +856,8 @@ final class IosWheelDateTimePopup {
             wheelPadding = cellHeight * ((VISIBLE_ROWS - 1) / 2.0);
             titleFontSize = BASE_TITLE_FONT_SIZE * scale;
             cellFontSize = BASE_CELL_FONT_SIZE * scale;
+            inputHeight = Math.round(BASE_INPUT_HEIGHT * scale);
+            inputFontSize = BASE_INPUT_FONT_SIZE * scale;
             monthWidth = Math.round(BASE_MONTH_WIDTH * scale);
             dayWidth = Math.round(BASE_DAY_WIDTH * scale);
             hourWidth = Math.round(BASE_HOUR_WIDTH * scale);
@@ -727,7 +868,7 @@ final class IosWheelDateTimePopup {
         }
 
         static WheelSizing base() {
-            return new WheelSizing(1.0);
+            return new WheelSizing(1.0, false);
         }
     }
 }

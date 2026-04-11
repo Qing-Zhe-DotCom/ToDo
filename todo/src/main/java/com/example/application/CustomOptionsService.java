@@ -20,6 +20,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public final class CustomOptionsService {
     static final String PREF_TASKS_KEY = "todo.custom.tasks";
     static final String PREF_TAGS_KEY = "todo.custom.tags";
+    public static final String PREF_TIME_TEXT_INPUT_ENABLED_KEY = "todo.custom.time-text-input.enabled";
 
     public static final int MAX_TASKS = 100;
     public static final int MAX_TAGS = 100;
@@ -61,6 +62,14 @@ public final class CustomOptionsService {
 
     public List<String> suggestTags(String query, int limit) {
         return suggestFrom(tags, query, limit);
+    }
+
+    public boolean isTimeTextInputEnabled() {
+        return Boolean.parseBoolean(preferencesStore.get(PREF_TIME_TEXT_INPUT_ENABLED_KEY, Boolean.FALSE.toString()));
+    }
+
+    public void setTimeTextInputEnabled(boolean enabled) {
+        preferencesStore.put(PREF_TIME_TEXT_INPUT_ENABLED_KEY, Boolean.toString(enabled));
     }
 
     /**

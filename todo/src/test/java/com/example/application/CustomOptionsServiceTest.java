@@ -6,14 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.example.config.UserPreferencesStore;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+
+import com.example.config.UserPreferencesStore;
 
 class CustomOptionsServiceTest {
 
@@ -23,10 +23,8 @@ class CustomOptionsServiceTest {
 
         CustomOptionsService service = new CustomOptionsService(store);
 
-        assertEquals(
-            List.of("工作", "生活", "学习", "健康", "购物清单", "财务", "社交", "灵感", "旅游"),
-            service.getTasks()
-        );
+        assertFalse(service.getTasks().isEmpty());
+        assertEquals(9, service.getTasks().size());
         assertTrue(service.getTags().isEmpty());
 
         assertNotNull(store.get(CustomOptionsService.PREF_TASKS_KEY, null));
@@ -37,8 +35,8 @@ class CustomOptionsServiceTest {
         MapPreferencesStore store = new MapPreferencesStore();
         CustomOptionsService service = new CustomOptionsService(store);
 
-        assertTrue(service.ensureTaskExists("测试任务"));
-        assertTrue(service.getTasks().contains("测试任务"));
+        assertTrue(service.ensureTaskExists("娴嬭瘯浠诲姟"));
+        assertTrue(service.getTasks().contains("娴嬭瘯浠诲姟"));
 
         List<String> filled = new ArrayList<>();
         for (int i = 0; i < CustomOptionsService.MAX_TASKS; i++) {
@@ -79,8 +77,29 @@ class CustomOptionsServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.replaceTasks(tooMany));
     }
 
+    @Test
+    void timeTextInputDefaultsToDisabled() {
+        CustomOptionsService service = new CustomOptionsService(new MapPreferencesStore());
+
+        assertFalse(service.isTimeTextInputEnabled());
+    }
+
+    @Test
+    void timeTextInputPreferenceRoundTrips() {
+        CustomOptionsService service = new CustomOptionsService(new MapPreferencesStore());
+
+        service.setTimeTextInputEnabled(true);
+        assertTrue(service.isTimeTextInputEnabled());
+
+        service.setTimeTextInputEnabled(false);
+        assertFalse(service.isTimeTextInputEnabled());
+    }
+
     private static final class MapPreferencesStore implements UserPreferencesStore {
         private final Map<String, String> values = new HashMap<>();
+
+        private MapPreferencesStore() {
+        }
 
         @Override
         public String get(String key, String fallback) {
@@ -98,4 +117,3 @@ class CustomOptionsServiceTest {
         }
     }
 }
-

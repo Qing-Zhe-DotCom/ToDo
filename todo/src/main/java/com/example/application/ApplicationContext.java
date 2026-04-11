@@ -16,6 +16,7 @@ import com.example.data.SqlDialect;
 import com.example.data.SqlScheduleItemRepository;
 import com.example.data.SqliteConnectionFactory;
 import com.example.data.SqliteStageBSchemaManager;
+
 public final class ApplicationContext {
     private final AppProperties appProperties;
     private final DatabaseProperties databaseProperties;
@@ -25,11 +26,11 @@ public final class ApplicationContext {
     private final SchemaManager schemaManager;
     private final ScheduleItemRepository scheduleItemRepository;
     private final ScheduleItemService scheduleItemService;
-    private final CustomOptionsService customOptionsService;
     private final NavigationService navigationService;
     private final ExperimentalFeaturesService experimentalFeaturesService;
     private final ThemeService themeService;
     private final IconService iconService;
+    private final CustomOptionsService customOptionsService;
     private final LocalizationService localizationService;
     private final FontService fontService;
     private final MainViewModel mainViewModel;
@@ -43,11 +44,11 @@ public final class ApplicationContext {
         SchemaManager schemaManager,
         ScheduleItemRepository scheduleItemRepository,
         ScheduleItemService scheduleItemService,
-        CustomOptionsService customOptionsService,
         NavigationService navigationService,
         ExperimentalFeaturesService experimentalFeaturesService,
         ThemeService themeService,
         IconService iconService,
+        CustomOptionsService customOptionsService,
         LocalizationService localizationService,
         FontService fontService,
         MainViewModel mainViewModel
@@ -60,11 +61,11 @@ public final class ApplicationContext {
         this.schemaManager = schemaManager;
         this.scheduleItemRepository = scheduleItemRepository;
         this.scheduleItemService = scheduleItemService;
-        this.customOptionsService = customOptionsService;
         this.navigationService = navigationService;
         this.experimentalFeaturesService = experimentalFeaturesService;
         this.themeService = themeService;
         this.iconService = iconService;
+        this.customOptionsService = customOptionsService;
         this.localizationService = localizationService;
         this.fontService = fontService;
         this.mainViewModel = mainViewModel;
@@ -74,6 +75,7 @@ public final class ApplicationContext {
         AppProperties appProperties = ConfigurationLoader.loadAppProperties();
         DatabaseProperties databaseProperties = ConfigurationLoader.loadDatabaseProperties();
         UserPreferencesStore preferencesStore = new JavaPreferencesStore(MainApp.class);
+
         LocalizationService localizationService = new LocalizationService(
             preferencesStore,
             appProperties.getDefaultLanguage()
@@ -109,16 +111,19 @@ public final class ApplicationContext {
         } catch (Exception exception) {
             throw new IllegalStateException("Failed to initialize stage-B data runtime", exception);
         }
+
         NavigationService navigationService = new NavigationService();
         ThemeService themeService = new ThemeService(preferencesStore, appProperties, experimentalFeaturesService);
         IconService iconService = new IconService(preferencesStore, themeService.getCurrentThemeFamily());
         iconService.syncThemeAppearance(themeService.getCurrentAppearance());
+
         CustomOptionsService customOptionsService = new CustomOptionsService(preferencesStore);
         try {
             customOptionsService.importFromScheduleItems(scheduleItemService.getActiveScheduleItems());
         } catch (Exception ignored) {
             // Best-effort: the app should remain usable even if the import path fails.
         }
+
         MainViewModel mainViewModel = new MainViewModel(
             navigationService,
             themeService,
@@ -136,11 +141,11 @@ public final class ApplicationContext {
             schemaManager,
             scheduleItemRepository,
             scheduleItemService,
-            customOptionsService,
             navigationService,
             experimentalFeaturesService,
             themeService,
             iconService,
+            customOptionsService,
             localizationService,
             fontService,
             mainViewModel
@@ -179,12 +184,12 @@ public final class ApplicationContext {
         return scheduleItemService;
     }
 
-    public CustomOptionsService getCustomOptionsService() {
-        return customOptionsService;
-    }
-
     public NavigationService getNavigationService() {
         return navigationService;
+    }
+
+    public ExperimentalFeaturesService getExperimentalFeaturesService() {
+        return experimentalFeaturesService;
     }
 
     public ThemeService getThemeService() {
@@ -195,8 +200,8 @@ public final class ApplicationContext {
         return iconService;
     }
 
-    public ExperimentalFeaturesService getExperimentalFeaturesService() {
-        return experimentalFeaturesService;
+    public CustomOptionsService getCustomOptionsService() {
+        return customOptionsService;
     }
 
     public LocalizationService getLocalizationService() {
@@ -211,3 +216,4 @@ public final class ApplicationContext {
         return mainViewModel;
     }
 }
+

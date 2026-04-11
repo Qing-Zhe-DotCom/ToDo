@@ -3416,6 +3416,13 @@
     -fx-background-color: -color-primary-hover;
 }
 
+.ios-wheel-input {
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-padding: 8 12;
+    -fx-prompt-text-fill: -color-text-muted;
+}
+
 /* Info panel refresh */
 .info-panel {
     -fx-background-color: -color-bg-panel;
