@@ -1512,6 +1512,12 @@
 
 }
 
+.search-field.search-field-with-actions {
+
+    -fx-padding: 8 60 8 15;
+
+}
+
 
 
 .search-field:focused {

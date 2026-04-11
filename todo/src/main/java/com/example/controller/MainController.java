@@ -169,6 +169,10 @@ public class MainController {
     private Separator bottomActionsSeparator;
     private Label functionTitle;
     private TextField searchField;
+    private StackPane sidebarSearchBox;
+    private HBox sidebarSearchActions;
+    private Button clearSearchTextButton;
+    private Button clearSearchHistoryButton;
     private ContextMenu searchSuggestionMenu;
     private PauseTransition searchSuggestionDebounce;
     private final List<String> searchHistory = new ArrayList<>();
@@ -408,14 +412,47 @@ public class MainController {
         });
 
         searchField = new TextField();
-        searchField.getStyleClass().add("search-field");
+        searchField.setMaxWidth(Double.MAX_VALUE);
+        searchField.getStyleClass().addAll("search-field", "search-field-with-actions");
         searchField.setPromptText(text("sidebar.search.prompt"));
         installSidebarSearchSuggestions();
+
+        clearSearchTextButton = new Button();
+        clearSearchTextButton.getStyleClass().add("icon-button");
+        clearSearchTextButton.setFocusTraversable(false);
+        clearSearchTextButton.setOnAction(event -> {
+            hideSidebarSearchSuggestions();
+            if (searchField != null) {
+                searchField.clear();
+                searchField.requestFocus();
+            }
+        });
+
+        clearSearchHistoryButton = new Button();
+        clearSearchHistoryButton.getStyleClass().add("icon-button");
+        clearSearchHistoryButton.setFocusTraversable(false);
+        clearSearchHistoryButton.setOnAction(event -> clearSidebarSearchHistory());
+
+        sidebarSearchActions = new HBox(4, clearSearchTextButton, clearSearchHistoryButton);
+        sidebarSearchActions.setAlignment(Pos.CENTER_RIGHT);
+        sidebarSearchActions.setMaxWidth(Region.USE_PREF_SIZE);
+        sidebarSearchActions.setMaxHeight(Region.USE_PREF_SIZE);
+        StackPane.setAlignment(sidebarSearchActions, Pos.CENTER_RIGHT);
+        StackPane.setMargin(sidebarSearchActions, new Insets(0, 6, 0, 0));
+
+        sidebarSearchBox = new StackPane(searchField, sidebarSearchActions);
+        sidebarSearchBox.setMaxWidth(Double.MAX_VALUE);
+        sidebarSearchBox.setAlignment(Pos.CENTER_LEFT);
+
+        updateSidebarIcons();
+        updateSidebarSearchActionButtons();
+
         searchField.textProperty().addListener((observable, oldValue, newValue) -> {
             if (shouldClearSearchResults(oldValue, newValue)) {
                 clearScheduleSearch();
             }
             queueSidebarSearchSuggestionRefresh();
+            updateSidebarSearchActionButtons();
         });
         searchField.setOnAction(e -> performSearch(searchField.getText()));
 
@@ -485,7 +522,7 @@ public class MainController {
 
         sidebar.getChildren().addAll(
             collapseToggle,
-            searchField,
+            sidebarSearchBox,
             new Separator(),
             scheduleNavButton,
             timelineNavButton,
@@ -609,11 +646,30 @@ public class MainController {
             searchField.setManaged(!sidebarCollapsed);
         }
 
+        if (sidebarSearchBox != null) {
+            sidebarSearchBox.setVisible(!sidebarCollapsed);
+            sidebarSearchBox.setManaged(!sidebarCollapsed);
+        }
+
         if (sidebarCollapsed) {
             hideSidebarSearchSuggestions();
         }
 
         updateFeaturePanelState();
+    }
+
+    private void updateSidebarSearchActionButtons() {
+        if (clearSearchTextButton != null && searchField != null) {
+            boolean hasText = !isBlankSearchText(searchField.getText());
+            clearSearchTextButton.setVisible(hasText);
+            clearSearchTextButton.setManaged(hasText);
+        }
+
+        if (clearSearchHistoryButton != null) {
+            boolean hasHistory = searchHistory != null && !searchHistory.isEmpty();
+            clearSearchHistoryButton.setVisible(hasHistory);
+            clearSearchHistoryButton.setManaged(hasHistory);
+        }
     }
 
     public Pane createSvgIcon(String resourcePath, String title, double size) {
@@ -1539,6 +1595,18 @@ public class MainController {
         if (exitActionButton != null) {
             exitActionButton.setGraphic(createSvgIcon(IconKey.LOGOUT, text("sidebar.exit"), 24));
         }
+        if (clearSearchTextButton != null) {
+            String clearText = text("sidebar.search.clearText");
+            clearSearchTextButton.setGraphic(createSvgIcon(IconKey.CLOSE, clearText, 16));
+            clearSearchTextButton.setAccessibleText(clearText);
+            clearSearchTextButton.setTooltip(new Tooltip(clearText));
+        }
+        if (clearSearchHistoryButton != null) {
+            String clearHistory = text("sidebar.search.clearHistory");
+            clearSearchHistoryButton.setGraphic(createSvgIcon(IconKey.DELETE, clearHistory, 16));
+            clearSearchHistoryButton.setAccessibleText(clearHistory);
+            clearSearchHistoryButton.setTooltip(new Tooltip(clearHistory));
+        }
     }
 
     private void installSidebarSearchSuggestions() {
@@ -1756,6 +1824,16 @@ public class MainController {
         }
     }
 
+    private void clearSidebarSearchHistory() {
+        hideSidebarSearchSuggestions();
+        clearSearchHistory(applicationContext.getPreferencesStore(), searchHistory);
+        updateSidebarSearchActionButtons();
+        refreshSidebarSearchSuggestions();
+        if (searchField != null) {
+            searchField.requestFocus();
+        }
+    }
+
     private static final class SearchSuggestion {
         private final String displayText;
         private final String insertText;
@@ -1775,6 +1853,7 @@ public class MainController {
             return;
         }
         rememberSearchHistory(applicationContext.getPreferencesStore(), searchHistory, keyword);
+        updateSidebarSearchActionButtons();
         scheduleListView.searchSchedules(keyword.trim());
         showView(scheduleListView);
     }
@@ -1821,6 +1900,15 @@ public class MainController {
             preferencesStore.remove(SEARCH_HISTORY_PREFERENCE_KEY);
         } else {
             preferencesStore.put(SEARCH_HISTORY_PREFERENCE_KEY, String.join("\n", historyBuffer));
+        }
+    }
+
+    static void clearSearchHistory(UserPreferencesStore preferencesStore, List<String> historyBuffer) {
+        if (historyBuffer != null) {
+            historyBuffer.clear();
+        }
+        if (preferencesStore != null) {
+            preferencesStore.remove(SEARCH_HISTORY_PREFERENCE_KEY);
         }
     }
 
