@@ -258,6 +258,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
 
         Label titleLabel = new Label(text("view.timeline.title"));
         titleLabel.getStyleClass().add("label-title");
+        LabeledTextAutoFit.install(titleLabel, LabeledTextAutoFit.titleSpec());
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -303,6 +304,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
 
         Button resetBtn = new Button(text("view.timeline.reset"));
         resetBtn.getStyleClass().addAll("button-secondary", "timeline-range-reset");
+        LabeledTextAutoFit.install(resetBtn, LabeledTextAutoFit.buttonSpec());
         resetBtn.setOnAction(e -> {
             startDatePicker.setValue(null);
             endDatePicker.setValue(null);
@@ -739,29 +741,22 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
 
         Label titleLabel = new Label(schedule.getName());
         titleLabel.getStyleClass().addAll("card-title", "schedule-card-title-text");
-        titleLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
+        titleLabel.setTextOverrun(OverrunStyle.CLIP);
         titleLabel.setMouseTransparent(true);
-        // 确保标题长时显示省略号
-        titleLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
+        LabeledTextAutoFit.install(titleLabel, LabeledTextAutoFit.cardTitleSpec());
         
-        Label dateLabel = new Label(formatEntryRangeLabel(entryStartAt, entryEndAt, schedule));
-        dateLabel.getStyleClass().addAll("card-date", "schedule-card-subtitle-text");
-        dateLabel.setMouseTransparent(true);
-        dateLabel.setMinWidth(Region.USE_PREF_SIZE); // 防止日期被过度压缩
-
-        // 处理过短的卡片
-        if (width < 104) {
-            dateLabel.setVisible(false);
-            dateLabel.setManaged(false);
-        }
-
         if (width < 72) {
             titleLabel.setVisible(false);
             titleLabel.setManaged(false);
         }
 
         HBox.setHgrow(titleLabel, Priority.ALWAYS);
-        contentBox.getChildren().addAll(statusControl, titleLabel, dateLabel);
+        contentBox.getChildren().addAll(statusControl, titleLabel);
+
+        Tooltip tooltip = new Tooltip(schedule.getName() + "\n" + formatEntryRangeLabel(entryStartAt, entryEndAt, schedule));
+        tooltip.setWrapText(true);
+        tooltip.setMaxWidth(520);
+        Tooltip.install(scheduleCard, tooltip);
 
         scheduleCard.getChildren().addAll(cardBackground, accentBar, contentBox);
         StackPane.setAlignment(accentBar, Pos.CENTER_LEFT);

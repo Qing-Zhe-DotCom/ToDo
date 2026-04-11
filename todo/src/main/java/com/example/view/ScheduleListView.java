@@ -170,10 +170,16 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             priorityLabel = new Label();
             titleLabel = new Label();
             titleLabel.getStyleClass().addAll("schedule-title", "schedule-card-title-text");
+            titleLabel.setMinWidth(0);
+            LabeledTextAutoFit.install(titleLabel, LabeledTextAutoFit.cardTitleSpec());
             dateLabel = new Label();
             dateLabel.getStyleClass().addAll("schedule-date", "schedule-card-subtitle-text");
+            dateLabel.setMinWidth(0);
+            LabeledTextAutoFit.install(dateLabel, LabeledTextAutoFit.bodyTextSpec());
             categoryLabel = new Label();
             categoryLabel.getStyleClass().add("category-tag");
+            categoryLabel.setMinWidth(0);
+            LabeledTextAutoFit.install(categoryLabel, LabeledTextAutoFit.bodyTextSpec());
 
             Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -335,6 +341,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
         Label titleLabel = new Label(controller.text("schedule.list.title"));
         titleLabel.getStyleClass().add("label-title");
+        LabeledTextAutoFit.install(titleLabel, LabeledTextAutoFit.titleSpec());
 
         filterComboBox = new ComboBox<>();
         filterComboBox.getItems().addAll(
