@@ -49,6 +49,7 @@ import com.example.model.RecurrenceRule;
 import com.example.view.FlowchartView;
 import com.example.view.HeatmapView;
 import com.example.view.InfoPanelView;
+import com.example.view.LabeledTextAutoFit;
 import com.example.view.ScheduleCardStyleSupport;
 import com.example.view.ScheduleCompletionParticipant;
 import com.example.view.ScheduleListView;
@@ -512,6 +513,7 @@ public class MainController {
         button.setWrapText(false);
         button.setAccessibleText(text);
         button.setTooltip(new Tooltip(text));
+        LabeledTextAutoFit.install(button, LabeledTextAutoFit.buttonSpec());
         registerCollapsibleControl(button, text, "", text);
         return button;
     }
@@ -527,6 +529,7 @@ public class MainController {
         button.setWrapText(false);
         button.setAccessibleText(text);
         button.setTooltip(new Tooltip(text));
+        LabeledTextAutoFit.install(button, LabeledTextAutoFit.buttonSpec());
         button.setOnAction(e -> action.run());
         registerCollapsibleControl(button, text, "", text);
         return button;
@@ -1936,6 +1939,7 @@ public class MainController {
         navBar.setPrefWidth(220);
         Label navTitle = new Label(text("settings.title"));
         navTitle.getStyleClass().addAll("label-title", "settings-nav-title");
+        LabeledTextAutoFit.install(navTitle, LabeledTextAutoFit.titleSpec());
         Label navSubTitle = new Label(text("settings.subtitle"));
         navSubTitle.getStyleClass().addAll("label-hint", "settings-nav-subtitle");
 
@@ -1957,6 +1961,7 @@ public class MainController {
             tab.setTextOverrun(OverrunStyle.CLIP);
             tab.setWrapText(false);
             tab.setToggleGroup(categoryGroup);
+            LabeledTextAutoFit.install(tab, LabeledTextAutoFit.buttonSpec());
         }
         navBar.getChildren().addAll(navTitle, navSubTitle, generalTab, personalizationTab, dataTab);
 
