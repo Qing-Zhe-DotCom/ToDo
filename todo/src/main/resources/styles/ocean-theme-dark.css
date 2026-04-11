@@ -1,0 +1,14 @@
+/* Classic palette overlay (dark appearance) */
+.root {
+    -color-primary: #00acc1;
+    -color-primary-soft: rgba(0, 172, 193, 0.18);
+    -color-primary-glow: rgba(0, 172, 193, 0.30);
+
+    /* Heatmap ramp tuned for dark backgrounds. */
+    -color-heatmap-0: -color-bg-panel;
+    -color-heatmap-1: #0e3440;
+    -color-heatmap-2: #135c6b;
+    -color-heatmap-3: #00acc1;
+    -color-heatmap-4: #4dd0e1;
+}
+

@@ -169,6 +169,7 @@ public class MainController {
     private ToggleButton flowchartNavButton;
     private Button loginActionButton;
     private Button settingsActionButton;
+    private ToggleButton appearanceToggle;
     private Button exitActionButton;
     private ToggleButton collapseToggle;
     private ToggleButton featurePanelToggle;
@@ -423,6 +424,18 @@ public class MainController {
 
         loginActionButton = createActionButton(IconKey.USER, text("sidebar.login"), this::showLoginDialog);
         settingsActionButton = createActionButton(IconKey.SETTINGS, text("sidebar.settings"), this::showSettingsDialog);
+
+        appearanceToggle = new ToggleButton(text("sidebar.appearance.darkMode"));
+        appearanceToggle.getStyleClass().addAll("nav-button", "sidebar-action-button", "sidebar-appearance-toggle");
+        appearanceToggle.setMaxWidth(Double.MAX_VALUE);
+        appearanceToggle.setGraphicTextGap(8);
+        appearanceToggle.setContentDisplay(ContentDisplay.LEFT);
+        appearanceToggle.setTextOverrun(OverrunStyle.CLIP);
+        appearanceToggle.setWrapText(false);
+        appearanceToggle.setOnAction(e -> toggleThemeAppearance());
+        registerCollapsibleControl(appearanceToggle, text("sidebar.appearance.darkMode"), "", text("sidebar.appearance.darkMode"));
+        updateAppearanceTogglePresentation();
+
         exitActionButton = createActionButton(IconKey.LOGOUT, text("sidebar.exit"), Platform::exit);
 
         bottomActions = new VBox(6);
@@ -431,6 +444,7 @@ public class MainController {
             functionTitle,
             loginActionButton,
             settingsActionButton,
+            appearanceToggle,
             exitActionButton
         );
 
@@ -1218,6 +1232,7 @@ public class MainController {
         refreshAllViews();
         updateThemeIconState();
         updateMacaronPresentation();
+        updateAppearanceTogglePresentation();
     }
 
     private void previewThemeSelection(
@@ -1268,6 +1283,34 @@ public class MainController {
         switchTheme(selectableThemeFamilies.get(nextIndex));
     }
 
+    private void toggleThemeAppearance() {
+        ThemeAppearance next = currentThemeAppearance == ThemeAppearance.DARK ? ThemeAppearance.LIGHT : ThemeAppearance.DARK;
+        previewThemeSelection(currentThemeFamily, next, currentClassicPalette, null);
+        saveThemePreference();
+        updateAppearanceTogglePresentation();
+    }
+
+    private void updateAppearanceTogglePresentation() {
+        if (appearanceToggle == null) {
+            return;
+        }
+
+        boolean dark = currentThemeAppearance == ThemeAppearance.DARK;
+        if (appearanceToggle.isSelected() != dark) {
+            appearanceToggle.setSelected(dark);
+        }
+
+        String label = text("sidebar.appearance.darkMode");
+        String tooltipText = dark ? text("sidebar.appearance.switchToLight") : text("sidebar.appearance.switchToDark");
+        IconKey iconKey = dark ? IconKey.THEME_DARK : IconKey.THEME_LIGHT;
+
+        appearanceToggle.setText(sidebarCollapsed ? "" : label);
+        appearanceToggle.setContentDisplay(sidebarCollapsed ? ContentDisplay.GRAPHIC_ONLY : ContentDisplay.LEFT);
+        appearanceToggle.setGraphic(createSvgIcon(iconKey, label, 24));
+        appearanceToggle.setAccessibleText(label);
+        appearanceToggle.setTooltip(new Tooltip(tooltipText));
+    }
+
     private void loadThemePreference() {
         syncThemeState();
     }
@@ -1315,6 +1358,7 @@ public class MainController {
             return;
         }
         GlassBackdropCoordinator coordinator = GlassBackdropCoordinator.install(targetScene);
+        coordinator.setAppearance(currentThemeAppearance);
         coordinator.setActive(currentThemeFamily == ThemeFamily.MACARON);
         if (currentThemeFamily == ThemeFamily.MACARON) {
             coordinator.requestBurstRefresh(Duration.millis(420));
@@ -1329,7 +1373,9 @@ public class MainController {
         if (targetScene == null || currentThemeFamily != ThemeFamily.MACARON) {
             return;
         }
-        GlassBackdropCoordinator.install(targetScene).requestBurstRefresh(Duration.millis(260));
+        GlassBackdropCoordinator coordinator = GlassBackdropCoordinator.install(targetScene);
+        coordinator.setAppearance(currentThemeAppearance);
+        coordinator.requestBurstRefresh(Duration.millis(260));
     }
 
     private void updateDialogGlass(DialogPane pane) {
@@ -1409,6 +1455,9 @@ public class MainController {
         }
         if (settingsActionButton != null) {
             settingsActionButton.setGraphic(createSvgIcon(IconKey.SETTINGS, text("sidebar.settings"), 24));
+        }
+        if (appearanceToggle != null) {
+            updateAppearanceTogglePresentation();
         }
         if (exitActionButton != null) {
             exitActionButton.setGraphic(createSvgIcon(IconKey.LOGOUT, text("sidebar.exit"), 24));
@@ -2065,7 +2114,7 @@ public class MainController {
             }
         };
         Runnable previewThemeAndIcons = () -> {
-            previewThemeSelection(selectedThemeFamily[0], ThemeAppearance.LIGHT, selectedClassicPalette[0], dialog.getDialogPane());
+            previewThemeSelection(selectedThemeFamily[0], originalThemeAppearance, selectedClassicPalette[0], dialog.getDialogPane());
             iconService.previewSelection(selectedThemeFamily[0], selectedThemeIconBinding[0], selectedIconPack[0]);
             syncIconState();
             selectedIconPack[0] = currentIconPack;

@@ -44,6 +44,7 @@ public final class GlassBackdropCoordinator {
     private boolean active;
     private boolean refreshing;
     private boolean sceneListenersInstalled;
+    private ThemeAppearance appearance = ThemeAppearance.LIGHT;
 
     private GlassBackdropCoordinator(Scene scene) {
         this.scene = scene;
@@ -74,6 +75,19 @@ public final class GlassBackdropCoordinator {
             } else {
                 refreshDebounce.stop();
                 clearAll();
+            }
+        });
+    }
+
+    public void setAppearance(ThemeAppearance appearance) {
+        ThemeAppearance resolved = appearance != null ? appearance : ThemeAppearance.LIGHT;
+        runOnFxThread(() -> {
+            if (this.appearance == resolved) {
+                return;
+            }
+            this.appearance = resolved;
+            if (active) {
+                requestBurstRefresh(Duration.millis(420));
             }
         });
     }
@@ -302,17 +316,24 @@ public final class GlassBackdropCoordinator {
     }
 
     private enum GlassSurfaceVariant {
-        SHELL(Color.web("#FFFDFD"), 0.62),
-        CARD(Color.web("#FFFFFF"), 0.54),
-        PANEL(Color.web("#FFFDFE"), 0.68),
-        BADGE(Color.web("#FFFFFF"), 0.72);
+        SHELL(Color.web("#FFFDFD"), Color.web("#0F1118"), 0.62),
+        CARD(Color.web("#FFFFFF"), Color.web("#111624"), 0.54),
+        PANEL(Color.web("#FFFDFE"), Color.web("#0D101A"), 0.68),
+        BADGE(Color.web("#FFFFFF"), Color.web("#141B2A"), 0.72);
 
-        private final Color overlayColor;
+        private final Color lightOverlayColor;
+        private final Color darkOverlayColor;
         private final double overlayStrength;
 
-        GlassSurfaceVariant(Color overlayColor, double overlayStrength) {
-            this.overlayColor = overlayColor;
+        GlassSurfaceVariant(Color lightOverlayColor, Color darkOverlayColor, double overlayStrength) {
+            this.lightOverlayColor = lightOverlayColor;
+            this.darkOverlayColor = darkOverlayColor;
             this.overlayStrength = overlayStrength;
+        }
+
+        private Color resolveOverlayColor(ThemeAppearance appearance) {
+            ThemeAppearance resolved = appearance != null ? appearance : ThemeAppearance.LIGHT;
+            return resolved == ThemeAppearance.DARK ? darkOverlayColor : lightOverlayColor;
         }
     }
 
@@ -402,7 +423,8 @@ public final class GlassBackdropCoordinator {
         for (int py = 0; py < height; py++) {
             for (int px = 0; px < width; px++) {
                 Color base = reader.getColor(x + px, y + py);
-                Color mixed = base.interpolate(variant.overlayColor, variant.overlayStrength);
+                Color overlay = variant.resolveOverlayColor(appearance);
+                Color mixed = base.interpolate(overlay, variant.overlayStrength);
                 writer.setColor(px, py, new Color(mixed.getRed(), mixed.getGreen(), mixed.getBlue(), base.getOpacity()));
             }
         }

@@ -1,0 +1,453 @@
+.root {
+    -color-bg-base: #0e0b14;
+    -color-bg-panel: rgba(18, 18, 30, 0.46);
+    -color-bg-active: rgba(34, 34, 52, 0.58);
+    -color-bg-hover: rgba(28, 28, 46, 0.50);
+    -color-text-main: #f1effa;
+    -color-text-sub: #cbc7df;
+    -color-text-hint: #a8a3c2;
+    -color-text-muted: #827c9c;
+    -color-border: rgba(255, 255, 255, 0.14);
+    -color-border-dark: rgba(255, 255, 255, 0.20);
+    -color-primary: #f3adc9;
+    -color-primary-hover: #f6bfd7;
+    -color-primary-pressed: #ea9dbc;
+    -color-primary-soft: rgba(243, 173, 201, 0.22);
+    -color-primary-glow: rgba(243, 173, 201, 0.32);
+    -color-success: #a6dcc0;
+    -color-danger: #f4a8b9;
+    -color-warning: #f4d98f;
+    -color-shadow-soft: rgba(0, 0, 0, 0.36);
+    -color-shadow-medium: rgba(0, 0, 0, 0.52);
+    -color-shadow-strong: rgba(0, 0, 0, 0.70);
+}
+
+.app-shell {
+    -fx-background-color: transparent;
+}
+
+.macaron-background-layer {
+    -fx-background-color: linear-gradient(to bottom right, #0f0b16, #11152a 46%, #1b1323 100%);
+}
+
+.macaron-background-wash {
+    -fx-background-color:
+        radial-gradient(center 18% 14%, radius 86%, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02) 74%, transparent 100%),
+        linear-gradient(to bottom right, rgba(255, 255, 255, 0.06), rgba(14, 11, 20, 0.60) 48%, rgba(20, 14, 28, 0.52) 100%);
+}
+
+.macaron-blob,
+.macaron-ribbon {
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+}
+
+.macaron-blob {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.62), 46, 0.18, 0, 14);
+}
+
+.macaron-blob-blue {
+    -fx-background-color: radial-gradient(center 30% 30%, radius 76%, rgba(191, 217, 246, 0.34), rgba(191, 217, 246, 0.10) 74%, transparent 100%);
+    -fx-rotate: -14;
+}
+
+.macaron-blob-pink {
+    -fx-background-color: radial-gradient(center 42% 34%, radius 78%, rgba(246, 199, 214, 0.34), rgba(246, 199, 214, 0.10) 74%, transparent 100%);
+    -fx-rotate: 12;
+}
+
+.macaron-blob-mint {
+    -fx-background-color: radial-gradient(center 28% 30%, radius 78%, rgba(201, 232, 210, 0.32), rgba(201, 232, 210, 0.10) 75%, transparent 100%);
+    -fx-rotate: -18;
+}
+
+.macaron-blob-purple {
+    -fx-background-color: radial-gradient(center 32% 28%, radius 78%, rgba(217, 200, 240, 0.30), rgba(217, 200, 240, 0.10) 75%, transparent 100%);
+    -fx-rotate: 18;
+}
+
+.macaron-blob-cream {
+    -fx-background-color: radial-gradient(center 42% 38%, radius 78%, rgba(246, 231, 178, 0.28), rgba(246, 231, 178, 0.08) 76%, transparent 100%);
+    -fx-rotate: -10;
+}
+
+.macaron-ribbon {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 40, 0.14, 0, 12);
+}
+
+.macaron-ribbon-left {
+    -fx-background-color: linear-gradient(to right, rgba(191, 217, 246, 0.12), rgba(217, 200, 240, 0.10), rgba(246, 199, 214, 0.06));
+    -fx-rotate: -9;
+}
+
+.macaron-ribbon-right {
+    -fx-background-color: linear-gradient(to right, rgba(201, 232, 210, 0.12), rgba(246, 231, 178, 0.08), rgba(191, 217, 246, 0.06));
+    -fx-rotate: 12;
+}
+
+.settings-dialog-pane,
+.dialog-pane,
+.schedule-dialog-pane,
+.settings-shell,
+.settings-content-host,
+.main-content,
+.timeline-container,
+.timeline-pane,
+.sidebar,
+.settings-nav,
+.timeline-header,
+.heatmap-meta-bar,
+.heatmap-sidebar-shell,
+.info-panel-header,
+.quick-add-section {
+    -fx-background-color: rgba(16, 16, 26, 0.54);
+    -fx-border-color: rgba(255, 255, 255, 0.16);
+    -fx-border-width: 1;
+    -fx-background-radius: 24;
+    -fx-border-radius: 24;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 28, 0.20, 0, 12);
+}
+
+.settings-card,
+.info-panel,
+.heatmap-day-panel,
+.heatmap-year-card,
+.heatmap-day-card,
+.timeline-range-pill,
+.timeline-state,
+.quick-add-shell,
+.info-panel-description-card,
+.info-panel-time-trigger,
+.schedule-card-surface,
+.timeline-schedule-card,
+.date-picker-popup,
+.ios-wheel-popup {
+    -fx-background-color: rgba(20, 20, 34, 0.44);
+    -fx-border-color: rgba(255, 255, 255, 0.18);
+    -fx-border-width: 1;
+    -fx-background-radius: 24;
+    -fx-border-radius: 24;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.48), 24, 0.18, 0, 10);
+}
+
+.info-panel-inline-editor,
+.info-panel-borderless-combo,
+.info-panel-notes-input,
+.info-panel-title-input,
+.timeline-range-group,
+.timeline-range-picker,
+.timeline-range-icon-wrap,
+.heatmap-sidebar,
+.heatmap-day-rail {
+    -fx-background-color: rgba(22, 22, 38, 0.46);
+    -fx-border-color: rgba(255, 255, 255, 0.18);
+    -fx-border-width: 1;
+    -fx-background-radius: 20;
+    -fx-border-radius: 20;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.40), 18, 0.14, 0, 6);
+}
+
+.settings-inline-value,
+.info-panel-status-pill,
+.quick-add-badge,
+.heatmap-day-rail-badge {
+    -fx-background-color: rgba(30, 30, 48, 0.56);
+    -fx-border-color: rgba(255, 255, 255, 0.22);
+    -fx-border-width: 1;
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.34), 16, 0.14, 0, 4);
+}
+
+.timeline-scroll > .viewport,
+.heatmap-scroll > .viewport,
+.heatmap-main-pane {
+    -fx-background-color: transparent;
+}
+
+.search-field,
+.quick-add-input,
+.text-field,
+.text-area,
+.password-field,
+.combo-box {
+    -fx-background-color: rgba(22, 22, 38, 0.58);
+    -fx-border-color: rgba(255, 255, 255, 0.20);
+    -fx-border-width: 1;
+    -fx-background-radius: 20;
+    -fx-border-radius: 20;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.32), 14, 0.14, 0, 4);
+}
+
+.search-field:focused,
+.quick-add-input:focused,
+.text-field:focused,
+.text-area:focused,
+.password-field:focused,
+.combo-box:focused {
+    -fx-background-color: rgba(28, 28, 46, 0.66);
+    -fx-border-color: rgba(255, 255, 255, 0.26);
+}
+
+.nav-button,
+.sidebar-bottom-actions .sidebar-action-button {
+    -fx-background-color: rgba(22, 22, 38, 0.54);
+    -fx-border-color: rgba(255, 255, 255, 0.18);
+    -fx-border-width: 1;
+    -fx-background-radius: 18;
+    -fx-border-radius: 18;
+    -fx-font-weight: 700;
+    -fx-text-fill: -color-text-sub;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.28), 14, 0.14, 0, 4);
+}
+
+.nav-button:hover,
+.sidebar-bottom-actions .sidebar-action-button:hover,
+.sidebar-bottom-actions .sidebar-action-button:focused {
+    -fx-background-color: rgba(30, 30, 48, 0.64);
+    -fx-border-color: rgba(255, 255, 255, 0.26);
+}
+
+.nav-button.active {
+    -fx-background-color: linear-gradient(to right, rgba(243, 173, 201, 0.26), rgba(191, 217, 246, 0.18));
+    -fx-border-color: rgba(255, 255, 255, 0.30);
+    -fx-border-width: 1;
+    -fx-text-fill: -color-text-main;
+    -fx-effect: dropshadow(gaussian, rgba(243, 173, 201, 0.22), 18, 0.16, 0, 4);
+}
+
+.button,
+.button-secondary,
+.toggle-button,
+.timeline-range-reset,
+.info-panel-primary-button,
+.ios-wheel-save-button,
+.settings-style-chip,
+.info-panel-chip,
+.info-panel-toolbar-button,
+.info-panel-icon-button,
+.heatmap-sidebar-toggle {
+    -fx-background-color: rgba(22, 22, 38, 0.58);
+    -fx-border-color: rgba(255, 255, 255, 0.20);
+    -fx-border-width: 1;
+    -fx-background-radius: 18;
+    -fx-border-radius: 18;
+    -fx-text-fill: -color-text-main;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.30), 16, 0.14, 0, 5);
+}
+
+.button,
+.info-panel-primary-button,
+.ios-wheel-save-button {
+    -fx-background-color: linear-gradient(to bottom right, rgba(34, 26, 44, 0.92), rgba(20, 20, 34, 0.62));
+}
+
+.button:hover,
+.button-secondary:hover,
+.toggle-button:hover,
+.timeline-range-reset:hover,
+.info-panel-primary-button:hover,
+.ios-wheel-save-button:hover,
+.settings-style-chip:hover,
+.info-panel-chip:hover,
+.info-panel-toolbar-button:hover,
+.info-panel-icon-button:hover,
+.heatmap-sidebar-toggle:hover {
+    -fx-background-color: rgba(30, 30, 48, 0.66);
+    -fx-border-color: rgba(255, 255, 255, 0.26);
+}
+
+.settings-style-chip:selected,
+.toggle-button:selected,
+.timeline-range-reset:selected,
+.info-panel-status-ongoing,
+.heatmap-day-card-selected {
+    -fx-background-color: linear-gradient(to right, rgba(243, 173, 201, 0.22), rgba(191, 217, 246, 0.16));
+    -fx-border-color: rgba(255, 255, 255, 0.28);
+}
+
+.settings-nav-title,
+.settings-card-title,
+.info-panel-heading,
+.info-panel-section-title,
+.timeline-group-header,
+.timeline-card-title,
+.heatmap-day-title,
+.heatmap-year-title,
+.quick-add-title,
+.schedule-card-title-text {
+    -fx-text-fill: -color-text-main;
+    -fx-font-weight: 700;
+}
+
+.settings-nav-subtitle,
+.settings-card-subtitle,
+.settings-row-desc,
+.info-panel-meta-label,
+.info-panel-description-placeholder,
+.timeline-range-label,
+.heatmap-completed-zone-label,
+.schedule-card-subtitle-text {
+    -fx-text-fill: -color-text-hint;
+}
+
+.timeline-track-bg {
+    -fx-fill: rgba(255, 255, 255, 0.10);
+}
+
+.timeline-grid-line,
+.timeline-track-sep {
+    -fx-stroke: rgba(255, 255, 255, 0.10);
+    -fx-opacity: 0.78;
+}
+
+.timeline-axis-line,
+.timeline-range-connector {
+    -fx-stroke: derive(-color-primary, 6%);
+}
+
+.timeline-node {
+    -fx-background-color: linear-gradient(to bottom right, rgba(246, 199, 214, 0.92), rgba(191, 217, 246, 0.88));
+    -fx-background-radius: 999;
+    -fx-effect: dropshadow(gaussian, rgba(243, 173, 201, 0.26), 12, 0.20, 0, 0);
+}
+
+.heatmap-year-cell {
+    -fx-stroke: rgba(255, 255, 255, 0.18);
+    -fx-stroke-width: 0.75;
+}
+
+.heatmap-cell-selected {
+    -fx-background-color: rgba(243, 173, 201, 0.18);
+    -fx-border-color: rgba(255, 255, 255, 0.26);
+    -fx-border-width: 2;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+}
+
+.heatmap-completed-zone {
+    -fx-background-color: linear-gradient(to right, rgba(201, 232, 210, 0.16), rgba(191, 217, 246, 0.10));
+    -fx-border-color: rgba(255, 255, 255, 0.18);
+    -fx-background-radius: 18;
+    -fx-border-radius: 18;
+}
+
+.timeline-schedule-selected,
+.settings-theme-swatch:selected {
+    -fx-effect: dropshadow(gaussian, rgba(243, 173, 201, 0.26), 18, 0.22, 0, 0);
+}
+
+.schedule-card-surface.schedule-card-style-cozy.schedule-card-role-list,
+.schedule-card-surface.schedule-card-style-cozy.schedule-card-role-heatmap {
+    -fx-border-color: rgba(255, 255, 255, 0.18);
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.42), 22, 0.16, 0, 8);
+}
+
+.schedule-card-surface.schedule-card-style-cozy.schedule-card-role-timeline .schedule-card-layer {
+    -fx-background-color: rgba(22, 22, 38, 0.56);
+    -fx-border-color: rgba(255, 255, 255, 0.18);
+    -fx-border-width: 1;
+    -fx-background-radius: 24;
+    -fx-border-radius: 24;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.42), 22, 0.16, 0, 8);
+}
+
+.schedule-card-surface.schedule-card-style-cozy.schedule-card-role-timeline .schedule-card-accent {
+    -fx-fill: linear-gradient(to bottom, rgba(243, 173, 201, 0.72), rgba(191, 217, 246, 0.64));
+}
+
+.schedule-card-surface.schedule-card-style-cozy.schedule-card-role-timeline .schedule-card-clip {
+    -fx-arc-width: 24;
+    -fx-arc-height: 24;
+}
+
+.schedule-card-surface.schedule-card-style-cozy.schedule-card-role-list:hover,
+.schedule-card-surface.schedule-card-style-cozy.schedule-card-role-heatmap:hover,
+.schedule-card-surface.schedule-card-style-cozy.schedule-card-role-timeline:hover .schedule-card-layer {
+    -fx-effect: dropshadow(gaussian, rgba(243, 173, 201, 0.18), 24, 0.18, 0, 10);
+}
+
+/* Quick Add Single Surface */
+.quick-add-section {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-effect: none;
+}
+
+.quick-add-badge {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-effect: none;
+}
+
+.quick-add-input {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-effect: none;
+}
+
+.quick-add-input:focused {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-effect: none;
+}
+
+/* Timeline Range Single Surface */
+.timeline-range-group {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-effect: none;
+}
+
+.timeline-range-picker {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-effect: none;
+}
+
+.timeline-range-icon-wrap {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-effect: none;
+}
+
+.timeline-range-picker > .text-field {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-effect: none;
+}
+
+.timeline-range-picker:focused > .text-field,
+.timeline-range-picker:showing > .text-field {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-effect: none;
+}
+

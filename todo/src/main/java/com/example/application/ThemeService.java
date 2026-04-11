@@ -98,13 +98,14 @@ public final class ThemeService {
         ThemeAppearance appearance,
         ClassicThemePalette classicPalette
     ) {
-        List<String> stylesheets = new ArrayList<>();
-        stylesheets.add(resolveRequiredStylesheet(resourceAnchor, "/styles/base.css"));
-        stylesheets.add(resolveRequiredStylesheet(resourceAnchor, "/styles/light-theme.css"));
-
         ThemeFamily resolvedFamily = family != null ? family : defaultThemeFamily;
         ThemeAppearance resolvedAppearance = appearance != null ? appearance : defaultAppearance;
         ClassicThemePalette resolvedPalette = classicPalette != null ? classicPalette : defaultClassicPalette;
+
+        List<String> stylesheets = new ArrayList<>();
+        stylesheets.add(resolveRequiredStylesheet(resourceAnchor, "/styles/base.css"));
+        String tokenStylesheet = resolvedAppearance == ThemeAppearance.DARK ? "/styles/dark-theme.css" : "/styles/light-theme.css";
+        stylesheets.add(resolveRequiredStylesheet(resourceAnchor, tokenStylesheet));
 
         String familyStylesheet = resolveOptionalStylesheet(
             resourceAnchor,
@@ -120,8 +121,9 @@ public final class ThemeService {
             stylesheets.add(familyStylesheet);
         }
 
-        if (resolvedFamily.supportsClassicPalette() && resolvedPalette.getOverlayStylesheetPath() != null) {
-            String paletteOverlay = resolveOptionalStylesheet(resourceAnchor, resolvedPalette.getOverlayStylesheetPath());
+        String paletteOverlayPath = resolvedPalette.resolveOverlayStylesheetPath(resolvedAppearance);
+        if (resolvedFamily.supportsClassicPalette() && paletteOverlayPath != null) {
+            String paletteOverlay = resolveOptionalStylesheet(resourceAnchor, paletteOverlayPath);
             if (paletteOverlay != null) {
                 stylesheets.add(paletteOverlay);
             }

@@ -1,0 +1,68 @@
+/* Dark Theme */
+.root {
+    -fx-background-color: -color-bg-base;
+    -fx-font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+
+    -color-bg-base: #0f131a;
+    -color-bg-panel: #161d27;
+    -color-bg-active: #1e2a3b;
+    -color-bg-hover: #1a2432;
+
+    -color-text-main: #e7eef8;
+    -color-text-sub: #b3bfd1;
+    -color-text-hint: #93a1b7;
+    -color-text-muted: #6b768a;
+
+    -color-border: rgba(255, 255, 255, 0.10);
+    -color-border-dark: rgba(255, 255, 255, 0.16);
+
+    -color-primary: #4da3ff;
+    -color-primary-hover: #73b7ff;
+    -color-primary-pressed: #2c7bd0;
+    -color-primary-soft: rgba(77, 163, 255, 0.16);
+    -color-primary-glow: rgba(77, 163, 255, 0.28);
+
+    -color-success: #3ddc84;
+    -color-success-hover: #30c776;
+    -color-success-pressed: #1fae61;
+    -color-success-bg: rgba(61, 220, 132, 0.16);
+    -color-success-soft: rgba(61, 220, 132, 0.14);
+
+    -color-danger: #ff5c74;
+    -color-danger-hover: #ff3d5b;
+    -color-danger-pressed: #e02a45;
+    -color-danger-bg: rgba(255, 92, 116, 0.14);
+    -color-danger-soft: rgba(255, 92, 116, 0.14);
+
+    -color-warning: #ffb547;
+    -color-warning-dark: #ff9b1a;
+    -color-warning-bg: rgba(255, 181, 71, 0.16);
+    -color-warning-soft: rgba(255, 181, 71, 0.16);
+
+    -color-shadow-soft: rgba(0, 0, 0, 0.32);
+    -color-shadow-medium: rgba(0, 0, 0, 0.46);
+    -color-shadow-strong: rgba(0, 0, 0, 0.62);
+    -color-shadow-hard: rgba(0, 0, 0, 0.78);
+
+    -color-timeline-track-even: #0f141d;
+    -color-timeline-track-odd: #101925;
+    -color-timeline-track-sep: rgba(255, 255, 255, 0.07);
+    -color-timeline-axis: rgba(255, 255, 255, 0.14);
+    -color-timeline-grid: rgba(255, 255, 255, 0.08);
+    -color-timeline-card-bg: #161f2c;
+    -color-timeline-card-border: rgba(255, 255, 255, 0.12);
+    -color-timeline-card-text: #e7eef8;
+    -color-timeline-card-hover: #1b2535;
+
+    -color-heatmap-0: #1a1f27;
+    -color-heatmap-1: #123d2a;
+    -color-heatmap-2: #1f6b3f;
+    -color-heatmap-3: #2ea54d;
+    -color-heatmap-4: #3ddc84;
+}
+
+/* Dark-mode tuning for a few shared visuals that were tuned for light backgrounds. */
+.schedule-card-surface {
+    -schedule-status-ring-shadow-color: rgba(255, 255, 255, 0.22);
+}
+

@@ -104,6 +104,14 @@ class ThemeServiceTest {
         assertContains(classicStylesheets, "theme-classic-light.css");
         assertContains(classicStylesheets, "ocean-theme.css");
 
+        classic.selectTheme(ThemeFamily.CLASSIC, ThemeAppearance.DARK, ClassicThemePalette.MINT);
+        List<String> classicDarkStylesheets = classic.resolveStylesheets(getClass());
+        assertContains(classicDarkStylesheets, "base.css");
+        assertContains(classicDarkStylesheets, "dark-theme.css");
+        assertContains(classicDarkStylesheets, "theme-classic-dark.css");
+        assertContains(classicDarkStylesheets, "mint-theme-dark.css");
+        assertTrue(classicDarkStylesheets.stream().noneMatch(path -> path.contains("mint-theme.css")));
+
         ThemeService fresh = serviceFor(Map.of(
             ThemeService.PREF_THEME_FAMILY_KEY, "fresh",
             ThemeService.PREF_THEME_APPEARANCE_KEY, "dark",
@@ -111,8 +119,11 @@ class ThemeServiceTest {
         ));
 
         List<String> freshStylesheets = fresh.resolveStylesheets(getClass());
-        assertContains(freshStylesheets, "theme-fresh-light.css");
+        assertContains(freshStylesheets, "dark-theme.css");
+        assertContains(freshStylesheets, "theme-fresh-dark.css");
+        assertTrue(freshStylesheets.stream().noneMatch(path -> path.contains("light-theme.css")));
         assertTrue(freshStylesheets.stream().noneMatch(path -> path.contains("mint-theme.css")));
+        assertTrue(freshStylesheets.stream().noneMatch(path -> path.contains("mint-theme-dark.css")));
 
         ThemeService macaron = serviceFor(
             Map.of(
@@ -124,7 +135,8 @@ class ThemeServiceTest {
         );
 
         List<String> macaronStylesheets = macaron.resolveStylesheets(getClass());
-        assertContains(macaronStylesheets, "theme-macaron-light.css");
+        assertContains(macaronStylesheets, "dark-theme.css");
+        assertContains(macaronStylesheets, "theme-macaron-dark.css");
         assertTrue(macaronStylesheets.stream().noneMatch(path -> path.contains("sunset-theme.css")));
     }
 
