@@ -1210,6 +1210,7 @@ public class MainController {
         currentThemeAppearance = themeService.getCurrentAppearance();
         currentClassicPalette = themeService.getCurrentClassicPalette();
         currentScheduleCardStyle = themeService.getCurrentScheduleCardStyle();
+        iconService.syncThemeAppearance(currentThemeAppearance);
     }
 
     private void syncIconState() {
@@ -1245,6 +1246,7 @@ public class MainController {
         currentThemeAppearance = appearance != null ? appearance : ThemeAppearance.LIGHT;
         currentClassicPalette = classicPalette != null ? classicPalette : ClassicThemePalette.LIGHT;
         currentScheduleCardStyle = currentThemeFamily.getBoundScheduleCardStyle();
+        iconService.syncThemeAppearance(currentThemeAppearance);
 
         List<String> stylesheets = themeService.resolveStylesheets(
             getClass(),

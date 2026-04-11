@@ -109,6 +109,7 @@ public final class ApplicationContext {
         NavigationService navigationService = new NavigationService();
         ThemeService themeService = new ThemeService(preferencesStore, appProperties, experimentalFeaturesService);
         IconService iconService = new IconService(preferencesStore, themeService.getCurrentThemeFamily());
+        iconService.syncThemeAppearance(themeService.getCurrentAppearance());
         MainViewModel mainViewModel = new MainViewModel(
             navigationService,
             themeService,

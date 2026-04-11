@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
@@ -64,6 +65,35 @@ class IconServiceTest {
 
         assertFalse(service.isThemeBindingEnabled());
         assertEquals(IconPack.COOKIE, service.getCurrentIconPack());
+    }
+
+    @Test
+    void darkAppearancePrefersDarkIconDirectoriesWhenAvailable() {
+        IconService service = serviceFor(Map.of(), ThemeFamily.CLASSIC);
+        service.syncThemeAppearance(ThemeAppearance.DARK);
+
+        assertTrue(service.resolveResourcePath(IconKey.CALENDAR).contains("/icons/classic_dark/calendar.svg"));
+    }
+
+    @Test
+    void darkAppearanceFallsBackToLightPackWhenPackHasNoDarkDirectory() {
+        IconService service = serviceFor(Map.of(), ThemeFamily.MACARON);
+        service.syncThemeAppearance(ThemeAppearance.DARK);
+
+        assertTrue(service.resolveResourcePath(IconKey.CALENDAR).contains("/icons/macaron/calendar.svg"));
+    }
+
+    @Test
+    void syncingThemeAppearanceNotifiesListenersOnlyWhenChanged() {
+        IconService service = serviceFor(Map.of(), ThemeFamily.FRESH);
+        AtomicInteger calls = new AtomicInteger();
+        service.addChangeListener(calls::incrementAndGet);
+
+        service.syncThemeAppearance(ThemeAppearance.DARK);
+        service.syncThemeAppearance(ThemeAppearance.DARK);
+        service.syncThemeAppearance(ThemeAppearance.LIGHT);
+
+        assertEquals(2, calls.get());
     }
 
     private IconService serviceFor(Map<String, String> preferences, ThemeFamily themeFamily) {

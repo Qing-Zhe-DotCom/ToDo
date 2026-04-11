@@ -16,6 +16,7 @@ public final class IconService {
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
 
     private ThemeFamily currentThemeFamily;
+    private ThemeAppearance currentAppearance = ThemeAppearance.LIGHT;
     private IconPack currentIconPack;
     private IconPack persistedIconPack;
     private boolean themeBindingEnabled;
@@ -58,6 +59,15 @@ public final class IconService {
         notifyIfPackChanged(previousPack);
     }
 
+    public void syncThemeAppearance(ThemeAppearance appearance) {
+        ThemeAppearance resolved = appearance != null ? appearance : ThemeAppearance.LIGHT;
+        if (resolved == currentAppearance) {
+            return;
+        }
+        currentAppearance = resolved;
+        notifyIconographyChanged();
+    }
+
     public void previewSelection(ThemeFamily family, boolean bindingEnabled, IconPack iconPack) {
         ThemeFamily resolvedFamily = family != null ? family : currentThemeFamily;
         IconPack previousPack = currentIconPack;
@@ -87,10 +97,20 @@ public final class IconService {
     public String resolveResourcePath(IconPack iconPack, IconKey iconKey) {
         IconPack resolvedPack = iconPack != null ? iconPack : IconPack.CLASSIC;
         IconKey resolvedKey = iconKey != null ? iconKey : IconKey.CALENDAR;
-        String candidatePath = resolvedPack.resolveResourcePath(resolvedKey);
-        if (resourceExists(candidatePath)) {
-            return candidatePath;
+
+        for (String candidatePath : resolveCandidatePaths(resolvedPack, resolvedKey)) {
+            if (resourceExists(candidatePath)) {
+                return candidatePath;
+            }
         }
+
+        for (String candidatePath : resolveCandidatePaths(IconPack.CLASSIC, resolvedKey)) {
+            if (resourceExists(candidatePath)) {
+                return candidatePath;
+            }
+        }
+
+        // Should always exist, but keep a hard fallback to avoid breaking the UI on packaging mistakes.
         return IconPack.CLASSIC.resolveResourcePath(resolvedKey);
     }
 
@@ -134,10 +154,23 @@ public final class IconService {
         return resource != null;
     }
 
+    private List<String> resolveCandidatePaths(IconPack pack, IconKey iconKey) {
+        List<String> candidates = new ArrayList<>(2);
+        if (currentAppearance == ThemeAppearance.DARK) {
+            candidates.add("/icons/" + pack.getId() + "_dark/" + iconKey.getFileName());
+        }
+        candidates.add(pack.resolveResourcePath(iconKey));
+        return candidates;
+    }
+
     private void notifyIfPackChanged(IconPack previousPack) {
         if (previousPack == currentIconPack) {
             return;
         }
+        notifyIconographyChanged();
+    }
+
+    private void notifyIconographyChanged() {
         for (Runnable listener : listeners) {
             listener.run();
         }
