@@ -310,15 +310,10 @@ final class RecurrenceRuleDialog extends Dialog<RecurrenceRuleDialog.Result> {
         return "23:59";
     }
 
-    private List<String> buildTimeOptions() {
+    static List<String> buildTimeOptions() {
         List<String> values = new ArrayList<>();
-        LocalTime time = LocalTime.MIDNIGHT;
-        while (!time.equals(LocalTime.of(23, 59))) {
-            values.add(time.toString());
-            time = time.plusMinutes(30);
-            if (time.isAfter(LocalTime.of(23, 30))) {
-                break;
-            }
+        for (int minutes = 0; minutes <= 23 * 60 + 30; minutes += 30) {
+            values.add(LocalTime.MIDNIGHT.plusMinutes(minutes).toString());
         }
         values.add("23:59");
         return values;
