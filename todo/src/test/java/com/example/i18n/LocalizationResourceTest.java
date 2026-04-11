@@ -51,6 +51,8 @@ class LocalizationResourceTest {
             assertTrue(content.contains("settings.customOptions.tasks.prompt="));
             assertTrue(content.contains("settings.customOptions.tags.title="));
             assertTrue(content.contains("settings.customOptions.tags.prompt="));
+            assertTrue(content.contains("settings.customOptions.tags.commaSplit.label="));
+            assertTrue(content.contains("settings.customOptions.tags.commaSplit.description="));
             assertTrue(content.contains("settings.customOptions.validation.empty="));
             assertTrue(content.contains("settings.customOptions.validation.duplicate="));
             assertTrue(content.contains("settings.customOptions.validation.limit="));

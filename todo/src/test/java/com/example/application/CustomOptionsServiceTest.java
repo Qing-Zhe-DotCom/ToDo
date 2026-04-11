@@ -95,6 +95,24 @@ class CustomOptionsServiceTest {
         assertFalse(service.isTimeTextInputEnabled());
     }
 
+    @Test
+    void tagCommaSplitDefaultsToDisabled() {
+        CustomOptionsService service = new CustomOptionsService(new MapPreferencesStore());
+
+        assertFalse(service.isTagCommaSplitEnabled());
+    }
+
+    @Test
+    void tagCommaSplitPreferenceRoundTrips() {
+        CustomOptionsService service = new CustomOptionsService(new MapPreferencesStore());
+
+        service.setTagCommaSplitEnabled(true);
+        assertTrue(service.isTagCommaSplitEnabled());
+
+        service.setTagCommaSplitEnabled(false);
+        assertFalse(service.isTagCommaSplitEnabled());
+    }
+
     private static final class MapPreferencesStore implements UserPreferencesStore {
         private final Map<String, String> values = new HashMap<>();
 
