@@ -31,6 +31,7 @@ public class FlowchartView implements View {
 
         Label titleLabel = new Label(controller.text("view.flowchart.title"));
         titleLabel.getStyleClass().add("label-title");
+        LabeledTextAutoFit.install(titleLabel, LabeledTextAutoFit.titleSpec());
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);

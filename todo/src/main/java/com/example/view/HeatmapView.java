@@ -163,6 +163,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
 
         Label titleLabel = new Label(text("view.heatmap.title"));
         titleLabel.getStyleClass().add("label-title");
+        LabeledTextAutoFit.install(titleLabel, LabeledTextAutoFit.titleSpec());
 
         // 视图模式选择
         ToggleGroup viewGroup = new ToggleGroup();
@@ -862,7 +863,9 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         Label titleLabel = new Label(schedule.getName());
         titleLabel.getStyleClass().addAll("schedule-title", "schedule-card-title-text");
         titleLabel.setWrapText(false);
-        titleLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
+        titleLabel.setTextOverrun(OverrunStyle.CLIP);
+        titleLabel.setMinWidth(0);
+        LabeledTextAutoFit.install(titleLabel, LabeledTextAutoFit.cardTitleSpec());
         titleLabel.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(titleLabel, Priority.ALWAYS);
 
@@ -873,16 +876,28 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         if (hasText(schedule.getPriority())) {
             Label priorityLabel = new Label(schedule.getPriority());
             priorityLabel.getStyleClass().add("priority-" + getPriorityClass(schedule.getPriority()));
+            priorityLabel.setTextOverrun(OverrunStyle.CLIP);
+            priorityLabel.setMinWidth(0);
+            priorityLabel.setTooltip(new Tooltip(schedule.getPriority()));
             tagsBox.getChildren().add(priorityLabel);
         }
 
         if (hasText(schedule.getCategory())) {
             Label categoryLabel = new Label(schedule.getCategory());
             categoryLabel.getStyleClass().add("category-tag");
+            categoryLabel.setTextOverrun(OverrunStyle.CLIP);
+            categoryLabel.setMinWidth(0);
+            categoryLabel.setTooltip(new Tooltip(schedule.getCategory()));
             tagsBox.getChildren().add(categoryLabel);
         }
 
-        header.getChildren().addAll(statusControl, colorMark, titleLabel);
+        tagsBox.setMinWidth(0);
+
+        Region tagsSpacer = new Region();
+        tagsSpacer.setMinWidth(0);
+        HBox.setHgrow(tagsSpacer, Priority.SOMETIMES);
+
+        header.getChildren().addAll(statusControl, colorMark, titleLabel, tagsSpacer);
         if (!tagsBox.getChildren().isEmpty()) {
             header.getChildren().add(tagsBox);
         }
@@ -894,7 +909,9 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         Label dateLabel = new Label(getScheduleDateText(schedule));
         dateLabel.getStyleClass().addAll("schedule-date", "schedule-card-subtitle-text");
         dateLabel.setWrapText(false);
-        dateLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
+        dateLabel.setTextOverrun(OverrunStyle.CLIP);
+        dateLabel.setMinWidth(0);
+        LabeledTextAutoFit.install(dateLabel, LabeledTextAutoFit.bodyTextSpec());
         dateLabel.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(dateLabel, Priority.ALWAYS);
 
