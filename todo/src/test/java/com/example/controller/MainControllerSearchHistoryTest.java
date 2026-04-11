@@ -58,6 +58,19 @@ class MainControllerSearchHistoryTest {
         assertTrue(stored.startsWith("k25\n"));
     }
 
+    @Test
+    void clearSearchHistoryRemovesPreferenceAndEmptiesBuffer() {
+        Map<String, String> preferences = new HashMap<>();
+        preferences.put("todo.search.history", "a\nb");
+        MapPreferencesStore store = new MapPreferencesStore(preferences);
+        List<String> buffer = new ArrayList<>(List.of("a", "b"));
+
+        MainController.clearSearchHistory(store, buffer);
+
+        assertTrue(buffer.isEmpty());
+        assertEquals("fallback", store.get("todo.search.history", "fallback"));
+    }
+
     private static final class MapPreferencesStore implements UserPreferencesStore {
         private final Map<String, String> preferences;
 
