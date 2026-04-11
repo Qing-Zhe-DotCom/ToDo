@@ -4,6 +4,7 @@ import com.example.controller.ScheduleCompletionMutation;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -12,8 +13,10 @@ import java.util.List;
 
 import com.example.application.IconKey;
 import com.example.application.ScheduleOccurrenceProjector;
+import com.example.application.WheelModifier;
 import com.example.controller.MainController;
 import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
@@ -46,7 +49,13 @@ import javafx.util.StringConverter;
 
 public class TimelineView implements View, ScheduleCompletionParticipant {
 
-    private double DAY_WIDTH = 90;
+    private static final double BASE_CELL_WIDTH_PX = 90;
+    private static final long BASE_CELL_MINUTES = 360; // 6 hours per grid cell
+    private static final double ZOOM_STEP = 1.12;
+    private static final double MIN_ZOOM = 0.25;
+    private static final double MAX_ZOOM = 16.0;
+    private static final String PREF_TIMELINE_ZOOM_FACTOR_KEY = "todo.timeline.zoom.factor";
+
     private static final double LEFT_PADDING = 36;
     private static final double RIGHT_PADDING = 36;
     private static final double AXIS_LABEL_Y = 10;
@@ -58,6 +67,8 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     private static final double BOTTOM_PADDING = 48;
     private static final double MIN_INLINE_TITLE_WIDTH = 60;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MM/dd");
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("MM/dd HH:mm");
     private static final DateTimeFormatter RANGE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final MainController controller;
@@ -76,10 +87,109 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     private double scrollVelocity = 0;
     private List<Schedule> loadedSchedules = new ArrayList<>();
 
+    private double zoomFactor = 1.0;
+    private LocalDateTime lastRangeStartAt;
+    private LocalDateTime lastRangeEndAtExclusive;
+
     public TimelineView(MainController controller) {
         this.controller = controller;
+        loadZoomPreference();
         initializeUI();
         startAutoScroll();
+    }
+
+    public double getZoomFactor() {
+        return zoomFactor;
+    }
+
+    public void zoomIn() {
+        zoomBy(ZOOM_STEP);
+    }
+
+    public void zoomOut() {
+        zoomBy(1.0 / ZOOM_STEP);
+    }
+
+    public void setZoomFactor(double newZoomFactor) {
+        setZoomFactorInternal(newZoomFactor, null);
+    }
+
+    private void zoomBy(double multiplier) {
+        if (multiplier <= 0) {
+            return;
+        }
+        long anchorMinuteOffset = resolveViewportCenterMinuteOffset();
+        setZoomFactorInternal(zoomFactor * multiplier, anchorMinuteOffset);
+    }
+
+    private void setZoomFactorInternal(double newZoomFactor, Long anchorMinuteOffset) {
+        double clamped = clampDouble(newZoomFactor, MIN_ZOOM, MAX_ZOOM);
+        if (Math.abs(clamped - zoomFactor) < 0.0001) {
+            return;
+        }
+        zoomFactor = clamped;
+        persistZoomPreference();
+
+        if (loadedSchedules == null || loadedSchedules.isEmpty()) {
+            return;
+        }
+
+        renderTimeline(loadedSchedules, anchorMinuteOffset, false);
+    }
+
+    private double computePixelsPerMinute() {
+        return (BASE_CELL_WIDTH_PX * zoomFactor) / BASE_CELL_MINUTES;
+    }
+
+    private long resolveTotalMinutes() {
+        if (lastRangeStartAt == null || lastRangeEndAtExclusive == null) {
+            return 0;
+        }
+        long minutes = ChronoUnit.MINUTES.between(lastRangeStartAt, lastRangeEndAtExclusive);
+        return Math.max(0, minutes);
+    }
+
+    private long resolveViewportCenterMinuteOffset() {
+        if (scrollPane == null || timelinePane == null) {
+            return 0;
+        }
+        double viewportWidth = scrollPane.getViewportBounds().getWidth();
+        double contentWidth = timelinePane.getWidth();
+        double maxScroll = Math.max(0, contentWidth - viewportWidth);
+        double scrollX = maxScroll <= 0 ? 0 : scrollPane.getHvalue() * maxScroll;
+        double centerX = scrollX + viewportWidth / 2.0;
+
+        double pixelsPerMinute = computePixelsPerMinute();
+        if (pixelsPerMinute <= 0) {
+            return 0;
+        }
+
+        double minuteOffset = (centerX - LEFT_PADDING) / pixelsPerMinute;
+        if (Double.isNaN(minuteOffset) || Double.isInfinite(minuteOffset)) {
+            return 0;
+        }
+
+        long totalMinutes = resolveTotalMinutes();
+        return (long) clampDouble(minuteOffset, 0, totalMinutes);
+    }
+
+    private void loadZoomPreference() {
+        zoomFactor = clampDouble(
+            controller.parseDoublePreference(PREF_TIMELINE_ZOOM_FACTOR_KEY, 1.0),
+            MIN_ZOOM,
+            MAX_ZOOM
+        );
+    }
+
+    private void persistZoomPreference() {
+        controller.putPreference(PREF_TIMELINE_ZOOM_FACTOR_KEY, Double.toString(zoomFactor));
+    }
+
+    private static double clampDouble(double value, double min, double max) {
+        if (Double.isNaN(value)) {
+            return min;
+        }
+        return Math.max(min, Math.min(max, value));
     }
 
     private void initializeUI() {
@@ -105,19 +215,24 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         
         timelinePane.setOnScroll(event -> {
             if (event.getDeltaY() != 0) {
-                // Calculate total scrollable width
+                WheelModifier modifier = controller.getTimelineZoomWheelModifier();
+                if (modifier != null && modifier.matches(event)) {
+                    double multiplier = event.getDeltaY() > 0 ? ZOOM_STEP : (1.0 / ZOOM_STEP);
+                    zoomBy(multiplier);
+                    event.consume();
+                    return;
+                }
+
                 double viewportWidth = scrollPane.getViewportBounds().getWidth();
                 double contentWidth = timelinePane.getWidth();
                 double maxScroll = contentWidth - viewportWidth;
-                
+
                 if (maxScroll > 0) {
-                    // We want one mouse wheel tick (typically deltaY = 40) to scroll exactly DAY_WIDTH (1 day) or 2*DAY_WIDTH (2 days)
-                    // Let's set it to 1.5 days per typical tick for a smooth but precise feel
-                    double pixelDelta = Math.signum(event.getDeltaY()) * (DAY_WIDTH * 1.5);
-                    
-                    // Convert pixel delta to hvalue delta (0.0 to 1.0)
+                    // Horizontal scroll: one wheel tick scrolls one base cell (6 hours).
+                    double pixelsPerMinute = computePixelsPerMinute();
+                    double pixelDelta = Math.signum(event.getDeltaY()) * (BASE_CELL_MINUTES * pixelsPerMinute);
                     double hvalueDelta = pixelDelta / maxScroll;
-                    
+
                     double hvalue = scrollPane.getHvalue() - hvalueDelta;
                     hvalue = Math.max(-0.02, Math.min(1.02, hvalue));
                     scrollPane.setHvalue(hvalue);
@@ -291,10 +406,14 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
 
     private void drawTimeline() throws SQLException {
         loadedSchedules = new ArrayList<>(controller.applyPendingCompletionMutations(controller.loadAllSchedules()));
-        renderTimeline(loadedSchedules);
+        renderTimeline(loadedSchedules, null, true);
     }
 
     private void renderTimeline(List<Schedule> allSchedules) {
+        renderTimeline(allSchedules, null, true);
+    }
+
+    private void renderTimeline(List<Schedule> allSchedules, Long anchorMinuteOffset, boolean scrollToToday) {
         timelinePane.getChildren().clear();
 
         List<Schedule> baseSchedules = new ArrayList<>(allSchedules == null ? List.of() : allSchedules);
@@ -303,15 +422,15 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             return;
         }
 
-        baseSchedules.removeIf(s -> resolveTimelineStart(s) == null || resolveTimelineEnd(s) == null);
+        baseSchedules.removeIf(s -> resolveTimelineStartAt(s) == null || resolveTimelineEndAt(s) == null);
 
         LocalDate rawMinDate = baseSchedules.stream()
-            .map(TimelineView::resolveTimelineStart)
+            .map(TimelineView::resolveTimelineStartDate)
             .min(LocalDate::compareTo)
             .orElse(LocalDate.now().minusDays(7));
 
         LocalDate rawMaxDate = baseSchedules.stream()
-            .map(TimelineView::resolveTimelineEnd)
+            .map(TimelineView::resolveTimelineEndDate)
             .max(LocalDate::compareTo)
             .orElse(LocalDate.now().plusDays(30));
 
@@ -336,14 +455,14 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         List<Schedule> longTasks = new ArrayList<>();
 
         for (Schedule s : allSchedules) {
-            long days = ChronoUnit.DAYS.between(resolveTimelineStart(s), resolveTimelineEnd(s)) + 1;
+            long days = ChronoUnit.DAYS.between(resolveTimelineStartDate(s), resolveTimelineEndDate(s)) + 1;
             if (days < 7) shortTasks.add(s);
             else if (days <= 35) mediumTasks.add(s);
             else longTasks.add(s);
         }
 
-        Comparator<Schedule> cmp = Comparator.comparing(TimelineView::resolveTimelineStart)
-            .thenComparing(TimelineView::resolveTimelineEnd)
+        Comparator<Schedule> cmp = Comparator.comparing(TimelineView::resolveTimelineStartAt)
+            .thenComparing(TimelineView::resolveTimelineEndAt)
             .thenComparing(Schedule::getPriorityValue, Comparator.reverseOrder())
             .thenComparing(Schedule::getName, Comparator.nullsLast(String::compareToIgnoreCase));
             
@@ -358,18 +477,24 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         currentY = appendGroup(mediumTasks, text("view.timeline.group.medium"), currentY, minDate, maxDate, timelineEntries);
         currentY = appendGroup(longTasks, text("view.timeline.group.long"), currentY, minDate, maxDate, timelineEntries);
 
-        long visibleDays = ChronoUnit.DAYS.between(minDate, maxDate) + 1;
-        double totalWidth = LEFT_PADDING + RIGHT_PADDING + visibleDays * DAY_WIDTH;
+        LocalDateTime rangeStartAt = minDate.atStartOfDay();
+        LocalDateTime rangeEndAtExclusive = maxDate.plusDays(1).atStartOfDay();
+        lastRangeStartAt = rangeStartAt;
+        lastRangeEndAtExclusive = rangeEndAtExclusive;
+
+        long totalMinutes = ChronoUnit.MINUTES.between(rangeStartAt, rangeEndAtExclusive);
+        double pixelsPerMinute = computePixelsPerMinute();
+        double totalWidth = LEFT_PADDING + RIGHT_PADDING + totalMinutes * pixelsPerMinute;
         double paneHeight = currentY + BOTTOM_PADDING;
 
         timelinePane.setPrefWidth(totalWidth);
         timelinePane.setPrefHeight(Math.max(320, paneHeight));
 
         renderTracksBackground(totalWidth, paneHeight);
-        renderDateAxis(minDate, maxDate, totalWidth, paneHeight);
+        renderDateAxis(minDate, maxDate, totalWidth, paneHeight, pixelsPerMinute, totalMinutes);
 
         for (TimelineEntry entry : timelineEntries) {
-            renderTimelineEntry(entry, minDate, maxDate, totalWidth);
+            renderTimelineEntry(entry, rangeStartAt, rangeEndAtExclusive, totalWidth, pixelsPerMinute);
         }
 
         if (timelineEntries.isEmpty()) {
@@ -378,7 +503,11 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             hideTimelineState();
         }
 
-        scrollToToday(minDate, visibleDays, totalWidth);
+        if (anchorMinuteOffset != null) {
+            scrollToMinuteOffset(anchorMinuteOffset, totalWidth, pixelsPerMinute, true);
+        } else if (scrollToToday) {
+            scrollToToday(minDate, maxDate, totalWidth, pixelsPerMinute);
+        }
     }
 
     private double appendGroup(List<Schedule> schedules, String title, double startY, LocalDate minDate, LocalDate maxDate, List<TimelineEntry> entries) {
@@ -397,14 +526,27 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         // 改进的堆叠算法，处理不同长度日程的重叠
         List<TimelineEntry> groupEntries = new ArrayList<>();
         int maxStack = -1;
+        LocalDateTime rangeStartAt = minDate != null ? minDate.atStartOfDay() : null;
+        LocalDateTime rangeEndAtExclusive = maxDate != null ? maxDate.plusDays(1).atStartOfDay() : null;
 
         for (Schedule schedule : schedules) {
-            LocalDate sDate = resolveTimelineStart(schedule);
-            LocalDate eDate = resolveTimelineEnd(schedule);
-            if (sDate.isAfter(eDate)) { LocalDate t = sDate; sDate = eDate; eDate = t; }
-            
-            if (minDate != null && eDate.isBefore(minDate)) continue;
-            if (maxDate != null && sDate.isAfter(maxDate)) continue;
+            LocalDateTime sAt = resolveTimelineStartAt(schedule);
+            LocalDateTime eAt = resolveTimelineEndAt(schedule);
+            if (sAt == null || eAt == null) {
+                continue;
+            }
+            if (sAt.isAfter(eAt)) {
+                LocalDateTime t = sAt;
+                sAt = eAt;
+                eAt = t;
+            }
+
+            if (rangeStartAt != null && eAt.isBefore(rangeStartAt)) {
+                continue;
+            }
+            if (rangeEndAtExclusive != null && !sAt.isBefore(rangeEndAtExclusive)) {
+                continue;
+            }
 
             // 寻找第一个不冲突的层级
             int stackIndex = 0;
@@ -414,8 +556,8 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
                 for (TimelineEntry existing : groupEntries) {
                     // 如果存在重叠并且分配在同一层级
                     if (existing.getCardY() == cardStartY + stackIndex * CARD_STACK_OFFSET &&
-                        !sDate.isAfter(existing.getEndDate()) && 
-                        !eDate.isBefore(existing.getStartDate())) {
+                        !sAt.isAfter(existing.getEndAt()) &&
+                        !eAt.isBefore(existing.getStartAt())) {
                         conflict = true;
                         stackIndex++;
                         break;
@@ -426,7 +568,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             maxStack = Math.max(maxStack, stackIndex);
             
             double cardY = cardStartY + stackIndex * CARD_STACK_OFFSET;
-            TimelineEntry entry = new TimelineEntry(schedule, sDate, eDate, cardY);
+            TimelineEntry entry = new TimelineEntry(schedule, sAt, eAt, cardY);
             groupEntries.add(entry);
             entries.add(entry);
         }
@@ -464,37 +606,42 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         timelinePane.getChildren().add(bottomSeparator);
     }
 
-    private void renderDateAxis(LocalDate minDate, LocalDate maxDate, double totalWidth, double paneHeight) {
-                double gridBottom = paneHeight - BOTTOM_PADDING / 2;
+    private void renderDateAxis(
+        LocalDate minDate,
+        LocalDate maxDate,
+        double totalWidth,
+        double paneHeight,
+        double pixelsPerMinute,
+        long totalMinutes
+    ) {
+        double gridBottom = paneHeight - BOTTOM_PADDING / 2;
 
         Line axisLine = new Line(LEFT_PADDING, AXIS_LINE_Y, totalWidth - RIGHT_PADDING, AXIS_LINE_Y);
         axisLine.getStyleClass().add("timeline-axis-line");
         axisLine.setStrokeWidth(2);
         timelinePane.getChildren().add(axisLine);
 
+        double dayWidthPx = 1440 * pixelsPerMinute;
+        if (dayWidthPx <= 0) {
+            return;
+        }
+
+        // Today highlight + date labels per day.
         LocalDate current = minDate;
         int dayIndex = 0;
         while (!current.isAfter(maxDate)) {
-            double x = LEFT_PADDING + dayIndex * DAY_WIDTH;
+            double x = LEFT_PADDING + dayIndex * dayWidthPx;
 
             if (current.equals(LocalDate.now())) {
-                Rectangle todayHighlight = new Rectangle(x, 0, DAY_WIDTH, gridBottom);
+                Rectangle todayHighlight = new Rectangle(x, 0, dayWidthPx, gridBottom);
                 todayHighlight.getStyleClass().add("timeline-today-highlight");
                 timelinePane.getChildren().add(todayHighlight);
             }
 
-            Line gridLine = new Line(x, AXIS_LINE_Y, x, gridBottom);
-            gridLine.getStyleClass().add("timeline-grid-line");
-            timelinePane.getChildren().add(gridLine);
-
-            Line tick = new Line(x, AXIS_LINE_Y - 4, x, AXIS_LINE_Y + 6);
-            tick.getStyleClass().add("timeline-axis-tick");
-            timelinePane.getChildren().add(tick);
-
             Label dateLabel = new Label(current.format(DATE_FORMATTER));
             dateLabel.getStyleClass().add("schedule-date");
             dateLabel.setAlignment(Pos.CENTER);
-            dateLabel.setPrefWidth(DAY_WIDTH);
+            dateLabel.setPrefWidth(dayWidthPx);
             dateLabel.setLayoutX(x);
             dateLabel.setLayoutY(AXIS_LABEL_Y);
             if (current.equals(LocalDate.now())) {
@@ -506,28 +653,49 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             dayIndex++;
         }
 
-        double finalX = LEFT_PADDING + dayIndex * DAY_WIDTH;
-        Line finalGridLine = new Line(finalX, AXIS_LINE_Y, finalX, gridBottom);
-        finalGridLine.getStyleClass().add("timeline-grid-line");
-        timelinePane.getChildren().add(finalGridLine);
+        // Grid + ticks every 6 hours.
+        for (long minute = 0; minute <= totalMinutes; minute += BASE_CELL_MINUTES) {
+            double x = LEFT_PADDING + minute * pixelsPerMinute;
 
-        Line finalTick = new Line(finalX, AXIS_LINE_Y - 4, finalX, AXIS_LINE_Y + 6);
-        finalTick.getStyleClass().add("timeline-axis-tick");
-        timelinePane.getChildren().add(finalTick);
+            Line gridLine = new Line(x, AXIS_LINE_Y, x, gridBottom);
+            gridLine.getStyleClass().add("timeline-grid-line");
+            timelinePane.getChildren().add(gridLine);
+
+            Line tick = new Line(x, AXIS_LINE_Y - 4, x, AXIS_LINE_Y + 6);
+            tick.getStyleClass().add("timeline-axis-tick");
+            timelinePane.getChildren().add(tick);
+        }
     }
 
-    private void renderTimelineEntry(TimelineEntry entry, LocalDate minDate, LocalDate maxDate, double totalWidth) {
+    private void renderTimelineEntry(
+        TimelineEntry entry,
+        LocalDateTime rangeStartAt,
+        LocalDateTime rangeEndAtExclusive,
+        double totalWidth,
+        double pixelsPerMinute
+    ) {
         Schedule schedule = entry.getSchedule();
-        LocalDate entryStart = entry.getStartDate();
-        LocalDate entryEnd = entry.getEndDate();
-        LocalDate visualStart = entryStart.isBefore(minDate) ? minDate : entryStart;
-        LocalDate visualEnd = entryEnd.isAfter(maxDate) ? maxDate : entryEnd;
+        LocalDateTime entryStartAt = entry.getStartAt();
+        LocalDateTime entryEndAt = entry.getEndAt();
+        if (entryStartAt == null || entryEndAt == null) {
+            return;
+        }
 
-        long startOffset = ChronoUnit.DAYS.between(minDate, visualStart);
-        long duration = ChronoUnit.DAYS.between(visualStart, visualEnd) + 1;
+        LocalDateTime maxEndInclusive = rangeEndAtExclusive != null ? rangeEndAtExclusive.minusMinutes(1) : null;
+        LocalDateTime visualStart = rangeStartAt != null && entryStartAt.isBefore(rangeStartAt) ? rangeStartAt : entryStartAt;
+        LocalDateTime visualEnd = maxEndInclusive != null && entryEndAt.isAfter(maxEndInclusive) ? maxEndInclusive : entryEndAt;
+        if (visualEnd.isBefore(visualStart)) {
+            return;
+        }
 
-        double startX = LEFT_PADDING + startOffset * DAY_WIDTH + CARD_INSET_X;
-        double width = duration * DAY_WIDTH - CARD_INSET_X * 2;
+        long startOffsetMinutes = rangeStartAt != null ? ChronoUnit.MINUTES.between(rangeStartAt, visualStart) : 0;
+        long durationMinutesInclusive = Math.max(1, ChronoUnit.MINUTES.between(visualStart, visualEnd) + 1);
+
+        double durationPx = durationMinutesInclusive * pixelsPerMinute;
+        // Avoid negative widths for very short schedules while preserving minute-level proportions.
+        double insetX = Math.min(CARD_INSET_X, Math.max(0, durationPx * 0.18));
+        double startX = LEFT_PADDING + startOffsetMinutes * pixelsPerMinute + insetX;
+        double width = Math.max(1, durationPx - insetX * 2.0);
         double cardY = entry.getCardY();
 
         StackPane scheduleCard = new StackPane();
@@ -554,7 +722,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         Rectangle cardBackground = new Rectangle(width, CARD_HEIGHT);
         cardBackground.getStyleClass().addAll("card-bg", "schedule-card-layer");
 
-        Rectangle accentBar = new Rectangle(6, CARD_HEIGHT);
+        Rectangle accentBar = new Rectangle(Math.min(6, width), CARD_HEIGHT);
         accentBar.getStyleClass().addAll("card-accent-bar", "schedule-card-accent");
 
         // 改进布局：将标题和日期放入水平容器以防止重叠，并处理截断
@@ -576,7 +744,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         // 确保标题长时显示省略号
         titleLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
         
-        Label dateLabel = new Label(entryStart.format(DATE_FORMATTER) + " - " + entryEnd.format(DATE_FORMATTER));
+        Label dateLabel = new Label(formatEntryRangeLabel(entryStartAt, entryEndAt, schedule));
         dateLabel.getStyleClass().addAll("card-date", "schedule-card-subtitle-text");
         dateLabel.setMouseTransparent(true);
         dateLabel.setMinWidth(Region.USE_PREF_SIZE); // 防止日期被过度压缩
@@ -598,14 +766,14 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         scheduleCard.getChildren().addAll(cardBackground, accentBar, contentBox);
         StackPane.setAlignment(accentBar, Pos.CENTER_LEFT);
 
-        if (entryStart.isBefore(minDate)) {
+        if (rangeStartAt != null && entryStartAt.isBefore(rangeStartAt)) {
             Rectangle leftClip = new Rectangle(8, CARD_HEIGHT);
             leftClip.getStyleClass().addAll("card-clip", "schedule-card-clip");
             StackPane.setAlignment(leftClip, Pos.CENTER_LEFT);
             scheduleCard.getChildren().add(leftClip);
         }
 
-        if (entryEnd.isAfter(maxDate)) {
+        if (rangeEndAtExclusive != null && !entryEndAt.isBefore(rangeEndAtExclusive)) {
             Rectangle rightClip = new Rectangle(8, CARD_HEIGHT);
             rightClip.getStyleClass().addAll("card-clip", "schedule-card-clip");
             StackPane.setAlignment(rightClip, Pos.CENTER_RIGHT);
@@ -651,7 +819,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             highlightSelectedScheduleCard(scheduleCard);
         });
 
-        Tooltip.install(scheduleCard, new Tooltip(buildTooltipText(schedule, entryStart, entryEnd)));
+        Tooltip.install(scheduleCard, new Tooltip(buildTooltipText(schedule, entryStartAt, entryEndAt)));
         timelinePane.getChildren().add(scheduleCard);
     }
 
@@ -663,15 +831,24 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         selectedCard.getStyleClass().addAll("timeline-schedule-selected", "schedule-card-state-selected");
     }
 
-    private void scrollToToday(LocalDate minDate, long visibleDays, double totalWidth) {
+    private void scrollToToday(LocalDate minDate, LocalDate maxDate, double totalWidth, double pixelsPerMinute) {
         Platform.runLater(() -> {
-            long todayOffset = ChronoUnit.DAYS.between(minDate, LocalDate.now());
-            if (todayOffset < 0 || todayOffset >= visibleDays) {
+            if (minDate == null || maxDate == null) {
                 scrollPane.setHvalue(0);
                 return;
             }
 
-            double todayCenterX = LEFT_PADDING + todayOffset * DAY_WIDTH + DAY_WIDTH / 2;
+            LocalDate today = LocalDate.now();
+            if (today.isBefore(minDate) || today.isAfter(maxDate)) {
+                scrollPane.setHvalue(0);
+                return;
+            }
+
+            LocalDateTime rangeStartAt = minDate.atStartOfDay();
+            LocalDateTime todayCenterAt = today.atTime(LocalTime.NOON);
+            long todayOffsetMinutes = ChronoUnit.MINUTES.between(rangeStartAt, todayCenterAt);
+            double todayCenterX = LEFT_PADDING + todayOffsetMinutes * pixelsPerMinute;
+
             double viewportWidth = scrollPane.getViewportBounds().getWidth();
             double maxScroll = totalWidth - viewportWidth;
             if (maxScroll <= 0) {
@@ -681,6 +858,27 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
 
             double targetScroll = todayCenterX - viewportWidth * 0.42;
             scrollPane.setHvalue(Math.max(0, Math.min(1, targetScroll / maxScroll)));
+        });
+    }
+
+    private void scrollToMinuteOffset(
+        long minuteOffset,
+        double totalWidth,
+        double pixelsPerMinute,
+        boolean center
+    ) {
+        Platform.runLater(() -> {
+            double viewportWidth = scrollPane.getViewportBounds().getWidth();
+            double maxScroll = totalWidth - viewportWidth;
+            if (maxScroll <= 0) {
+                scrollPane.setHvalue(0);
+                return;
+            }
+
+            double anchorX = LEFT_PADDING + minuteOffset * pixelsPerMinute;
+            double targetScroll = center ? anchorX - viewportWidth / 2.0 : anchorX - viewportWidth * 0.42;
+            double hvalue = clampDouble(targetScroll / maxScroll, 0, 1);
+            scrollPane.setHvalue(hvalue);
         });
     }
 
@@ -721,7 +919,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             changed = true;
         }
         if (changed) {
-            renderTimeline(loadedSchedules);
+            renderTimeline(loadedSchedules, resolveViewportCenterMinuteOffset(), false);
         }
     }
 
@@ -730,7 +928,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         if (mutation == null || loadedSchedules.isEmpty()) {
             return;
         }
-        renderTimeline(loadedSchedules);
+        renderTimeline(loadedSchedules, resolveViewportCenterMinuteOffset(), false);
     }
 
     @Override
@@ -747,7 +945,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             changed = true;
         }
         if (changed) {
-            renderTimeline(loadedSchedules);
+            renderTimeline(loadedSchedules, resolveViewportCenterMinuteOffset(), false);
         }
     }
 
@@ -757,10 +955,10 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
 
     static List<Schedule> filterAndSortSchedules(List<Schedule> schedules, String level) {
         List<Schedule> renderableSchedules = new ArrayList<>(schedules);
-        renderableSchedules.removeIf(schedule -> resolveTimelineStart(schedule) == null || resolveTimelineEnd(schedule) == null);
+        renderableSchedules.removeIf(schedule -> resolveTimelineStartAt(schedule) == null || resolveTimelineEndAt(schedule) == null);
         
         renderableSchedules.removeIf(schedule -> {
-            long days = ChronoUnit.DAYS.between(resolveTimelineStart(schedule), resolveTimelineEnd(schedule)) + 1;
+            long days = ChronoUnit.DAYS.between(resolveTimelineStartDate(schedule), resolveTimelineEndDate(schedule)) + 1;
             if (level.startsWith("day") && days >= 7) return true;
             if (level.startsWith("week") && (days < 7 || days > 35)) return true;
             if (level.startsWith("month") && days <= 35) return true;
@@ -768,8 +966,8 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         });
 
         renderableSchedules.sort(Comparator
-            .comparing(TimelineView::resolveTimelineStart)
-            .thenComparing(TimelineView::resolveTimelineEnd)
+            .comparing(TimelineView::resolveTimelineStartAt)
+            .thenComparing(TimelineView::resolveTimelineEndAt)
             .thenComparing(Schedule::getPriorityValue, Comparator.reverseOrder())
             .thenComparing(Schedule::getName, Comparator.nullsLast(String::compareToIgnoreCase)));
         return renderableSchedules;
@@ -780,14 +978,18 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         java.util.Map<LocalDate, Integer> dateCount = new java.util.HashMap<>();
 
         for (Schedule schedule : filterAndSortSchedules(schedules, level)) {
-            LocalDate startDate = resolveTimelineStart(schedule);
-            LocalDate endDate = resolveTimelineEnd(schedule);
-
-            if (startDate.isAfter(endDate)) {
-                LocalDate temp = startDate;
-                startDate = endDate;
-                endDate = temp;
+            LocalDateTime startAt = resolveTimelineStartAt(schedule);
+            LocalDateTime endAt = resolveTimelineEndAt(schedule);
+            if (startAt == null || endAt == null) {
+                continue;
             }
+            if (startAt.isAfter(endAt)) {
+                LocalDateTime temp = startAt;
+                startAt = endAt;
+                endAt = temp;
+            }
+            LocalDate startDate = startAt.toLocalDate();
+            LocalDate endDate = endAt.toLocalDate();
 
             if (minDate != null && endDate.isBefore(minDate)) {
                 continue;
@@ -799,34 +1001,82 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             int laneIndex = dateCount.getOrDefault(startDate, 0);
             dateCount.put(startDate, laneIndex + 1);
 
-            entries.add(new TimelineEntry(schedule, startDate, endDate, laneIndex));
+            entries.add(new TimelineEntry(schedule, startAt, endAt, laneIndex));
         }
 
         return entries;
     }
 
-    static LocalDate resolveTimelineStart(Schedule schedule) {
-        if (schedule.getStartDate() != null) {
-            return schedule.getStartDate();
-        }
-        return schedule.getDueDate();
+    static LocalDate resolveTimelineStartDate(Schedule schedule) {
+        LocalDateTime startAt = resolveTimelineStartAt(schedule);
+        return startAt != null ? startAt.toLocalDate() : null;
     }
 
-    static LocalDate resolveTimelineEnd(Schedule schedule) {
-        if (schedule.getDueDate() != null) {
-            return schedule.getDueDate();
-        }
-        return schedule.getStartDate();
+    static LocalDate resolveTimelineEndDate(Schedule schedule) {
+        LocalDateTime endAt = resolveTimelineEndAt(schedule);
+        return endAt != null ? endAt.toLocalDate() : null;
     }
 
-    private String buildTooltipText(Schedule schedule, LocalDate startDate, LocalDate endDate) {
+    static LocalDateTime resolveTimelineStartAt(Schedule schedule) {
+        TimelineRange range = resolveTimelineRange(schedule);
+        return range != null ? range.startAt : null;
+    }
+
+    static LocalDateTime resolveTimelineEndAt(Schedule schedule) {
+        TimelineRange range = resolveTimelineRange(schedule);
+        return range != null ? range.endAt : null;
+    }
+
+    private static TimelineRange resolveTimelineRange(Schedule schedule) {
+        if (schedule == null) {
+            return null;
+        }
+
+        LocalDateTime effectiveStart = schedule.getEffectiveStartAt();
+        LocalDateTime effectiveEnd = schedule.getEffectiveEndAt();
+        if (effectiveStart == null || effectiveEnd == null) {
+            return null;
+        }
+
+        LocalDateTime startAt = effectiveStart;
+        LocalDateTime endAt = effectiveEnd;
+
+        boolean allDay = schedule.isAllDay() || ScheduleItem.TIME_PRECISION_DAY.equals(schedule.getTimePrecision());
+        if (allDay) {
+            LocalDate startDate = startAt.toLocalDate();
+            LocalDate endDate = endAt.toLocalDate();
+            startAt = startDate.atStartOfDay();
+            endAt = endDate.atTime(23, 59);
+        } else {
+            boolean hasStart = schedule.getStartAt() != null;
+            boolean hasEndLike = schedule.getEndAt() != null || schedule.getDueAt() != null;
+
+            if (!hasStart && hasEndLike) {
+                // Due/end only: render as starting at 00:00 of the end date.
+                startAt = endAt.toLocalDate().atStartOfDay();
+            } else if (hasStart && !hasEndLike) {
+                // Start only: render as running through 23:59 of that same day.
+                endAt = startAt.toLocalDate().atTime(23, 59);
+            }
+        }
+
+        if (startAt.isAfter(endAt)) {
+            LocalDateTime temp = startAt;
+            startAt = endAt;
+            endAt = temp;
+        }
+
+        return new TimelineRange(startAt, endAt);
+    }
+
+    private String buildTooltipText(Schedule schedule, LocalDateTime startAt, LocalDateTime endAt) {
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-        LocalDateTime startAt = schedule.getStartAt();
-        LocalDateTime dueAt = schedule.getDueAt();
-        long duration = ChronoUnit.DAYS.between(startDate, endDate) + 1;
+        LocalDateTime rawStartAt = schedule.getStartAt();
+        LocalDateTime rawDueAt = schedule.getDueAt();
+        long duration = ChronoUnit.DAYS.between(startAt.toLocalDate(), endAt.toLocalDate()) + 1;
         return schedule.getName() + "\n"
-            + text("view.timeline.tooltip.start", startAt != null ? startAt.format(dateTimeFormatter) : text("common.unset")) + "\n"
-            + text("view.timeline.tooltip.due", dueAt != null ? dueAt.format(dateTimeFormatter) : text("common.unset")) + "\n"
+            + text("view.timeline.tooltip.start", rawStartAt != null ? rawStartAt.format(dateTimeFormatter) : text("common.unset")) + "\n"
+            + text("view.timeline.tooltip.due", rawDueAt != null ? rawDueAt.format(dateTimeFormatter) : text("common.unset")) + "\n"
             + text("view.timeline.tooltip.duration", duration) + "\n"
             + text("view.timeline.tooltip.priority", controller.priorityDisplayName(schedule.getPriority())) + "\n"
             + text("view.timeline.tooltip.status", schedule.isCompleted() ? text("status.completed") : text("status.pending"));
@@ -840,14 +1090,14 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
 
     static final class TimelineEntry {
         private final Schedule schedule;
-        private final LocalDate startDate;
-        private final LocalDate endDate;
+        private final LocalDateTime startAt;
+        private final LocalDateTime endAt;
         private final double cardY;
 
-        TimelineEntry(Schedule schedule, LocalDate startDate, LocalDate endDate, double cardY) {
+        TimelineEntry(Schedule schedule, LocalDateTime startAt, LocalDateTime endAt, double cardY) {
             this.schedule = schedule;
-            this.startDate = startDate;
-            this.endDate = endDate;
+            this.startAt = startAt;
+            this.endAt = endAt;
             this.cardY = cardY;
         }
 
@@ -855,16 +1105,48 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             return schedule;
         }
 
-        LocalDate getStartDate() {
-            return startDate;
+        LocalDateTime getStartAt() {
+            return startAt;
         }
 
-        LocalDate getEndDate() {
-            return endDate;
+        LocalDateTime getEndAt() {
+            return endAt;
         }
 
         double getCardY() {
             return cardY;
         }
+    }
+
+    private static final class TimelineRange {
+        private final LocalDateTime startAt;
+        private final LocalDateTime endAt;
+
+        private TimelineRange(LocalDateTime startAt, LocalDateTime endAt) {
+            this.startAt = startAt;
+            this.endAt = endAt;
+        }
+    }
+
+    private static String formatEntryRangeLabel(LocalDateTime startAt, LocalDateTime endAt, Schedule schedule) {
+        if (startAt == null || endAt == null) {
+            return "";
+        }
+
+        boolean allDay = schedule != null
+            && (schedule.isAllDay() || ScheduleItem.TIME_PRECISION_DAY.equals(schedule.getTimePrecision()));
+        if (allDay) {
+            LocalDate startDate = startAt.toLocalDate();
+            LocalDate endDate = endAt.toLocalDate();
+            if (startDate.equals(endDate)) {
+                return startDate.format(DATE_FORMATTER);
+            }
+            return startDate.format(DATE_FORMATTER) + " - " + endDate.format(DATE_FORMATTER);
+        }
+
+        if (startAt.toLocalDate().equals(endAt.toLocalDate())) {
+            return startAt.format(TIME_FORMATTER) + " - " + endAt.format(TIME_FORMATTER);
+        }
+        return startAt.format(DATE_TIME_FORMATTER) + " - " + endAt.format(DATE_TIME_FORMATTER);
     }
 }

@@ -4,6 +4,7 @@ import com.example.model.Schedule;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -12,23 +13,25 @@ import static org.junit.jupiter.api.Assertions.*;
 class TimelineViewTest {
 
     @Test
-    void testResolveTimelineStartAndEnd() {
+    void resolveTimelineRangeHandlesMissingBoundariesAndMinutePrecision() {
         Schedule s1 = new Schedule();
-        s1.setStartDate(LocalDate.of(2023, 10, 1));
-        s1.setDueDate(LocalDate.of(2023, 10, 5));
+        s1.setStartAt(LocalDateTime.of(2023, 10, 1, 10, 5));
+        s1.setDueAt(LocalDateTime.of(2023, 10, 5, 18, 0));
 
-        assertEquals(LocalDate.of(2023, 10, 1), TimelineView.resolveTimelineStart(s1));
-        assertEquals(LocalDate.of(2023, 10, 5), TimelineView.resolveTimelineEnd(s1));
+        assertEquals(LocalDateTime.of(2023, 10, 1, 10, 5), TimelineView.resolveTimelineStartAt(s1));
+        assertEquals(LocalDateTime.of(2023, 10, 5, 18, 0), TimelineView.resolveTimelineEndAt(s1));
+        assertEquals(LocalDate.of(2023, 10, 1), TimelineView.resolveTimelineStartDate(s1));
+        assertEquals(LocalDate.of(2023, 10, 5), TimelineView.resolveTimelineEndDate(s1));
 
-        Schedule s2 = new Schedule();
-        s2.setStartDate(LocalDate.of(2023, 10, 1));
-        // No due date
-        assertEquals(LocalDate.of(2023, 10, 1), TimelineView.resolveTimelineEnd(s2));
+        Schedule dueOnly = new Schedule();
+        dueOnly.setDueAt(LocalDateTime.of(2023, 10, 5, 12, 34));
+        assertEquals(LocalDateTime.of(2023, 10, 5, 0, 0), TimelineView.resolveTimelineStartAt(dueOnly));
+        assertEquals(LocalDateTime.of(2023, 10, 5, 12, 34), TimelineView.resolveTimelineEndAt(dueOnly));
 
-        Schedule s3 = new Schedule();
-        s3.setDueDate(LocalDate.of(2023, 10, 5));
-        // No start date
-        assertEquals(LocalDate.of(2023, 10, 5), TimelineView.resolveTimelineStart(s3));
+        Schedule startOnly = new Schedule();
+        startOnly.setStartAt(LocalDateTime.of(2023, 10, 1, 9, 0));
+        assertEquals(LocalDateTime.of(2023, 10, 1, 9, 0), TimelineView.resolveTimelineStartAt(startOnly));
+        assertEquals(LocalDateTime.of(2023, 10, 1, 23, 59), TimelineView.resolveTimelineEndAt(startOnly));
     }
 
     @Test

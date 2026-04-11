@@ -35,9 +35,11 @@ import com.example.application.MainViewModel;
 import com.example.application.NavigationService;
 import com.example.application.RecurrenceSummaryFormatter;
 import com.example.application.ScheduleItemService;
+import com.example.application.ShortcutSpec;
 import com.example.application.ThemeAppearance;
 import com.example.application.ThemeFamily;
 import com.example.application.ThemeService;
+import com.example.application.WheelModifier;
 import com.example.config.UserPreferencesStore;
 import com.example.model.ScheduleItem;
 import com.example.model.Schedule;
@@ -85,6 +87,7 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputControl;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
@@ -208,6 +211,14 @@ public class MainController {
     private static final int SEARCH_SUGGESTION_BUCKET_LIMIT = 3;
     private static final Duration SEARCH_SUGGESTION_DEBOUNCE_DURATION = Duration.millis(120);
     private static final Pattern SEARCH_HISTORY_WHITESPACE = Pattern.compile("\\s+");
+
+    private static final String PREF_TIMELINE_ZOOM_WHEEL_MODIFIER_KEY = "todo.shortcut.timeline.zoom.wheelModifier";
+    private static final String PREF_TIMELINE_ZOOM_IN_KEY = "todo.shortcut.timeline.zoom.in";
+    private static final String PREF_TIMELINE_ZOOM_OUT_KEY = "todo.shortcut.timeline.zoom.out";
+
+    private WheelModifier timelineZoomWheelModifier = WheelModifier.CTRL;
+    private ShortcutSpec timelineZoomInShortcut = ShortcutSpec.of(true, false, false, false, KeyCode.EQUALS);
+    private ShortcutSpec timelineZoomOutShortcut = ShortcutSpec.of(true, false, false, false, KeyCode.MINUS);
     
     public MainController() {
         this(ApplicationContext.createDefault());
@@ -230,6 +241,7 @@ public class MainController {
         syncIconState();
         iconService.addChangeListener(this::refreshIconography);
         searchHistory.addAll(loadSearchHistory(applicationContext.getPreferencesStore()));
+        loadTimelineShortcutPreferences();
         scheduleCompletionExecutor = Executors.newSingleThreadExecutor(createCompletionThreadFactory());
         scheduleCompletionCoordinator = new ScheduleCompletionCoordinator(
             scheduleItemService::updateScheduleItemCompletion,
@@ -879,6 +891,60 @@ public class MainController {
         } catch (NumberFormatException ex) {
             return defaultValue;
         }
+    }
+
+    public double parseDoublePreference(String key, double fallback) {
+        if (key == null || key.isBlank()) {
+            return fallback;
+        }
+        UserPreferencesStore preferencesStore = applicationContext.getPreferencesStore();
+        String raw = preferencesStore.get(key, null);
+        return parseDoubleOrDefault(raw, fallback);
+    }
+
+    public void putPreference(String key, String value) {
+        if (key == null || key.isBlank()) {
+            return;
+        }
+        applicationContext.getPreferencesStore().put(key, value != null ? value : "");
+    }
+
+    public WheelModifier getTimelineZoomWheelModifier() {
+        return timelineZoomWheelModifier;
+    }
+
+    public ShortcutSpec getTimelineZoomInShortcut() {
+        return timelineZoomInShortcut;
+    }
+
+    public ShortcutSpec getTimelineZoomOutShortcut() {
+        return timelineZoomOutShortcut;
+    }
+
+    private void loadTimelineShortcutPreferences() {
+        UserPreferencesStore preferencesStore = applicationContext.getPreferencesStore();
+        timelineZoomWheelModifier = WheelModifier.fromPreference(preferencesStore.get(PREF_TIMELINE_ZOOM_WHEEL_MODIFIER_KEY, null));
+
+        ShortcutSpec storedZoomIn = ShortcutSpec.parsePreference(preferencesStore.get(PREF_TIMELINE_ZOOM_IN_KEY, null));
+        if (storedZoomIn != null) {
+            timelineZoomInShortcut = storedZoomIn;
+        }
+
+        ShortcutSpec storedZoomOut = ShortcutSpec.parsePreference(preferencesStore.get(PREF_TIMELINE_ZOOM_OUT_KEY, null));
+        if (storedZoomOut != null) {
+            timelineZoomOutShortcut = storedZoomOut;
+        }
+    }
+
+    private void saveTimelineShortcutPreferences(WheelModifier modifier, ShortcutSpec zoomIn, ShortcutSpec zoomOut) {
+        timelineZoomWheelModifier = modifier != null ? modifier : WheelModifier.CTRL;
+        timelineZoomInShortcut = zoomIn != null ? zoomIn : ShortcutSpec.of(true, false, false, false, KeyCode.EQUALS);
+        timelineZoomOutShortcut = zoomOut != null ? zoomOut : ShortcutSpec.of(true, false, false, false, KeyCode.MINUS);
+
+        UserPreferencesStore preferencesStore = applicationContext.getPreferencesStore();
+        preferencesStore.put(PREF_TIMELINE_ZOOM_WHEEL_MODIFIER_KEY, timelineZoomWheelModifier.getId());
+        preferencesStore.put(PREF_TIMELINE_ZOOM_IN_KEY, timelineZoomInShortcut.toPreferenceString());
+        preferencesStore.put(PREF_TIMELINE_ZOOM_OUT_KEY, timelineZoomOutShortcut.toPreferenceString());
     }
 
     private void updateFeaturePanelState() {
@@ -1902,6 +1968,9 @@ public class MainController {
         IconPack originalIconPack = currentIconPack;
         boolean originalThemeIconBinding = currentThemeIconBinding;
         boolean originalLabsEnabled = experimentalFeaturesService.isLabsEnabled();
+        WheelModifier originalTimelineZoomWheelModifier = timelineZoomWheelModifier;
+        ShortcutSpec originalTimelineZoomInShortcut = timelineZoomInShortcut;
+        ShortcutSpec originalTimelineZoomOutShortcut = timelineZoomOutShortcut;
 
         VBox generalPage = new VBox(18);
         generalPage.getStyleClass().add("settings-page");
@@ -1936,6 +2005,9 @@ public class MainController {
         AppFontWeight[] selectedFontWeight = new AppFontWeight[] { originalFontWeight };
         boolean[] selectedLabsEnabled = new boolean[] { originalLabsEnabled };
         boolean[] selectedThemeIconBinding = new boolean[] { originalThemeIconBinding };
+        WheelModifier[] selectedTimelineZoomWheelModifier = new WheelModifier[] { originalTimelineZoomWheelModifier };
+        ShortcutSpec[] selectedTimelineZoomInShortcut = new ShortcutSpec[] { originalTimelineZoomInShortcut };
+        ShortcutSpec[] selectedTimelineZoomOutShortcut = new ShortcutSpec[] { originalTimelineZoomOutShortcut };
 
         VBox languageFontCard = createSettingsCard(text("settings.preferences.title"), text("settings.preferences.subtitle"));
         ComboBox<AppLanguage> languageComboBox = new ComboBox<>();
@@ -1984,6 +2056,78 @@ public class MainController {
             createSettingRow(text("settings.preferences.language.label"), text("settings.preferences.language.description"), languageComboBox),
             createSettingRow(text("settings.preferences.font.label"), text("settings.preferences.font.description"), fontChipRow)
         );
+
+        VBox shortcutsCard = createSettingsCard(text("settings.shortcuts.title"), text("settings.shortcuts.subtitle"));
+        ComboBox<WheelModifier> wheelModifierCombo = new ComboBox<>();
+        wheelModifierCombo.getItems().setAll(WheelModifier.supportedValues());
+        wheelModifierCombo.setValue(selectedTimelineZoomWheelModifier[0]);
+        wheelModifierCombo.setMaxWidth(200);
+        wheelModifierCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(WheelModifier item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : wheelModifierDisplayName(item));
+            }
+        });
+        wheelModifierCombo.setCellFactory(listView -> new ListCell<>() {
+            @Override
+            protected void updateItem(WheelModifier item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : wheelModifierDisplayName(item));
+            }
+        });
+        wheelModifierCombo.valueProperty().addListener((obs, oldValue, newValue) ->
+            selectedTimelineZoomWheelModifier[0] = newValue != null ? newValue : originalTimelineZoomWheelModifier
+        );
+
+        Label zoomInValueLabel = new Label(selectedTimelineZoomInShortcut[0].toDisplayString());
+        zoomInValueLabel.getStyleClass().add("settings-inline-value");
+        Button zoomInSetButton = new Button(text("settings.shortcuts.action.set"));
+        zoomInSetButton.getStyleClass().add("button-secondary");
+        zoomInSetButton.setCursor(Cursor.HAND);
+        zoomInSetButton.setOnAction(event -> {
+            ShortcutSpec captured = captureShortcutSpec();
+            if (captured != null) {
+                selectedTimelineZoomInShortcut[0] = captured;
+                zoomInValueLabel.setText(captured.toDisplayString());
+            }
+        });
+        HBox zoomInControl = new HBox(10, zoomInValueLabel, zoomInSetButton);
+        zoomInControl.setAlignment(Pos.CENTER_RIGHT);
+
+        Label zoomOutValueLabel = new Label(selectedTimelineZoomOutShortcut[0].toDisplayString());
+        zoomOutValueLabel.getStyleClass().add("settings-inline-value");
+        Button zoomOutSetButton = new Button(text("settings.shortcuts.action.set"));
+        zoomOutSetButton.getStyleClass().add("button-secondary");
+        zoomOutSetButton.setCursor(Cursor.HAND);
+        zoomOutSetButton.setOnAction(event -> {
+            ShortcutSpec captured = captureShortcutSpec();
+            if (captured != null) {
+                selectedTimelineZoomOutShortcut[0] = captured;
+                zoomOutValueLabel.setText(captured.toDisplayString());
+            }
+        });
+        HBox zoomOutControl = new HBox(10, zoomOutValueLabel, zoomOutSetButton);
+        zoomOutControl.setAlignment(Pos.CENTER_RIGHT);
+
+        shortcutsCard.getChildren().addAll(
+            createSettingRow(
+                text("settings.shortcuts.timelineZoomWheel.label"),
+                text("settings.shortcuts.timelineZoomWheel.description"),
+                wheelModifierCombo
+            ),
+            createSettingRow(
+                text("settings.shortcuts.timelineZoomIn.label"),
+                text("settings.shortcuts.timelineZoomIn.description"),
+                zoomInControl
+            ),
+            createSettingRow(
+                text("settings.shortcuts.timelineZoomOut.label"),
+                text("settings.shortcuts.timelineZoomOut.description"),
+                zoomOutControl
+            )
+        );
+
         VBox labsCard = createSettingsCard(text("settings.labs.title"), text("settings.labs.subtitle"));
         ToggleButton labsToggle = new ToggleButton();
         labsToggle.getStyleClass().add("modern-toggle-switch");
@@ -1999,7 +2143,7 @@ public class MainController {
             createSettingRow(text("settings.labs.toggle.label"), text("settings.labs.toggle.description"), labsToggle),
             labsFootnote
         );
-        generalPage.getChildren().addAll(aboutCard, currentCard, languageFontCard, labsCard);
+        generalPage.getChildren().addAll(aboutCard, currentCard, languageFontCard, shortcutsCard, labsCard);
 
         VBox personalizationPage = new VBox(18);
         personalizationPage.getStyleClass().add("settings-page");
@@ -2335,6 +2479,15 @@ public class MainController {
             fontService.selectFontWeight(selectedFontWeight[0]);
             applyCurrentFont();
         }
+        if (selectedTimelineZoomWheelModifier[0] != originalTimelineZoomWheelModifier
+            || !selectedTimelineZoomInShortcut[0].equals(originalTimelineZoomInShortcut)
+            || !selectedTimelineZoomOutShortcut[0].equals(originalTimelineZoomOutShortcut)) {
+            saveTimelineShortcutPreferences(
+                selectedTimelineZoomWheelModifier[0],
+                selectedTimelineZoomInShortcut[0],
+                selectedTimelineZoomOutShortcut[0]
+            );
+        }
         refreshAllViews();
         if (selectedLanguage[0] != null && selectedLanguage[0] != originalPreferredLanguage) {
             showRestartLanguageNotice(selectedLanguage[0]);
@@ -2403,6 +2556,62 @@ public class MainController {
         }
         row.getChildren().addAll(textBox, control);
         return row;
+    }
+
+    private String wheelModifierDisplayName(WheelModifier modifier) {
+        WheelModifier resolved = modifier != null ? modifier : WheelModifier.CTRL;
+        return switch (resolved) {
+            case CTRL -> text("shortcut.modifier.ctrl");
+            case ALT -> text("shortcut.modifier.alt");
+            case SHIFT -> text("shortcut.modifier.shift");
+            case META -> text("shortcut.modifier.meta");
+            case NONE -> text("shortcut.modifier.none");
+        };
+    }
+
+    private ShortcutSpec captureShortcutSpec() {
+        Dialog<ShortcutSpec> dialog = new Dialog<>();
+        dialog.setTitle(text("settings.shortcuts.capture.title"));
+        dialog.setHeaderText(null);
+        dialog.getDialogPane().getButtonTypes().add(new ButtonType(text("common.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE));
+        dialog.getDialogPane().getStylesheets().setAll(getCurrentThemeStylesheets());
+        dialog.getDialogPane().getStyleClass().add("settings-dialog-pane");
+        applyDialogPreferences(dialog.getDialogPane());
+
+        Label hint = new Label(text("settings.shortcuts.capture.hint"));
+        hint.getStyleClass().add("settings-row-desc");
+        hint.setWrapText(true);
+        dialog.getDialogPane().setContent(hint);
+
+        dialog.getDialogPane().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                dialog.setResult(null);
+                dialog.close();
+                event.consume();
+                return;
+            }
+
+            ShortcutSpec spec = ShortcutSpec.fromKeyEvent(event);
+            if (spec == null) {
+                if (event.getCode() != null && event.getCode().isModifierKey()) {
+                    hint.setText(text("settings.shortcuts.capture.invalidModifier"));
+                } else {
+                    hint.setText(text("settings.shortcuts.capture.invalid"));
+                }
+                event.consume();
+                return;
+            }
+
+            dialog.setResult(spec);
+            dialog.close();
+            event.consume();
+        });
+
+        dialog.setResultConverter(button -> null);
+        dialog.setOnShown(event -> Platform.runLater(() -> dialog.getDialogPane().requestFocus()));
+
+        Optional<ShortcutSpec> result = dialog.showAndWait();
+        return result.orElse(null);
     }
 
     private void populateTrashSettingsList(VBox host, Label summaryLabel) {
@@ -2719,8 +2928,81 @@ public class MainController {
             if (event.getCode() == KeyCode.ESCAPE && infoPanelView.isPanelVisible()) {
                 closeScheduleDetails();
                 event.consume();
+                return;
+            }
+
+            if (currentView == timelineView && timelineView != null && handleTimelineZoomKeyPress(event)) {
+                event.consume();
             }
         });
+    }
+
+    private boolean handleTimelineZoomKeyPress(KeyEvent event) {
+        if (event == null || scene == null) {
+            return false;
+        }
+        if (isTextInputFocused()) {
+            return false;
+        }
+
+        if (matchesTimelineZoomIn(event)) {
+            timelineView.zoomIn();
+            return true;
+        }
+        if (matchesTimelineZoomOut(event)) {
+            timelineView.zoomOut();
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isTextInputFocused() {
+        if (scene == null) {
+            return false;
+        }
+        Node focusOwner = scene.getFocusOwner();
+        return focusOwner instanceof TextInputControl;
+    }
+
+    private boolean matchesTimelineZoomIn(KeyEvent event) {
+        return matchesShortcutWithZoomAliases(timelineZoomInShortcut, event);
+    }
+
+    private boolean matchesTimelineZoomOut(KeyEvent event) {
+        return matchesShortcutWithZoomAliases(timelineZoomOutShortcut, event);
+    }
+
+    private boolean matchesShortcutWithZoomAliases(ShortcutSpec spec, KeyEvent event) {
+        if (spec == null || event == null) {
+            return false;
+        }
+
+        KeyCode stored = spec.getKeyCode();
+        KeyCode incoming = event.getCode();
+        boolean keyMatches = switch (stored) {
+            case EQUALS, ADD -> incoming == KeyCode.EQUALS || incoming == KeyCode.ADD;
+            case MINUS, SUBTRACT -> incoming == KeyCode.MINUS || incoming == KeyCode.SUBTRACT;
+            default -> incoming == stored;
+        };
+        if (!keyMatches) {
+            return false;
+        }
+
+        if (spec.matchesModifiers(event)) {
+            return true;
+        }
+
+        // Allow extra Shift when the stored shortcut doesn't require it (Ctrl+= vs Ctrl++).
+        if ((stored == KeyCode.EQUALS || stored == KeyCode.ADD)
+            && !spec.isShift()
+            && event.isShiftDown()
+            && event.isControlDown() == spec.isCtrl()
+            && event.isAltDown() == spec.isAlt()
+            && event.isMetaDown() == spec.isMeta()) {
+            return true;
+        }
+
+        return false;
     }
 
     private boolean isDescendant(Node node, Node possibleAncestor) {
