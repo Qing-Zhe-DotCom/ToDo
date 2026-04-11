@@ -3,6 +3,7 @@
 /todo/.jdks/
 /todo/.m2-repo/
 /todo/.installer-work/
+/.m2/
 *.dump
 *.dumpstream
 *.log

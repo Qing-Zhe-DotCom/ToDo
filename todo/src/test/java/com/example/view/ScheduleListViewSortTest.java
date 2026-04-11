@@ -75,6 +75,40 @@ class ScheduleListViewSortTest {
         );
     }
 
+    @Test
+    void dueRelativeTextUsesExpectedThresholds() {
+        LocalDateTime now = LocalDateTime.of(2026, 4, 11, 12, 0);
+
+        assertEquals("ends in >1 mo", ScheduleListView.buildDueRelativeText(now, now.plusDays(45), null));
+        assertEquals("ended >1 mo ago", ScheduleListView.buildDueRelativeText(now, now.minusDays(45), null));
+
+        assertEquals("ends in 3d", ScheduleListView.buildDueRelativeText(now, now.plusDays(3).plusHours(5), null));
+        assertEquals("ended 3d ago", ScheduleListView.buildDueRelativeText(now, now.minusDays(3).minusHours(5), null));
+
+        assertEquals("ends in 13h", ScheduleListView.buildDueRelativeText(now, now.plusHours(13), null));
+        assertEquals("ended 13h ago", ScheduleListView.buildDueRelativeText(now, now.minusHours(13), null));
+
+        assertEquals("ends in 5h 20m", ScheduleListView.buildDueRelativeText(now, now.plusHours(5).plusMinutes(20), null));
+        assertEquals("ended 5h 20m ago", ScheduleListView.buildDueRelativeText(now, now.minusHours(5).minusMinutes(20), null));
+
+        assertEquals("", ScheduleListView.buildDueRelativeText(now, null, null));
+    }
+
+    @Test
+    void startRelativeTextOnlyUsesFutureAndMatchesThresholds() {
+        LocalDateTime now = LocalDateTime.of(2026, 4, 11, 12, 0);
+
+        assertEquals("", ScheduleListView.buildStartRelativeText(now, now.minusMinutes(1), null));
+        assertEquals("", ScheduleListView.buildStartRelativeText(now, now, null));
+
+        assertEquals("starts in >1 mo", ScheduleListView.buildStartRelativeText(now, now.plusDays(45), null));
+        assertEquals("starts in 3d", ScheduleListView.buildStartRelativeText(now, now.plusDays(3).plusHours(5), null));
+        assertEquals("starts in 13h", ScheduleListView.buildStartRelativeText(now, now.plusHours(13), null));
+        assertEquals("starts in 5h 20m", ScheduleListView.buildStartRelativeText(now, now.plusHours(5).plusMinutes(20), null));
+
+        assertEquals("", ScheduleListView.buildStartRelativeText(now, null, null));
+    }
+
     private Schedule schedule(
         int id,
         String name,

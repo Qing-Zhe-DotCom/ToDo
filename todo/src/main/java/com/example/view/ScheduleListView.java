@@ -3,6 +3,7 @@ package com.example.view;
 import java.text.MessageFormat;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -245,10 +246,15 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             }
 
             String dateText = buildScheduleDateText(schedule, controller);
-            if (!dateText.isEmpty() && schedule.isOverdue() && !schedule.isCompleted()) {
+            boolean usingRelativeDueText = !schedule.isCompleted()
+                && schedule.getDueAt() != null;
+            if (!dateText.isEmpty() && schedule.isOverdue() && !schedule.isCompleted() && !usingRelativeDueText) {
                 dateText += " (" + controller.text("status.overdue") + ")";
             }
             dateLabel.setText(dateText);
+            boolean showDate = dateText != null && !dateText.isBlank();
+            dateLabel.setVisible(showDate);
+            dateLabel.setManaged(showDate);
             categoryLabel.setText(controller.categoryDisplayName(schedule.getCategory()));
 
             container.getStyleClass().removeAll("completed", "overdue", "upcoming", "selected");
@@ -954,21 +960,111 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         if (schedule == null) {
             return "";
         }
+        if (schedule.isCompleted()) {
+            return "";
+        }
 
-        if (schedule.getStartAt() != null && schedule.getDueAt() != null) {
-            String start = controller.format("format.list.dateTime", schedule.getStartAt());
-            if (schedule.getStartAt().toLocalDate().equals(schedule.getDueAt().toLocalDate())) {
-                return start + " - " + controller.format("format.list.time", schedule.getDueAt());
-            }
-            return start + " - " + controller.format("format.list.dateTime", schedule.getDueAt());
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startAt = schedule.getStartAt();
+        LocalDateTime dueAt = schedule.getDueAt();
+
+        if (dueAt != null && dueAt.isBefore(now)) {
+            return buildDueRelativeText(now, dueAt, controller);
         }
-        if (schedule.getDueAt() != null) {
-            return controller.text("time.due.summary", controller.format("format.list.dateTime", schedule.getDueAt()));
+        if (startAt != null && startAt.isAfter(now)) {
+            return buildStartRelativeText(now, startAt, controller);
         }
-        if (schedule.getStartAt() != null) {
-            return controller.text("time.start.summary", controller.format("format.list.dateTime", schedule.getStartAt()));
+        if (dueAt != null) {
+            return buildDueRelativeText(now, dueAt, controller);
         }
         return "";
+    }
+
+    static String buildDueRelativeText(LocalDateTime now, LocalDateTime dueAt, MainController controller) {
+        if (dueAt == null) {
+            return "";
+        }
+        LocalDateTime reference = now != null ? now : LocalDateTime.now();
+
+        long minutesDelta = ChronoUnit.MINUTES.between(reference, dueAt);
+        boolean future = minutesDelta >= 0;
+
+        long absDays = Math.abs(ChronoUnit.DAYS.between(reference.toLocalDate(), dueAt.toLocalDate()));
+        if (absDays > 30) {
+            return controller != null
+                ? controller.text(future
+                    ? "time.due.relative.future.moreThanMonth"
+                    : "time.due.relative.past.moreThanMonth")
+                : (future ? "ends in >1 mo" : "ended >1 mo ago");
+        }
+
+        long absMinutes = Math.abs(minutesDelta);
+        if (absMinutes >= 24 * 60) {
+            long days = absMinutes / (24 * 60);
+            return controller != null
+                ? controller.text(future ? "time.due.relative.future.days" : "time.due.relative.past.days", days)
+                : (future ? "ends in " + days + "d" : "ended " + days + "d ago");
+        }
+        if (absMinutes >= 12 * 60) {
+            long hours = absMinutes / 60;
+            return controller != null
+                ? controller.text(future ? "time.due.relative.future.hours" : "time.due.relative.past.hours", hours)
+                : (future ? "ends in " + hours + "h" : "ended " + hours + "h ago");
+        }
+
+        long hours = absMinutes / 60;
+        long minutes = absMinutes % 60;
+        return controller != null
+            ? controller.text(
+                future ? "time.due.relative.future.hoursMinutes" : "time.due.relative.past.hoursMinutes",
+                hours,
+                minutes
+            )
+            : (future
+                ? "ends in " + hours + "h " + minutes + "m"
+                : "ended " + hours + "h " + minutes + "m ago");
+    }
+
+    static String buildStartRelativeText(LocalDateTime now, LocalDateTime startAt, MainController controller) {
+        if (startAt == null) {
+            return "";
+        }
+        LocalDateTime reference = now != null ? now : LocalDateTime.now();
+        if (!startAt.isAfter(reference)) {
+            return "";
+        }
+
+        long minutesDelta = ChronoUnit.MINUTES.between(reference, startAt);
+        if (minutesDelta <= 0) {
+            return "";
+        }
+
+        long absDays = Math.abs(ChronoUnit.DAYS.between(reference.toLocalDate(), startAt.toLocalDate()));
+        if (absDays > 30) {
+            return controller != null
+                ? controller.text("time.start.relative.future.moreThanMonth")
+                : "starts in >1 mo";
+        }
+
+        long absMinutes = Math.abs(minutesDelta);
+        if (absMinutes >= 24 * 60) {
+            long days = absMinutes / (24 * 60);
+            return controller != null
+                ? controller.text("time.start.relative.future.days", days)
+                : "starts in " + days + "d";
+        }
+        if (absMinutes >= 12 * 60) {
+            long hours = absMinutes / 60;
+            return controller != null
+                ? controller.text("time.start.relative.future.hours", hours)
+                : "starts in " + hours + "h";
+        }
+
+        long hours = absMinutes / 60;
+        long minutes = absMinutes % 60;
+        return controller != null
+            ? controller.text("time.start.relative.future.hoursMinutes", hours, minutes)
+            : "starts in " + hours + "h " + minutes + "m";
     }
 
     private ListCell<String> createFilterButtonCell() {
