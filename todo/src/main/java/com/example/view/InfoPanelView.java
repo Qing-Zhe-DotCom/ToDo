@@ -592,16 +592,25 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     private void wireListeners() {
         bindTextField(titleField, titleDelay, this::saveTitle);
         bindTextField(categoryField, categoryDelay, this::saveCategory);
-        bindTextField(tagsField, tagsDelay, this::saveTags);
+        if (tagsField != null) {
+            tagsField.setOnAction(event -> commitTagInput(tagsField.getText()));
+            tagsField.addEventFilter(KeyEvent.KEY_TYPED, event -> {
+                if (suspend || tagsField.isDisabled() || tagsField.getText() == null) {
+                    return;
+                }
+                if (!isTagCommaSplitEnabled()) {
+                    return;
+                }
+                String character = event.getCharacter();
+                if (",".equals(character) || "，".equals(character)) {
+                    commitTagInput(tagsField.getText());
+                    event.consume();
+                }
+            });
+        }
         categoryField.textProperty().addListener((obs, oldValue, newValue) -> {
             if (!suspend) {
-                updateChips(newValue, tagsField.getText());
-            }
-        });
-        tagsField.textProperty().addListener((obs, oldValue, newValue) -> {
-            if (!suspend) {
-                updateChips(categoryField.getText(), newValue);
-                renderTagEditorChips(Schedule.splitTags(newValue));
+                updateChips(newValue, currentSchedule != null ? currentSchedule.getTags() : "");
             }
         });
         notesArea.textProperty().addListener((obs, oldValue, newValue) -> {
@@ -707,24 +716,71 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         save(text("error.categorySave.title"), draft -> draft.setCategory(value), false);
     }
 
-    private void saveTags() {
-        String value = Schedule.normalizeTags(tagsField.getText());
-        if (persistedSchedule != null && value.equals(persistedSchedule.getTags())) {
+    private void commitTagInput(String rawInput) {
+        if (currentSchedule == null || persistedSchedule == null || tagsField == null) {
             return;
         }
-        List<String> tags = Schedule.splitTags(value);
-        if (!tags.isEmpty()) {
-            CustomOptionsService options = controller.getCustomOptionsService();
-            if (options != null && !options.ensureTagsExist(tags)) {
-                controller.showError(
-                    text("error.customOptions.tagLimit.title"),
-                    text("error.customOptions.tagLimit.message", CustomOptionsService.MAX_TAGS)
-                );
-                restorePersisted();
-                return;
+
+        List<String> inputTags = Schedule.splitTags(rawInput);
+        if (inputTags.isEmpty()) {
+            return;
+        }
+
+        List<String> merged = new ArrayList<>();
+        LinkedHashSet<String> keys = new LinkedHashSet<>();
+        for (String existing : currentSchedule.getTagNames()) {
+            if (existing == null || existing.isBlank()) {
+                continue;
+            }
+            String normalized = existing.strip();
+            if (normalized.isEmpty()) {
+                continue;
+            }
+            if (keys.add(normalized.toLowerCase(Locale.ROOT))) {
+                merged.add(normalized);
             }
         }
-        save(text("error.tagsSave.title"), draft -> draft.setTags(value), true);
+        for (String candidate : inputTags) {
+            if (candidate == null || candidate.isBlank()) {
+                continue;
+            }
+            String normalized = candidate.strip();
+            if (normalized.isEmpty()) {
+                continue;
+            }
+            if (keys.add(normalized.toLowerCase(Locale.ROOT))) {
+                merged.add(normalized);
+            }
+        }
+
+        if (merged.equals(currentSchedule.getTagNames())) {
+            tagsField.setText("");
+            if (tagsSuggestionMenu != null) {
+                tagsSuggestionMenu.hide();
+            }
+            return;
+        }
+
+        CustomOptionsService options = controller.getCustomOptionsService();
+        if (options != null && !options.ensureTagsExist(inputTags)) {
+            controller.showError(
+                text("error.customOptions.tagLimit.title"),
+                text("error.customOptions.tagLimit.message", CustomOptionsService.MAX_TAGS)
+            );
+            return;
+        }
+
+        save(text("error.tagsSave.title"), draft -> draft.setTagNames(merged), false);
+        tagsField.setText("");
+        if (tagsSuggestionMenu != null) {
+            tagsSuggestionMenu.hide();
+        }
+        Platform.runLater(() -> {
+            if (tagsField != null) {
+                tagsField.requestFocus();
+                tagsField.positionCaret(tagsField.getText().length());
+            }
+        });
     }
 
     private void saveNotes() {
@@ -758,11 +814,14 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     }
 
     private void removeTag(String tag) {
-        List<String> updatedTags = new ArrayList<>(Schedule.splitTags(tagsField.getText()));
+        if (currentSchedule == null) {
+            return;
+        }
+        List<String> updatedTags = new ArrayList<>(currentSchedule.getTagNames());
         if (!updatedTags.removeIf(existing -> Objects.equals(existing, tag))) {
             return;
         }
-        save(text("error.tagsSave.title"), draft -> draft.setTagNames(updatedTags), true);
+        save(text("error.tagsSave.title"), draft -> draft.setTagNames(updatedTags), false);
     }
 
     private void addReminder() {
@@ -1021,7 +1080,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         titleField.setText(currentSchedule.getName());
         priorityBox.setValue(currentSchedule.getPriority());
         categoryField.setText(controller.categoryDisplayName(currentSchedule.getCategory()));
-        tagsField.setText(currentSchedule.getTags());
+        tagsField.setText("");
         notesArea.setText(currentSchedule.getDescription());
         allDayToggle.setSelected(currentSchedule.isAllDay());
         dueToggle.setSelected(currentSchedule.getDueAt() != null);
@@ -1400,6 +1459,13 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         String query = resolveTagQuery(rawInput);
 
         LinkedHashSet<String> selectedKeys = new LinkedHashSet<>();
+        if (currentSchedule != null) {
+            for (String selected : currentSchedule.getTagNames()) {
+                if (selected != null && !selected.isBlank()) {
+                    selectedKeys.add(selected.toLowerCase(Locale.ROOT));
+                }
+            }
+        }
         for (String selected : Schedule.splitTags(rawInput)) {
             if (selected != null && !selected.isBlank()) {
                 selectedKeys.add(selected.toLowerCase(Locale.ROOT));
@@ -1418,10 +1484,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
             MenuItem item = new MenuItem(suggestion);
             item.setGraphic(controller.createSvgIcon(IconKey.TAG, suggestion, 16));
             item.setOnAction(event -> {
-                appendTagSuggestion(suggestion);
-                tagsDelay.stop();
-                saveTags();
-                tagsSuggestionMenu.hide();
+                commitTagInput(applyTagSuggestion(rawInput, suggestion));
             });
             items.add(item);
         }
@@ -1450,24 +1513,28 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         return rawInput.substring(splitIndex + 1).trim();
     }
 
-    private void appendTagSuggestion(String tag) {
-        String normalized = tag == null ? "" : tag.strip();
-        if (normalized.isEmpty() || tagsField == null) {
-            return;
+    private static String applyTagSuggestion(String rawInput, String suggestion) {
+        String normalized = suggestion == null ? "" : suggestion.strip();
+        if (normalized.isEmpty()) {
+            return rawInput;
         }
-        List<String> existingTags = new ArrayList<>(Schedule.splitTags(tagsField.getText()));
-        LinkedHashSet<String> keys = new LinkedHashSet<>();
-        for (String existing : existingTags) {
-            if (existing != null && !existing.isBlank()) {
-                keys.add(existing.toLowerCase(Locale.ROOT));
-            }
+        String input = rawInput == null ? "" : rawInput;
+        int commaIndex = input.lastIndexOf(',');
+        int chineseCommaIndex = input.lastIndexOf('，');
+        int splitIndex = Math.max(commaIndex, chineseCommaIndex);
+        if (splitIndex < 0) {
+            return normalized;
         }
-        if (!keys.add(normalized.toLowerCase(Locale.ROOT))) {
-            return;
+        String prefix = input.substring(0, splitIndex + 1);
+        if (!prefix.endsWith(" ")) {
+            prefix = prefix + " ";
         }
-        existingTags.add(normalized);
-        tagsField.setText(String.join(", ", existingTags));
-        tagsField.positionCaret(tagsField.getText().length());
+        return prefix + normalized;
+    }
+
+    private boolean isTagCommaSplitEnabled() {
+        CustomOptionsService options = controller.getCustomOptionsService();
+        return options != null && options.isTagCommaSplitEnabled();
     }
 
     private String text(String key, Object... args) {

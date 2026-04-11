@@ -21,6 +21,7 @@ public final class CustomOptionsService {
     static final String PREF_TASKS_KEY = "todo.custom.tasks";
     static final String PREF_TAGS_KEY = "todo.custom.tags";
     public static final String PREF_TIME_TEXT_INPUT_ENABLED_KEY = "todo.custom.time-text-input.enabled";
+    public static final String PREF_TAG_COMMA_SPLIT_ENABLED_KEY = "todo.custom.tags.comma-split.enabled";
 
     public static final int MAX_TASKS = 100;
     public static final int MAX_TAGS = 100;
@@ -70,6 +71,14 @@ public final class CustomOptionsService {
 
     public void setTimeTextInputEnabled(boolean enabled) {
         preferencesStore.put(PREF_TIME_TEXT_INPUT_ENABLED_KEY, Boolean.toString(enabled));
+    }
+
+    public boolean isTagCommaSplitEnabled() {
+        return Boolean.parseBoolean(preferencesStore.get(PREF_TAG_COMMA_SPLIT_ENABLED_KEY, Boolean.FALSE.toString()));
+    }
+
+    public void setTagCommaSplitEnabled(boolean enabled) {
+        preferencesStore.put(PREF_TAG_COMMA_SPLIT_ENABLED_KEY, Boolean.toString(enabled));
     }
 
     /**

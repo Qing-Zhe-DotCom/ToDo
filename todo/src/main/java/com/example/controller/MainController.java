@@ -1983,6 +1983,7 @@ public class MainController {
         List<CustomOptionRow> customTaskRows = new ArrayList<>();
         List<CustomOptionRow> customTagRows = new ArrayList<>();
         boolean originalTimeTextInputEnabled = customOptionsService != null && customOptionsService.isTimeTextInputEnabled();
+        boolean originalTagCommaSplitEnabled = customOptionsService != null && customOptionsService.isTagCommaSplitEnabled();
 
         VBox generalPage = new VBox(18);
         generalPage.getStyleClass().add("settings-page");
@@ -2453,6 +2454,24 @@ public class MainController {
         addTagRow.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(addTagField, Priority.ALWAYS);
 
+        boolean[] selectedTagCommaSplitEnabled = new boolean[] { originalTagCommaSplitEnabled };
+        ToggleButton tagCommaSplitToggle = new ToggleButton();
+        tagCommaSplitToggle.getStyleClass().add("modern-toggle-switch");
+        tagCommaSplitToggle.setCursor(Cursor.HAND);
+        tagCommaSplitToggle.setSelected(originalTagCommaSplitEnabled);
+        if (originalTagCommaSplitEnabled) {
+            tagCommaSplitToggle.getStyleClass().add("on");
+        }
+        tagCommaSplitToggle.selectedProperty().addListener((obs, oldValue, newValue) -> {
+            boolean enabled = Boolean.TRUE.equals(newValue);
+            selectedTagCommaSplitEnabled[0] = enabled;
+            if (enabled) {
+                tagCommaSplitToggle.getStyleClass().add("on");
+            } else {
+                tagCommaSplitToggle.getStyleClass().remove("on");
+            }
+        });
+
         Runnable validateCustomOptions = () -> {
             ValidationResult tasksValidation = validateCustomOptionRows(customTaskRows, CustomOptionsService.MAX_TASKS);
             tasksError.setText(tasksValidation.message != null ? tasksValidation.message : "");
@@ -2501,6 +2520,7 @@ public class MainController {
             row.field().requestFocus();
             row.field().positionCaret(row.field().getText().length());
         });
+        addTagField.setOnAction(event -> addTagButton.fire());
         addTagButton.setOnAction(event -> {
             String normalized = normalizeCustomOptionInput(addTagField.getText());
             if (normalized == null) {
@@ -2526,7 +2546,12 @@ public class MainController {
             tagsTitle,
             tagsError,
             tagsList,
-            addTagRow
+            addTagRow,
+            createSettingRow(
+                text("settings.customOptions.tags.commaSplit.label"),
+                text("settings.customOptions.tags.commaSplit.description"),
+                tagCommaSplitToggle
+            )
         );
 
         VBox trashCard = createSettingsCard(text("settings.data.title"), text("settings.data.subtitle"));
@@ -2638,6 +2663,9 @@ public class MainController {
         commitCustomOptionsFromSettingsDialog(originalCustomTasks, originalCustomTags, customTaskRows, customTagRows);
         if (selectedTimeTextInputEnabled[0] != originalTimeTextInputEnabled && customOptionsService != null) {
             customOptionsService.setTimeTextInputEnabled(selectedTimeTextInputEnabled[0]);
+        }
+        if (selectedTagCommaSplitEnabled[0] != originalTagCommaSplitEnabled && customOptionsService != null) {
+            customOptionsService.setTagCommaSplitEnabled(selectedTagCommaSplitEnabled[0]);
         }
         if (selectedTimelineZoomWheelModifier[0] != originalTimelineZoomWheelModifier
              || !selectedTimelineZoomInShortcut[0].equals(originalTimelineZoomInShortcut)
