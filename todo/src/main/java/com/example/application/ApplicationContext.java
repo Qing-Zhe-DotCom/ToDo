@@ -21,6 +21,7 @@ public final class ApplicationContext {
     private final DatabaseProperties databaseProperties;
     private final AppDataPaths appDataPaths;
     private final UserPreferencesStore preferencesStore;
+    private final CustomOptionsService customOptionsService;
     private final ConnectionFactory connectionFactory;
     private final SchemaManager schemaManager;
     private final ScheduleItemRepository scheduleItemRepository;
@@ -38,6 +39,7 @@ public final class ApplicationContext {
         DatabaseProperties databaseProperties,
         AppDataPaths appDataPaths,
         UserPreferencesStore preferencesStore,
+        CustomOptionsService customOptionsService,
         ConnectionFactory connectionFactory,
         SchemaManager schemaManager,
         ScheduleItemRepository scheduleItemRepository,
@@ -54,6 +56,7 @@ public final class ApplicationContext {
         this.databaseProperties = databaseProperties;
         this.appDataPaths = appDataPaths;
         this.preferencesStore = preferencesStore;
+        this.customOptionsService = customOptionsService;
         this.connectionFactory = connectionFactory;
         this.schemaManager = schemaManager;
         this.scheduleItemRepository = scheduleItemRepository;
@@ -77,6 +80,7 @@ public final class ApplicationContext {
         );
         FontService fontService = new FontService(preferencesStore);
         ExperimentalFeaturesService experimentalFeaturesService = new ExperimentalFeaturesService(preferencesStore);
+        CustomOptionsService customOptionsService = new CustomOptionsService(preferencesStore);
 
         AppDataPaths appDataPaths = null;
         ConnectionFactory connectionFactory;
@@ -123,6 +127,7 @@ public final class ApplicationContext {
             databaseProperties,
             appDataPaths,
             preferencesStore,
+            customOptionsService,
             connectionFactory,
             schemaManager,
             scheduleItemRepository,
@@ -151,6 +156,10 @@ public final class ApplicationContext {
 
     public UserPreferencesStore getPreferencesStore() {
         return preferencesStore;
+    }
+
+    public CustomOptionsService getCustomOptionsService() {
+        return customOptionsService;
     }
 
     public ConnectionFactory getConnectionFactory() {

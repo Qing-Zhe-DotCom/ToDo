@@ -36,6 +36,27 @@ class LocalizationResourceTest {
         assertTrue(read("/i18n/messages_zh_TW.properties").contains("theme.dark="));
     }
 
+    @Test
+    void customOptionsAndWheelInputKeysExistInAllLocales() throws IOException {
+        assertTrue(read("/i18n/messages.properties").contains("settings.custom.title="));
+        assertTrue(read("/i18n/messages.properties").contains("settings.custom.subtitle="));
+        assertTrue(read("/i18n/messages.properties").contains("settings.custom.timeInput.label="));
+        assertTrue(read("/i18n/messages.properties").contains("settings.custom.timeInput.description="));
+        assertTrue(read("/i18n/messages.properties").contains("iosWheel.input.placeholder="));
+
+        assertTrue(read("/i18n/messages_zh_CN.properties").contains("settings.custom.title="));
+        assertTrue(read("/i18n/messages_zh_CN.properties").contains("settings.custom.subtitle="));
+        assertTrue(read("/i18n/messages_zh_CN.properties").contains("settings.custom.timeInput.label="));
+        assertTrue(read("/i18n/messages_zh_CN.properties").contains("settings.custom.timeInput.description="));
+        assertTrue(read("/i18n/messages_zh_CN.properties").contains("iosWheel.input.placeholder="));
+
+        assertTrue(read("/i18n/messages_zh_TW.properties").contains("settings.custom.title="));
+        assertTrue(read("/i18n/messages_zh_TW.properties").contains("settings.custom.subtitle="));
+        assertTrue(read("/i18n/messages_zh_TW.properties").contains("settings.custom.timeInput.label="));
+        assertTrue(read("/i18n/messages_zh_TW.properties").contains("settings.custom.timeInput.description="));
+        assertTrue(read("/i18n/messages_zh_TW.properties").contains("iosWheel.input.placeholder="));
+    }
+
     private static String read(String resourcePath) throws IOException {
         try (InputStream input = LocalizationResourceTest.class.getResourceAsStream(resourcePath)) {
             assertNotNull(input, "Missing resource: " + resourcePath);

@@ -24,6 +24,7 @@ import com.example.application.ApplicationContext;
 import com.example.application.AppFontWeight;
 import com.example.application.AppLanguage;
 import com.example.application.ClassicThemePalette;
+import com.example.application.CustomOptionsService;
 import com.example.application.ExperimentalFeaturesService;
 import com.example.application.FontService;
 import com.example.application.GlassBackdropCoordinator;
@@ -136,6 +137,7 @@ public class MainController {
     private final ThemeService themeService;
     private final IconService iconService;
     private final ExperimentalFeaturesService experimentalFeaturesService;
+    private final CustomOptionsService customOptionsService;
     private final LocalizationService localizationService;
     private final FontService fontService;
 
@@ -218,6 +220,7 @@ public class MainController {
         this.mainViewModel = applicationContext.getMainViewModel();
         this.scheduleItemService = applicationContext.getScheduleItemService();
         this.navigationService = mainViewModel.getNavigationService();
+        this.customOptionsService = applicationContext.getCustomOptionsService();
         this.themeService = mainViewModel.getThemeService();
         this.iconService = mainViewModel.getIconService();
         this.experimentalFeaturesService = applicationContext.getExperimentalFeaturesService();
@@ -1902,6 +1905,7 @@ public class MainController {
         IconPack originalIconPack = currentIconPack;
         boolean originalThemeIconBinding = currentThemeIconBinding;
         boolean originalLabsEnabled = experimentalFeaturesService.isLabsEnabled();
+        boolean originalTimeTextInputEnabled = customOptionsService.isTimeTextInputEnabled();
 
         VBox generalPage = new VBox(18);
         generalPage.getStyleClass().add("settings-page");
@@ -2225,7 +2229,34 @@ public class MainController {
             createSettingRow(text("settings.icon.binding.label"), text("settings.icon.binding.description"), iconBindingToggle),
             createStackedSettingRow(text("settings.icon.pack.label"), text("settings.icon.pack.description"), iconPackFlow)
         );
-        personalizationPage.getChildren().addAll(themeCard, iconCard);
+
+        VBox customCard = createSettingsCard(text("settings.custom.title"), text("settings.custom.subtitle"));
+        boolean[] selectedTimeTextInputEnabled = new boolean[] { originalTimeTextInputEnabled };
+        ToggleButton timeTextInputToggle = new ToggleButton();
+        timeTextInputToggle.getStyleClass().add("modern-toggle-switch");
+        timeTextInputToggle.setCursor(Cursor.HAND);
+        timeTextInputToggle.setSelected(originalTimeTextInputEnabled);
+        if (originalTimeTextInputEnabled) {
+            timeTextInputToggle.getStyleClass().add("on");
+        }
+        timeTextInputToggle.selectedProperty().addListener((obs, oldValue, newValue) -> {
+            boolean enabled = Boolean.TRUE.equals(newValue);
+            selectedTimeTextInputEnabled[0] = enabled;
+            if (enabled) {
+                timeTextInputToggle.getStyleClass().add("on");
+            } else {
+                timeTextInputToggle.getStyleClass().remove("on");
+            }
+        });
+        customCard.getChildren().add(
+            createSettingRow(
+                text("settings.custom.timeInput.label"),
+                text("settings.custom.timeInput.description"),
+                timeTextInputToggle
+            )
+        );
+
+        personalizationPage.getChildren().addAll(themeCard, iconCard, customCard);
         VBox dataPage = new VBox(18);
         dataPage.getStyleClass().add("settings-page");
         dataPage.setFillWidth(true);
@@ -2335,10 +2366,17 @@ public class MainController {
             fontService.selectFontWeight(selectedFontWeight[0]);
             applyCurrentFont();
         }
+        if (selectedTimeTextInputEnabled[0] != originalTimeTextInputEnabled) {
+            customOptionsService.setTimeTextInputEnabled(selectedTimeTextInputEnabled[0]);
+        }
         refreshAllViews();
         if (selectedLanguage[0] != null && selectedLanguage[0] != originalPreferredLanguage) {
             showRestartLanguageNotice(selectedLanguage[0]);
         }
+    }
+
+    public boolean isTimeTextInputEnabled() {
+        return customOptionsService != null && customOptionsService.isTimeTextInputEnabled();
     }
 
     private VBox createSettingsCard(String title, String subtitle) {
