@@ -36,6 +36,30 @@ class LocalizationResourceTest {
         assertTrue(read("/i18n/messages_zh_TW.properties").contains("theme.dark="));
     }
 
+    @Test
+    void customOptionsKeysExistInAllLocales() throws IOException {
+        for (String resource : new String[] {
+            "/i18n/messages.properties",
+            "/i18n/messages_zh_CN.properties",
+            "/i18n/messages_zh_TW.properties"
+        }) {
+            String content = read(resource);
+            assertTrue(content.contains("common.add="));
+            assertTrue(content.contains("settings.customOptions.title="));
+            assertTrue(content.contains("settings.customOptions.subtitle="));
+            assertTrue(content.contains("settings.customOptions.tasks.title="));
+            assertTrue(content.contains("settings.customOptions.tasks.prompt="));
+            assertTrue(content.contains("settings.customOptions.tags.title="));
+            assertTrue(content.contains("settings.customOptions.tags.prompt="));
+            assertTrue(content.contains("settings.customOptions.validation.empty="));
+            assertTrue(content.contains("settings.customOptions.validation.duplicate="));
+            assertTrue(content.contains("settings.customOptions.validation.limit="));
+            assertTrue(content.contains("error.customOptions.save.title="));
+            assertTrue(content.contains("error.customOptions.taskLimit.title="));
+            assertTrue(content.contains("error.customOptions.tagLimit.title="));
+        }
+    }
+
     private static String read(String resourcePath) throws IOException {
         try (InputStream input = LocalizationResourceTest.class.getResourceAsStream(resourcePath)) {
             assertNotNull(input, "Missing resource: " + resourcePath);

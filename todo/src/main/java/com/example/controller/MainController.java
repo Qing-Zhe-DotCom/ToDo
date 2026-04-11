@@ -14,6 +14,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,6 +25,7 @@ import com.example.application.ApplicationContext;
 import com.example.application.AppFontWeight;
 import com.example.application.AppLanguage;
 import com.example.application.ClassicThemePalette;
+import com.example.application.CustomOptionsService;
 import com.example.application.ExperimentalFeaturesService;
 import com.example.application.FontService;
 import com.example.application.GlassBackdropCoordinator;
@@ -60,6 +62,8 @@ import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.animation.TranslateTransition;
 import javafx.beans.property.ReadOnlyStringProperty;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.fxml.FXML;
@@ -132,6 +136,7 @@ public class MainController {
     private final ApplicationContext applicationContext;
     private final MainViewModel mainViewModel;
     private final ScheduleItemService scheduleItemService;
+    private final CustomOptionsService customOptionsService;
     private final NavigationService navigationService;
     private final ThemeService themeService;
     private final IconService iconService;
@@ -217,6 +222,7 @@ public class MainController {
         this.applicationContext = applicationContext;
         this.mainViewModel = applicationContext.getMainViewModel();
         this.scheduleItemService = applicationContext.getScheduleItemService();
+        this.customOptionsService = applicationContext.getCustomOptionsService();
         this.navigationService = mainViewModel.getNavigationService();
         this.themeService = mainViewModel.getThemeService();
         this.iconService = mainViewModel.getIconService();
@@ -1902,6 +1908,11 @@ public class MainController {
         IconPack originalIconPack = currentIconPack;
         boolean originalThemeIconBinding = currentThemeIconBinding;
         boolean originalLabsEnabled = experimentalFeaturesService.isLabsEnabled();
+        List<String> originalCustomTasks = customOptionsService != null ? customOptionsService.getTasks() : List.of();
+        List<String> originalCustomTags = customOptionsService != null ? customOptionsService.getTags() : List.of();
+        BooleanProperty customOptionsValid = new SimpleBooleanProperty(true);
+        List<CustomOptionRow> customTaskRows = new ArrayList<>();
+        List<CustomOptionRow> customTagRows = new ArrayList<>();
 
         VBox generalPage = new VBox(18);
         generalPage.getStyleClass().add("settings-page");
@@ -2230,6 +2241,122 @@ public class MainController {
         dataPage.getStyleClass().add("settings-page");
         dataPage.setFillWidth(true);
         dataPage.setMinHeight(0);
+
+        VBox customOptionsCard = createSettingsCard(text("settings.customOptions.title"), text("settings.customOptions.subtitle"));
+        customOptionsCard.getStyleClass().add("settings-custom-options-card");
+
+        Label tasksTitle = new Label(text("settings.customOptions.tasks.title"));
+        tasksTitle.getStyleClass().add("settings-row-title");
+        Label tasksError = new Label();
+        tasksError.getStyleClass().addAll("settings-row-desc", "settings-custom-options-error");
+        tasksError.setWrapText(true);
+        tasksError.setVisible(false);
+        tasksError.setManaged(false);
+        VBox tasksList = new VBox(8);
+        tasksList.getStyleClass().add("settings-custom-options-list");
+        TextField addTaskField = new TextField();
+        addTaskField.getStyleClass().add("settings-custom-options-input");
+        addTaskField.setPromptText(text("settings.customOptions.tasks.prompt"));
+        Button addTaskButton = new Button(text("common.add"));
+        addTaskButton.getStyleClass().addAll("button-secondary", "settings-custom-options-add");
+        HBox addTaskRow = new HBox(10, addTaskField, addTaskButton);
+        addTaskRow.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(addTaskField, Priority.ALWAYS);
+
+        Label tagsTitle = new Label(text("settings.customOptions.tags.title"));
+        tagsTitle.getStyleClass().add("settings-row-title");
+        Label tagsError = new Label();
+        tagsError.getStyleClass().addAll("settings-row-desc", "settings-custom-options-error");
+        tagsError.setWrapText(true);
+        tagsError.setVisible(false);
+        tagsError.setManaged(false);
+        VBox tagsList = new VBox(8);
+        tagsList.getStyleClass().add("settings-custom-options-list");
+        TextField addTagField = new TextField();
+        addTagField.getStyleClass().add("settings-custom-options-input");
+        addTagField.setPromptText(text("settings.customOptions.tags.prompt"));
+        Button addTagButton = new Button(text("common.add"));
+        addTagButton.getStyleClass().addAll("button-secondary", "settings-custom-options-add");
+        HBox addTagRow = new HBox(10, addTagField, addTagButton);
+        addTagRow.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(addTagField, Priority.ALWAYS);
+
+        Runnable validateCustomOptions = () -> {
+            ValidationResult tasksValidation = validateCustomOptionRows(customTaskRows, CustomOptionsService.MAX_TASKS);
+            tasksError.setText(tasksValidation.message != null ? tasksValidation.message : "");
+            tasksError.setVisible(!tasksValidation.ok);
+            tasksError.setManaged(!tasksValidation.ok);
+
+            ValidationResult tagsValidation = validateCustomOptionRows(customTagRows, CustomOptionsService.MAX_TAGS);
+            tagsError.setText(tagsValidation.message != null ? tagsValidation.message : "");
+            tagsError.setVisible(!tagsValidation.ok);
+            tagsError.setManaged(!tagsValidation.ok);
+
+            customOptionsValid.set(tasksValidation.ok && tagsValidation.ok);
+        };
+
+        Runnable populateCustomOptions = () -> {
+            tasksList.getChildren().clear();
+            customTaskRows.clear();
+            for (String task : originalCustomTasks) {
+                CustomOptionRow row = createCustomOptionRow(task, validateCustomOptions, customTaskRows, tasksList);
+                customTaskRows.add(row);
+                tasksList.getChildren().add(row.row());
+            }
+
+            tagsList.getChildren().clear();
+            customTagRows.clear();
+            for (String tag : originalCustomTags) {
+                CustomOptionRow row = createCustomOptionRow(tag, validateCustomOptions, customTagRows, tagsList);
+                customTagRows.add(row);
+                tagsList.getChildren().add(row.row());
+            }
+
+            validateCustomOptions.run();
+        };
+
+        addTaskButton.setOnAction(event -> {
+            String normalized = normalizeCustomOptionInput(addTaskField.getText());
+            if (normalized == null) {
+                return;
+            }
+            CustomOptionRow row = createCustomOptionRow(null, validateCustomOptions, customTaskRows, tasksList);
+            row.field().setText(normalized);
+            customTaskRows.add(row);
+            tasksList.getChildren().add(row.row());
+            addTaskField.setText("");
+            validateCustomOptions.run();
+            row.field().requestFocus();
+            row.field().positionCaret(row.field().getText().length());
+        });
+        addTagButton.setOnAction(event -> {
+            String normalized = normalizeCustomOptionInput(addTagField.getText());
+            if (normalized == null) {
+                return;
+            }
+            CustomOptionRow row = createCustomOptionRow(null, validateCustomOptions, customTagRows, tagsList);
+            row.field().setText(normalized);
+            customTagRows.add(row);
+            tagsList.getChildren().add(row.row());
+            addTagField.setText("");
+            validateCustomOptions.run();
+            row.field().requestFocus();
+            row.field().positionCaret(row.field().getText().length());
+        });
+
+        populateCustomOptions.run();
+        customOptionsCard.getChildren().addAll(
+            tasksTitle,
+            tasksError,
+            tasksList,
+            addTaskRow,
+            new Separator(),
+            tagsTitle,
+            tagsError,
+            tagsList,
+            addTagRow
+        );
+
         VBox trashCard = createSettingsCard(text("settings.data.title"), text("settings.data.subtitle"));
         Label trashSummary = new Label();
         trashSummary.getStyleClass().add("settings-row-desc");
@@ -2238,7 +2365,7 @@ public class MainController {
         trashItemsBox.getStyleClass().add("settings-trash-list");
         populateTrashSettingsList(trashItemsBox, trashSummary);
         trashCard.getChildren().addAll(trashSummary, trashItemsBox);
-        dataPage.getChildren().add(trashCard);
+        dataPage.getChildren().addAll(customOptionsCard, trashCard);
 
         ScrollPane generalPageScroll = createSettingsScrollPane(generalPage);
         ScrollPane personalizationPageScroll = createSettingsScrollPane(personalizationPage);
@@ -2285,6 +2412,7 @@ public class MainController {
             saveButton.getStyleClass().add("primary-save-button");
             saveButton.setDefaultButton(true);
             saveButton.setCursor(Cursor.HAND);
+            saveButton.disableProperty().bind(customOptionsValid.not());
         }
         if (cancelButton != null) {
             cancelButton.getStyleClass().add("ghost-cancel-button");
@@ -2335,6 +2463,7 @@ public class MainController {
             fontService.selectFontWeight(selectedFontWeight[0]);
             applyCurrentFont();
         }
+        commitCustomOptionsFromSettingsDialog(originalCustomTasks, originalCustomTags, customTaskRows, customTagRows);
         refreshAllViews();
         if (selectedLanguage[0] != null && selectedLanguage[0] != originalPreferredLanguage) {
             showRestartLanguageNotice(selectedLanguage[0]);
@@ -2403,6 +2532,350 @@ public class MainController {
         }
         row.getChildren().addAll(textBox, control);
         return row;
+    }
+
+    private CustomOptionRow createCustomOptionRow(
+        String originalValue,
+        Runnable validationRefresh,
+        List<CustomOptionRow> rows,
+        VBox host
+    ) {
+        TextField field = new TextField();
+        field.getStyleClass().addAll("settings-custom-options-input", "settings-custom-options-row-input");
+        if (originalValue != null) {
+            field.setText(originalValue);
+        }
+        Button removeButton = new Button(text("common.remove"));
+        removeButton.getStyleClass().addAll("button-secondary", "settings-custom-options-remove");
+
+        HBox row = new HBox(10, field, removeButton);
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.getStyleClass().add("settings-custom-options-row");
+        HBox.setHgrow(field, Priority.ALWAYS);
+
+        CustomOptionRow[] holder = new CustomOptionRow[1];
+        holder[0] = new CustomOptionRow(row, field, originalValue);
+        removeButton.setOnAction(event -> {
+            CustomOptionRow current = holder[0];
+            if (current == null) {
+                return;
+            }
+            host.getChildren().remove(current.row());
+            rows.remove(current);
+            if (validationRefresh != null) {
+                validationRefresh.run();
+            }
+        });
+
+        field.textProperty().addListener((obs, oldValue, newValue) -> {
+            if (validationRefresh != null) {
+                validationRefresh.run();
+            }
+        });
+
+        return holder[0];
+    }
+
+    private ValidationResult validateCustomOptionRows(List<CustomOptionRow> rows, int maxAllowed) {
+        if (rows == null || rows.isEmpty()) {
+            return new ValidationResult(true, null);
+        }
+
+        LinkedHashSet<String> keys = new LinkedHashSet<>();
+        int count = 0;
+        for (CustomOptionRow row : rows) {
+            if (row == null || row.field() == null) {
+                continue;
+            }
+            String normalized = normalizeCustomOptionInput(row.field().getText());
+            if (normalized == null) {
+                return new ValidationResult(false, text("settings.customOptions.validation.empty"));
+            }
+            String key = customOptionKey(normalized);
+            if (!keys.add(key)) {
+                return new ValidationResult(false, text("settings.customOptions.validation.duplicate"));
+            }
+            if (++count > maxAllowed) {
+                return new ValidationResult(false, text("settings.customOptions.validation.limit", maxAllowed));
+            }
+        }
+
+        return new ValidationResult(true, null);
+    }
+
+    private void commitCustomOptionsFromSettingsDialog(
+        List<String> originalTasks,
+        List<String> originalTags,
+        List<CustomOptionRow> taskRows,
+        List<CustomOptionRow> tagRows
+    ) {
+        if (customOptionsService == null) {
+            return;
+        }
+
+        ValidationResult taskValidation = validateCustomOptionRows(taskRows, CustomOptionsService.MAX_TASKS);
+        ValidationResult tagValidation = validateCustomOptionRows(tagRows, CustomOptionsService.MAX_TAGS);
+        if (!taskValidation.ok || !tagValidation.ok) {
+            // This should be prevented by the disabled save button, but keep a safe guard.
+            String message = !taskValidation.ok ? taskValidation.message : tagValidation.message;
+            showError(text("error.customOptions.save.title"), message != null ? message : text("error.customOptions.save.message"));
+            return;
+        }
+
+        List<String> updatedTasks = collectCustomOptionValues(taskRows);
+        List<String> updatedTags = collectCustomOptionValues(tagRows);
+
+        boolean tasksChanged = !Objects.equals(updatedTasks, originalTasks);
+        boolean tagsChanged = !Objects.equals(updatedTags, originalTags);
+        if (!tasksChanged && !tagsChanged) {
+            return;
+        }
+
+        CustomOptionsMutation mutation = buildCustomOptionsMutation(originalTasks, originalTags, taskRows, tagRows);
+        try {
+            if (mutation.requiresScheduleSync()) {
+                syncActiveSchedulesForCustomOptions(
+                    mutation.taskRenamesByKey,
+                    mutation.deletedTaskKeys,
+                    mutation.tagRenamesByKey,
+                    mutation.deletedTagKeys
+                );
+            }
+            if (tasksChanged) {
+                customOptionsService.replaceTasks(updatedTasks);
+            }
+            if (tagsChanged) {
+                customOptionsService.replaceTags(updatedTags);
+            }
+        } catch (Exception exception) {
+            showError(text("error.customOptions.save.title"), exception.getMessage());
+        }
+    }
+
+    private static List<String> collectCustomOptionValues(List<CustomOptionRow> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+
+        List<String> values = new ArrayList<>();
+        LinkedHashSet<String> keys = new LinkedHashSet<>();
+        for (CustomOptionRow row : rows) {
+            if (row == null || row.field() == null) {
+                continue;
+            }
+            String normalized = normalizeCustomOptionInput(row.field().getText());
+            if (normalized == null) {
+                continue;
+            }
+            String key = customOptionKey(normalized);
+            if (!keys.add(key)) {
+                continue;
+            }
+            values.add(normalized);
+        }
+        return values;
+    }
+
+    private CustomOptionsMutation buildCustomOptionsMutation(
+        List<String> originalTasks,
+        List<String> originalTags,
+        List<CustomOptionRow> taskRows,
+        List<CustomOptionRow> tagRows
+    ) {
+        LinkedHashSet<String> deletedTaskKeys = new LinkedHashSet<>();
+        if (originalTasks != null) {
+            for (String value : originalTasks) {
+                String normalized = normalizeCustomOptionInput(value);
+                if (normalized != null) {
+                    deletedTaskKeys.add(customOptionKey(normalized));
+                }
+            }
+        }
+        LinkedHashSet<String> deletedTagKeys = new LinkedHashSet<>();
+        if (originalTags != null) {
+            for (String value : originalTags) {
+                String normalized = normalizeCustomOptionInput(value);
+                if (normalized != null) {
+                    deletedTagKeys.add(customOptionKey(normalized));
+                }
+            }
+        }
+
+        LinkedHashMap<String, String> taskRenamesByKey = new LinkedHashMap<>();
+        if (taskRows != null) {
+            for (CustomOptionRow row : taskRows) {
+                if (row == null || row.originalValue() == null || row.field() == null) {
+                    continue;
+                }
+                String originalNormalized = normalizeCustomOptionInput(row.originalValue());
+                if (originalNormalized == null) {
+                    continue;
+                }
+                String originalKey = customOptionKey(originalNormalized);
+                deletedTaskKeys.remove(originalKey);
+
+                String updated = normalizeCustomOptionInput(row.field().getText());
+                if (updated == null) {
+                    continue;
+                }
+                if (!originalNormalized.equals(updated)) {
+                    taskRenamesByKey.put(originalKey, updated);
+                }
+            }
+        }
+
+        LinkedHashMap<String, String> tagRenamesByKey = new LinkedHashMap<>();
+        if (tagRows != null) {
+            for (CustomOptionRow row : tagRows) {
+                if (row == null || row.originalValue() == null || row.field() == null) {
+                    continue;
+                }
+                String originalNormalized = normalizeCustomOptionInput(row.originalValue());
+                if (originalNormalized == null) {
+                    continue;
+                }
+                String originalKey = customOptionKey(originalNormalized);
+                deletedTagKeys.remove(originalKey);
+
+                String updated = normalizeCustomOptionInput(row.field().getText());
+                if (updated == null) {
+                    continue;
+                }
+                if (!originalNormalized.equals(updated)) {
+                    tagRenamesByKey.put(originalKey, updated);
+                }
+            }
+        }
+
+        return new CustomOptionsMutation(taskRenamesByKey, deletedTaskKeys, tagRenamesByKey, deletedTagKeys);
+    }
+
+    private void syncActiveSchedulesForCustomOptions(
+        Map<String, String> taskRenamesByKey,
+        LinkedHashSet<String> deletedTaskKeys,
+        Map<String, String> tagRenamesByKey,
+        LinkedHashSet<String> deletedTagKeys
+    ) throws SQLException {
+        boolean hasTaskEdits = taskRenamesByKey != null && !taskRenamesByKey.isEmpty();
+        boolean hasTaskDeletes = deletedTaskKeys != null && !deletedTaskKeys.isEmpty();
+        boolean hasTagEdits = tagRenamesByKey != null && !tagRenamesByKey.isEmpty();
+        boolean hasTagDeletes = deletedTagKeys != null && !deletedTagKeys.isEmpty();
+        if (!hasTaskEdits && !hasTaskDeletes && !hasTagEdits && !hasTagDeletes) {
+            return;
+        }
+
+        List<Schedule> schedules = loadAllSchedules();
+        for (Schedule schedule : schedules) {
+            if (schedule == null) {
+                continue;
+            }
+            boolean changed = false;
+
+            if (hasTaskEdits || hasTaskDeletes) {
+                String category = schedule.getCategory();
+                if (!Schedule.isDefaultCategory(category)) {
+                    String normalizedCategory = normalizeCustomOptionInput(category);
+                    if (normalizedCategory != null) {
+                        String key = customOptionKey(normalizedCategory);
+                        String renamed = hasTaskEdits ? taskRenamesByKey.get(key) : null;
+                        if (renamed != null) {
+                            schedule.setCategory(renamed);
+                            changed = true;
+                        } else if (hasTaskDeletes && deletedTaskKeys.contains(key)) {
+                            schedule.setCategory(Schedule.DEFAULT_CATEGORY);
+                            changed = true;
+                        }
+                    }
+                }
+            }
+
+            if (hasTagEdits || hasTagDeletes) {
+                List<String> existingTags = Schedule.splitTags(schedule.getTags());
+                if (!existingTags.isEmpty()) {
+                    LinkedHashSet<String> updated = new LinkedHashSet<>();
+                    for (String tag : existingTags) {
+                        String normalizedTag = normalizeCustomOptionInput(tag);
+                        if (normalizedTag == null) {
+                            continue;
+                        }
+                        String key = customOptionKey(normalizedTag);
+                        if (hasTagDeletes && deletedTagKeys.contains(key)) {
+                            changed = true;
+                            continue;
+                        }
+                        String renamed = hasTagEdits ? tagRenamesByKey.get(key) : null;
+                        if (renamed != null) {
+                            updated.add(renamed);
+                            if (!renamed.equals(normalizedTag)) {
+                                changed = true;
+                            }
+                        } else {
+                            updated.add(normalizedTag);
+                        }
+                    }
+                    if (changed) {
+                        schedule.setTagNames(new ArrayList<>(updated));
+                    }
+                }
+            }
+
+            if (changed) {
+                if (!saveSchedule(schedule)) {
+                    throw new SQLException(text("error.schedulePersist.message"));
+                }
+            }
+        }
+    }
+
+    private static String normalizeCustomOptionInput(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String sanitized = raw.replace('\r', ' ').replace('\n', ' ').strip();
+        return sanitized.isEmpty() ? null : sanitized;
+    }
+
+    private static String customOptionKey(String normalized) {
+        return normalized.toLowerCase(Locale.ROOT);
+    }
+
+    private record CustomOptionRow(HBox row, TextField field, String originalValue) {
+    }
+
+    private static final class ValidationResult {
+        private final boolean ok;
+        private final String message;
+
+        private ValidationResult(boolean ok, String message) {
+            this.ok = ok;
+            this.message = message;
+        }
+    }
+
+    private static final class CustomOptionsMutation {
+        private final LinkedHashMap<String, String> taskRenamesByKey;
+        private final LinkedHashSet<String> deletedTaskKeys;
+        private final LinkedHashMap<String, String> tagRenamesByKey;
+        private final LinkedHashSet<String> deletedTagKeys;
+
+        private CustomOptionsMutation(
+            LinkedHashMap<String, String> taskRenamesByKey,
+            LinkedHashSet<String> deletedTaskKeys,
+            LinkedHashMap<String, String> tagRenamesByKey,
+            LinkedHashSet<String> deletedTagKeys
+        ) {
+            this.taskRenamesByKey = taskRenamesByKey != null ? taskRenamesByKey : new LinkedHashMap<>();
+            this.deletedTaskKeys = deletedTaskKeys != null ? deletedTaskKeys : new LinkedHashSet<>();
+            this.tagRenamesByKey = tagRenamesByKey != null ? tagRenamesByKey : new LinkedHashMap<>();
+            this.deletedTagKeys = deletedTagKeys != null ? deletedTagKeys : new LinkedHashSet<>();
+        }
+
+        private boolean requiresScheduleSync() {
+            return !taskRenamesByKey.isEmpty()
+                || !deletedTaskKeys.isEmpty()
+                || !tagRenamesByKey.isEmpty()
+                || !deletedTagKeys.isEmpty();
+        }
     }
 
     private void populateTrashSettingsList(VBox host, Label summaryLabel) {
@@ -2573,6 +3046,10 @@ public class MainController {
 
     public LocalizationService getLocalizationService() {
         return localizationService;
+    }
+
+    public CustomOptionsService getCustomOptionsService() {
+        return customOptionsService;
     }
 
     public FontService getFontService() {

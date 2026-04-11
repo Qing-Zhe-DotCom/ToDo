@@ -25,6 +25,7 @@ public final class ApplicationContext {
     private final SchemaManager schemaManager;
     private final ScheduleItemRepository scheduleItemRepository;
     private final ScheduleItemService scheduleItemService;
+    private final CustomOptionsService customOptionsService;
     private final NavigationService navigationService;
     private final ExperimentalFeaturesService experimentalFeaturesService;
     private final ThemeService themeService;
@@ -42,6 +43,7 @@ public final class ApplicationContext {
         SchemaManager schemaManager,
         ScheduleItemRepository scheduleItemRepository,
         ScheduleItemService scheduleItemService,
+        CustomOptionsService customOptionsService,
         NavigationService navigationService,
         ExperimentalFeaturesService experimentalFeaturesService,
         ThemeService themeService,
@@ -58,6 +60,7 @@ public final class ApplicationContext {
         this.schemaManager = schemaManager;
         this.scheduleItemRepository = scheduleItemRepository;
         this.scheduleItemService = scheduleItemService;
+        this.customOptionsService = customOptionsService;
         this.navigationService = navigationService;
         this.experimentalFeaturesService = experimentalFeaturesService;
         this.themeService = themeService;
@@ -110,6 +113,12 @@ public final class ApplicationContext {
         ThemeService themeService = new ThemeService(preferencesStore, appProperties, experimentalFeaturesService);
         IconService iconService = new IconService(preferencesStore, themeService.getCurrentThemeFamily());
         iconService.syncThemeAppearance(themeService.getCurrentAppearance());
+        CustomOptionsService customOptionsService = new CustomOptionsService(preferencesStore);
+        try {
+            customOptionsService.importFromScheduleItems(scheduleItemService.getActiveScheduleItems());
+        } catch (Exception ignored) {
+            // Best-effort: the app should remain usable even if the import path fails.
+        }
         MainViewModel mainViewModel = new MainViewModel(
             navigationService,
             themeService,
@@ -127,6 +136,7 @@ public final class ApplicationContext {
             schemaManager,
             scheduleItemRepository,
             scheduleItemService,
+            customOptionsService,
             navigationService,
             experimentalFeaturesService,
             themeService,
@@ -167,6 +177,10 @@ public final class ApplicationContext {
 
     public ScheduleItemService getScheduleItemService() {
         return scheduleItemService;
+    }
+
+    public CustomOptionsService getCustomOptionsService() {
+        return customOptionsService;
     }
 
     public NavigationService getNavigationService() {

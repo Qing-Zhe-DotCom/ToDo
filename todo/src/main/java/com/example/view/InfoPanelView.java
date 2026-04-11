@@ -1,6 +1,7 @@
 package com.example.view;
 
 import com.example.application.IconKey;
+import com.example.application.CustomOptionsService;
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionMutation;
 import com.example.model.RecurrenceRule;
@@ -12,6 +13,7 @@ import javafx.animation.PauseTransition;
 import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
+import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -21,12 +23,17 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ComboBoxBase;
 import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
@@ -45,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 public class InfoPanelView implements ScheduleCompletionParticipant {
@@ -101,6 +109,9 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     private ComboBox<String> priorityBox;
     private TextField categoryField;
     private TextField tagsField;
+    private ContextMenu categorySuggestionMenu;
+    private ContextMenu tagsSuggestionMenu;
+    private boolean categorySuggestionQueryEnabled;
     private TextArea notesArea;
     private FlowPane tagEditorChipPane;
     private VBox reminderListBox;
@@ -639,7 +650,12 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         addReminderButton.setOnAction(event -> addReminder());
         recurrenceEditButton.setOnAction(event -> editRecurrenceRule());
         recurrenceClearButton.setOnAction(event -> clearRecurrenceRule());
-        scrollPane.vvalueProperty().addListener((obs, oldValue, newValue) -> closeWheelPopup());
+        scrollPane.vvalueProperty().addListener((obs, oldValue, newValue) -> {
+            closeWheelPopup();
+            hideOptionSuggestionMenus();
+        });
+
+        installCustomOptionSuggestions();
     }
 
     private void bindTextField(TextField field, PauseTransition delay, Runnable saveAction) {
@@ -677,6 +693,17 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         if (persistedSchedule != null && Objects.equals(value, persistedSchedule.getCategory())) {
             return;
         }
+        if (!Schedule.isDefaultCategory(value)) {
+            CustomOptionsService options = controller.getCustomOptionsService();
+            if (options != null && !options.ensureTaskExists(value)) {
+                controller.showError(
+                    text("error.customOptions.taskLimit.title"),
+                    text("error.customOptions.taskLimit.message", CustomOptionsService.MAX_TASKS)
+                );
+                restorePersisted();
+                return;
+            }
+        }
         save(text("error.categorySave.title"), draft -> draft.setCategory(value), false);
     }
 
@@ -684,6 +711,18 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         String value = Schedule.normalizeTags(tagsField.getText());
         if (persistedSchedule != null && value.equals(persistedSchedule.getTags())) {
             return;
+        }
+        List<String> tags = Schedule.splitTags(value);
+        if (!tags.isEmpty()) {
+            CustomOptionsService options = controller.getCustomOptionsService();
+            if (options != null && !options.ensureTagsExist(tags)) {
+                controller.showError(
+                    text("error.customOptions.tagLimit.title"),
+                    text("error.customOptions.tagLimit.message", CustomOptionsService.MAX_TAGS)
+                );
+                restorePersisted();
+                return;
+            }
         }
         save(text("error.tagsSave.title"), draft -> draft.setTags(value), true);
     }
@@ -972,6 +1011,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
             return;
         }
         closeWheelPopup();
+        hideOptionSuggestionMenus();
         titleDelay.stop();
         categoryDelay.stop();
         tagsDelay.stop();
@@ -994,6 +1034,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
 
     private void applyEmptyState() {
         closeWheelPopup();
+        hideOptionSuggestionMenus();
         suspend = true;
         titleField.setText("");
         priorityBox.setValue(Schedule.DEFAULT_PRIORITY);
@@ -1173,6 +1214,260 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
 
     private void closeWheelPopup() {
         wheelPopup.hide();
+    }
+
+    private void hideOptionSuggestionMenus() {
+        if (categorySuggestionMenu != null) {
+            categorySuggestionMenu.hide();
+        }
+        if (tagsSuggestionMenu != null) {
+            tagsSuggestionMenu.hide();
+        }
+    }
+
+    private void installCustomOptionSuggestions() {
+        CustomOptionsService options = controller.getCustomOptionsService();
+        if (options == null || categoryField == null || tagsField == null) {
+            return;
+        }
+
+        if (categorySuggestionMenu == null) {
+            categorySuggestionMenu = new ContextMenu();
+            categorySuggestionMenu.getStyleClass().add("custom-option-suggestion-menu");
+            categorySuggestionMenu.setAutoHide(true);
+            categorySuggestionMenu.setHideOnEscape(true);
+        }
+        if (tagsSuggestionMenu == null) {
+            tagsSuggestionMenu = new ContextMenu();
+            tagsSuggestionMenu.getStyleClass().add("custom-option-suggestion-menu");
+            tagsSuggestionMenu.setAutoHide(true);
+            tagsSuggestionMenu.setHideOnEscape(true);
+        }
+
+        categoryField.focusedProperty().addListener((obs, oldValue, focused) -> {
+            if (focused) {
+                categorySuggestionQueryEnabled = false;
+                refreshCategorySuggestions();
+            } else {
+                // Defer to allow context-menu clicks to register before hiding.
+                Platform.runLater(() -> {
+                    if (categorySuggestionMenu != null) {
+                        categorySuggestionMenu.hide();
+                    }
+                });
+            }
+        });
+        categoryField.textProperty().addListener((obs, oldValue, newValue) -> {
+            if (suspend) {
+                return;
+            }
+            if (categoryField.isFocused()) {
+                categorySuggestionQueryEnabled = true;
+                refreshCategorySuggestions();
+            }
+        });
+        categoryField.setOnMouseClicked(event -> {
+            if (!suspend && categoryField.isFocused()) {
+                refreshCategorySuggestions();
+            }
+        });
+        categoryField.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                if (categorySuggestionMenu != null) {
+                    categorySuggestionMenu.hide();
+                }
+            }
+        });
+
+        tagsField.focusedProperty().addListener((obs, oldValue, focused) -> {
+            if (focused) {
+                refreshTagSuggestions();
+            } else {
+                Platform.runLater(() -> {
+                    if (tagsSuggestionMenu != null) {
+                        tagsSuggestionMenu.hide();
+                    }
+                });
+            }
+        });
+        tagsField.textProperty().addListener((obs, oldValue, newValue) -> {
+            if (suspend) {
+                return;
+            }
+            if (tagsField.isFocused()) {
+                refreshTagSuggestions();
+            }
+        });
+        tagsField.setOnMouseClicked(event -> {
+            if (!suspend && tagsField.isFocused()) {
+                refreshTagSuggestions();
+            }
+        });
+        tagsField.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                if (tagsSuggestionMenu != null) {
+                    tagsSuggestionMenu.hide();
+                }
+            }
+        });
+
+        options.addChangeListener(() -> {
+            if (categoryField != null && categoryField.isFocused()) {
+                refreshCategorySuggestions();
+            }
+            if (tagsField != null && tagsField.isFocused()) {
+                refreshTagSuggestions();
+            }
+        });
+    }
+
+    private void refreshCategorySuggestions() {
+        if (categorySuggestionMenu == null || categoryField == null) {
+            return;
+        }
+        if (!categoryField.isFocused() || categoryField.isDisabled() || !categoryField.isVisible()) {
+            categorySuggestionMenu.hide();
+            return;
+        }
+
+        CustomOptionsService options = controller.getCustomOptionsService();
+        if (options == null) {
+            categorySuggestionMenu.hide();
+            return;
+        }
+
+        String rawInput = categoryField.getText();
+        String trimmed = rawInput == null ? "" : rawInput.trim();
+        String query = categorySuggestionQueryEnabled ? trimmed : "";
+        if (trimmed.equals(text("category.default"))) {
+            query = "";
+        }
+
+        List<MenuItem> items = new ArrayList<>();
+        MenuItem unsetItem = new MenuItem(text("category.default"));
+        unsetItem.setGraphic(controller.createSvgIcon(IconKey.RESET, text("category.default"), 16));
+        unsetItem.setOnAction(event -> {
+            categoryField.setText(text("category.default"));
+            categoryField.positionCaret(categoryField.getText().length());
+            categoryDelay.stop();
+            saveCategory();
+            categorySuggestionMenu.hide();
+        });
+        items.add(unsetItem);
+
+        List<String> suggestions = options.suggestTasks(query, 12);
+        if (!suggestions.isEmpty()) {
+            items.add(new SeparatorMenuItem());
+            for (String suggestion : suggestions) {
+                if (suggestion == null || suggestion.isBlank()) {
+                    continue;
+                }
+                MenuItem item = new MenuItem(suggestion);
+                item.setGraphic(controller.createSvgIcon(IconKey.FOLDER, suggestion, 16));
+                item.setOnAction(event -> {
+                    categoryField.setText(suggestion);
+                    categoryField.positionCaret(categoryField.getText().length());
+                    categoryDelay.stop();
+                    saveCategory();
+                    categorySuggestionMenu.hide();
+                });
+                items.add(item);
+            }
+        }
+
+        categorySuggestionMenu.getItems().setAll(items);
+        if (!categorySuggestionMenu.isShowing()) {
+            categorySuggestionMenu.show(categoryField, Side.BOTTOM, 0, 4);
+        }
+    }
+
+    private void refreshTagSuggestions() {
+        if (tagsSuggestionMenu == null || tagsField == null) {
+            return;
+        }
+        if (!tagsField.isFocused() || tagsField.isDisabled() || !tagsField.isVisible()) {
+            tagsSuggestionMenu.hide();
+            return;
+        }
+
+        CustomOptionsService options = controller.getCustomOptionsService();
+        if (options == null) {
+            tagsSuggestionMenu.hide();
+            return;
+        }
+
+        String rawInput = tagsField.getText();
+        String query = resolveTagQuery(rawInput);
+
+        LinkedHashSet<String> selectedKeys = new LinkedHashSet<>();
+        for (String selected : Schedule.splitTags(rawInput)) {
+            if (selected != null && !selected.isBlank()) {
+                selectedKeys.add(selected.toLowerCase(Locale.ROOT));
+            }
+        }
+
+        List<String> suggestions = options.suggestTags(query, 12);
+        List<MenuItem> items = new ArrayList<>();
+        for (String suggestion : suggestions) {
+            if (suggestion == null || suggestion.isBlank()) {
+                continue;
+            }
+            if (selectedKeys.contains(suggestion.toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+            MenuItem item = new MenuItem(suggestion);
+            item.setGraphic(controller.createSvgIcon(IconKey.TAG, suggestion, 16));
+            item.setOnAction(event -> {
+                appendTagSuggestion(suggestion);
+                tagsDelay.stop();
+                saveTags();
+                tagsSuggestionMenu.hide();
+            });
+            items.add(item);
+        }
+
+        if (items.isEmpty()) {
+            tagsSuggestionMenu.hide();
+            return;
+        }
+
+        tagsSuggestionMenu.getItems().setAll(items);
+        if (!tagsSuggestionMenu.isShowing()) {
+            tagsSuggestionMenu.show(tagsField, Side.BOTTOM, 0, 4);
+        }
+    }
+
+    private static String resolveTagQuery(String rawInput) {
+        if (rawInput == null) {
+            return "";
+        }
+        int commaIndex = rawInput.lastIndexOf(',');
+        int chineseCommaIndex = rawInput.lastIndexOf('，');
+        int splitIndex = Math.max(commaIndex, chineseCommaIndex);
+        if (splitIndex < 0) {
+            return rawInput.trim();
+        }
+        return rawInput.substring(splitIndex + 1).trim();
+    }
+
+    private void appendTagSuggestion(String tag) {
+        String normalized = tag == null ? "" : tag.strip();
+        if (normalized.isEmpty() || tagsField == null) {
+            return;
+        }
+        List<String> existingTags = new ArrayList<>(Schedule.splitTags(tagsField.getText()));
+        LinkedHashSet<String> keys = new LinkedHashSet<>();
+        for (String existing : existingTags) {
+            if (existing != null && !existing.isBlank()) {
+                keys.add(existing.toLowerCase(Locale.ROOT));
+            }
+        }
+        if (!keys.add(normalized.toLowerCase(Locale.ROOT))) {
+            return;
+        }
+        existingTags.add(normalized);
+        tagsField.setText(String.join(", ", existingTags));
+        tagsField.positionCaret(tagsField.getText().length());
     }
 
     private String text(String key, Object... args) {
