@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -1193,7 +1194,7 @@ public class MainController {
         Schedule schedule = new Schedule();
         schedule.setName(title);
         schedule.setDescription("");
-        schedule.setStartAt(null);
+        schedule.setStartAt(schedule.getCreatedAt().truncatedTo(ChronoUnit.MINUTES));
         schedule.setDueAt(LocalDate.now().atTime(23, 59));
         schedule.setCompleted(false);
         schedule.setPriority(Schedule.DEFAULT_PRIORITY);

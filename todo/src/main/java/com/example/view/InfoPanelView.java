@@ -48,6 +48,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -103,9 +104,6 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     private Label startTriggerTitle;
     private Label startTriggerSubtitle;
     private CheckBox reminderToggle;
-    private Button reminderTrigger;
-    private Label reminderTriggerTitle;
-    private Label reminderTriggerSubtitle;
     private ComboBox<String> priorityBox;
     private TextField categoryField;
     private TextField tagsField;
@@ -435,6 +433,13 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         return date.atTime(9, 0);
     }
 
+    static LocalDateTime defaultStartSeed(LocalDateTime createdAt, boolean allDay) {
+        LocalDateTime seed = createdAt != null
+            ? createdAt.truncatedTo(ChronoUnit.MINUTES)
+            : defaultStartValue(LocalDate.now());
+        return allDay ? seed.toLocalDate().atStartOfDay() : seed;
+    }
+
     static LocalDateTime defaultReminderValue(LocalDate date, LocalDateTime dueAt) {
         return dueAt != null ? dueAt : defaultStartValue(date);
     }
@@ -515,10 +520,6 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         attachInlineYearTriggerGraphic(startTrigger, startTriggerSubtitle, startTriggerTitle);
 
         reminderToggle = rowToggle(text("info.reminder"));
-        reminderTrigger = timeTrigger();
-        reminderTriggerTitle = triggerLabel("info-panel-time-trigger-title");
-        reminderTriggerSubtitle = triggerLabel("info-panel-time-trigger-subtitle");
-        attachStackedTriggerGraphic(reminderTrigger, reminderTriggerTitle, reminderTriggerSubtitle);
 
         priorityBox = new ComboBox<>();
         priorityBox.getItems().setAll(Schedule.PRIORITY_HIGH, Schedule.PRIORITY_MEDIUM, Schedule.PRIORITY_LOW);
@@ -561,7 +562,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         VBox recurrenceEditor = new VBox(8, recurrenceSummaryLabel, recurrenceActions);
         recurrenceEditor.getStyleClass().add("info-panel-recurrence-editor");
 
-        VBox reminderEditor = new VBox(8, reminderListBox, addReminderButton);
+        VBox reminderEditor = new VBox(8, toggleOnlyRow(reminderToggle), reminderListBox, addReminderButton);
         reminderEditor.getStyleClass().add("info-panel-reminder-editor");
 
         VBox content = new VBox();
@@ -570,7 +571,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
             chipPane,
             titleField,
             section(text("info.section.allDay"), toggleOnlyRow(allDayToggle)),
-            section(text("info.section.time"), timeRow(dueToggle, dueTrigger), timeRow(startToggle, startTrigger), timeRow(reminderToggle, reminderTrigger)),
+            section(text("info.section.time"), timeRow(startToggle, startTrigger), timeRow(dueToggle, dueTrigger)),
             section(text("info.section.priority"), priorityEditor),
             section(text("info.section.category"), categoryEditor),
             section(text("info.section.tags"), tagsEditor),
@@ -655,7 +656,6 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
 
         dueTrigger.setOnAction(event -> openDuePicker());
         startTrigger.setOnAction(event -> openStartPicker());
-        reminderTrigger.setOnAction(event -> openReminderPicker());
         addReminderButton.setOnAction(event -> addReminder());
         recurrenceEditButton.setOnAction(event -> editRecurrenceRule());
         recurrenceClearButton.setOnAction(event -> clearRecurrenceRule());
@@ -886,7 +886,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         boolean hasReminders = !reminders.isEmpty();
         reminderListBox.setVisible(hasReminders);
         reminderListBox.setManaged(hasReminders);
-        addReminderButton.setDisable(currentSchedule == null || !reminderToggle.isSelected());
+        addReminderButton.setDisable(currentSchedule == null);
     }
 
     private String formatReminderButtonText(Reminder reminder) {
@@ -951,9 +951,18 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
 
     private void handleStartToggle(boolean selected) {
         closeWheelPopup();
-        saveStart(selected ? (currentSchedule != null && currentSchedule.getStartAt() != null
-            ? currentSchedule.getStartAt()
-            : defaultStartValue(LocalDate.now())) : null);
+        if (!selected) {
+            saveStart(null);
+            return;
+        }
+        LocalDateTime seed = currentSchedule != null ? currentSchedule.getStartAt() : null;
+        if (seed == null) {
+            seed = defaultStartSeed(
+                currentSchedule != null ? currentSchedule.getCreatedAt() : null,
+                currentSchedule != null && currentSchedule.isAllDay()
+            );
+        }
+        saveStart(seed);
     }
 
     private void handleReminderToggle(boolean selected) {
@@ -978,13 +987,11 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
 
     private void openStartPicker() {
         if (currentSchedule != null && startToggle.isSelected()) {
-            openTimePicker(text("info.start"), startTrigger, currentSchedule.getStartAt(), this::saveStart);
-        }
-    }
-
-    private void openReminderPicker() {
-        if (currentSchedule != null && reminderToggle.isSelected()) {
-            openTimePicker(text("info.reminder"), reminderTrigger, currentSchedule.getReminderTime(), this::saveReminder);
+            LocalDateTime seed = currentSchedule.getStartAt();
+            if (seed == null) {
+                seed = defaultStartSeed(currentSchedule.getCreatedAt(), currentSchedule.isAllDay());
+            }
+            openTimePicker(text("info.start"), startTrigger, seed, this::saveStart);
         }
     }
 
@@ -1012,23 +1019,6 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
             return;
         }
         save(text("error.startSave.title"), draft -> draft.setStartAt(normalizedValue), true);
-    }
-
-    private void saveReminder(LocalDateTime value) {
-        if (persistedSchedule != null && Objects.equals(value, persistedSchedule.getReminderTime())) {
-            updateTimeTriggers();
-            return;
-        }
-        List<Reminder> reminders = currentSchedule != null ? new ArrayList<>(currentSchedule.getReminders()) : new ArrayList<>();
-        if (value == null) {
-            reminders.clear();
-        } else if (reminders.isEmpty()) {
-            reminders.add(new Reminder(value));
-        } else {
-            reminders.get(0).setRemindAtUtc(value);
-        }
-        saveReminders(reminders);
-        return;
     }
 
     private void save(String errorTitle, Change change, boolean rerender) {
@@ -1179,8 +1169,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         setDisabled(disabled);
         dueTrigger.setDisable(disabled || !dueToggle.isSelected());
         startTrigger.setDisable(disabled || !startToggle.isSelected());
-        reminderTrigger.setDisable(disabled || !reminderToggle.isSelected());
-        addReminderButton.setDisable(disabled || !reminderToggle.isSelected());
+        addReminderButton.setDisable(disabled);
         recurrenceEditButton.setDisable(disabled);
         recurrenceClearButton.setDisable(disabled || currentSchedule == null || currentSchedule.getRecurrenceRule() == null);
     }
@@ -1200,7 +1189,6 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
             currentSchedule != null && startToggle.isSelected() ? currentSchedule.getStartAt() : null,
             currentSchedule != null && currentSchedule.isAllDay()
         );
-        configureTimeTrigger(reminderTrigger, reminderTriggerTitle, reminderTriggerSubtitle, currentSchedule != null && reminderToggle.isSelected() ? currentSchedule.getReminderTime() : null);
         updateEditorsEnabled();
         renderReminderEditor();
     }

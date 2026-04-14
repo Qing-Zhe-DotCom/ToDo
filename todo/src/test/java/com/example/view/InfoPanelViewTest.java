@@ -70,6 +70,20 @@ class InfoPanelViewTest {
     }
 
     @Test
+    void defaultStartSeedUsesCreatedAtTruncatedToMinutes() {
+        LocalDateTime createdAt = LocalDateTime.of(2026, 4, 6, 14, 37, 22);
+
+        assertEquals(LocalDateTime.of(2026, 4, 6, 14, 37), InfoPanelView.defaultStartSeed(createdAt, false));
+    }
+
+    @Test
+    void defaultStartSeedAllDayNormalizesToMidnight() {
+        LocalDateTime createdAt = LocalDateTime.of(2026, 4, 6, 14, 37, 22);
+
+        assertEquals(LocalDateTime.of(2026, 4, 6, 0, 0), InfoPanelView.defaultStartSeed(createdAt, true));
+    }
+
+    @Test
     void wheelPopupHelpersClampMonthLength() {
         assertEquals(29, IosWheelDateTimePopup.daysInMonth(2024, 2));
         assertEquals(28, IosWheelDateTimePopup.daysInMonth(2025, 2));
