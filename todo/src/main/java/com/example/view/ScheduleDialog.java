@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
 import java.io.InputStream;
@@ -55,6 +56,7 @@ public class ScheduleDialog extends Dialog<Schedule> {
     private ToggleButton reminderToggle;
     private DatePicker reminderDatePicker;
     private ComboBox<String> reminderTimeCombo;
+    private boolean startDateTouched;
     
     private String selectedColorHex = "#2196F3";
     private HBox colorPalette;
@@ -159,7 +161,7 @@ public class ScheduleDialog extends Dialog<Schedule> {
         HBox.setHgrow(dueBox, Priority.ALWAYS);
         Label dueLabel = new Label(text("schedule.dialog.dueDateRequired"));
         dueLabel.getStyleClass().add("field-label");
-        dueDatePicker = new DatePicker(LocalDate.now().plusDays(7));
+        dueDatePicker = new DatePicker(LocalDate.now());
         dueDatePicker.setMaxWidth(Double.MAX_VALUE);
         dueDatePicker.getStyleClass().add("modern-input");
         DatePickerArrowSupport.install(dueDatePicker, controller);
@@ -368,6 +370,9 @@ public class ScheduleDialog extends Dialog<Schedule> {
         });
         
         startDatePicker.valueProperty().addListener((obs, oldV, newV) -> {
+            if (!isEditMode) {
+                startDateTouched = true;
+            }
             validateDates();
         });
         
@@ -443,6 +448,12 @@ public class ScheduleDialog extends Dialog<Schedule> {
         result.setDescription(descriptionArea.getText());
         result.setStartDate(startDatePicker.getValue());
         result.setDueDate(dueDatePicker.getValue());
+        if (!isEditMode && !startDateTouched) {
+            LocalDateTime createdAt = result.getCreatedAt();
+            if (createdAt != null) {
+                result.setStartAt(createdAt.truncatedTo(ChronoUnit.MINUTES));
+            }
+        }
         
         if (priorityGroup.getSelectedToggle() != null) {
             result.setPriority(priorityGroup.getSelectedToggle().getUserData().toString());
