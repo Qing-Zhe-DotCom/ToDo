@@ -110,10 +110,10 @@ public final class ScheduleCardMotionSupport {
     private static final ArchiveAnimationListener NO_OP_LISTENER = new ArchiveAnimationListener() {
     };
 
-    private static final Duration SHAKE_DURATION = Duration.millis(220);
-    private static final Duration DROP_DURATION = Duration.millis(560);
-    private static final Duration ABSORB_DURATION = Duration.millis(220);
-    private static final Duration COMMIT_AFTER_DROP_START = Duration.millis(300);
+    private static final Duration SHAKE_DURATION = Duration.millis(140);
+    private static final Duration DROP_DURATION = Duration.millis(220);
+    private static final Duration ABSORB_DURATION = Duration.millis(160);
+    private static final Duration COMMIT_AFTER_DROP_START = Duration.millis(140);
     private static final Interpolator SHAKE_INTERPOLATOR = Interpolator.SPLINE(0.28, 0.0, 0.24, 1.0);
     private static final Interpolator DROP_INTERPOLATOR = Interpolator.SPLINE(0.16, 0.76, 0.22, 1.0);
     private static final Interpolator ABSORB_INTERPOLATOR = Interpolator.SPLINE(0.36, 0.0, 0.2, 1.0);

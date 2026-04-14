@@ -13,6 +13,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 
 import com.example.application.IconKey;
@@ -27,6 +28,7 @@ import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.ComboBox;
@@ -42,6 +44,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.image.WritableImage;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 
@@ -54,6 +57,12 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     private static final Duration QUICK_ADD_FEEDBACK_FADE_IN_DURATION = Duration.millis(140);
     private static final Duration QUICK_ADD_FEEDBACK_HOLD_DURATION = Duration.seconds(2.2);
     private static final Duration QUICK_ADD_FEEDBACK_FADE_OUT_DURATION = Duration.millis(180);
+    private static final Duration EXPANDED_SETTLE_DURATION = Duration.millis(160);
+    private static final Duration EXPANDED_MORPH_DURATION = Duration.millis(120);
+    private static final Duration EXPANDED_REVEAL_DURATION = Duration.millis(90);
+    private static final Duration COLLAPSED_SETTLE_DURATION = Duration.millis(150);
+    private static final Duration COLLAPSED_MORPH_DURATION = Duration.millis(110);
+    private static final Duration COLLAPSED_ABSORB_DURATION = Duration.millis(120);
     static final String FILTER_MY_DAY = "my-day";
     static final String FILTER_OVERDUE = "overdue";
     static final String FILTER_ALL = "all";
@@ -120,6 +129,15 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         private void updateCollapsed(boolean collapsed) {
             arrowLabel.setRotate(collapsed ? 0 : 90);
         }
+    }
+
+    enum LandingTargetKind {
+        EXPANDED_CARD,
+        COLLAPSED_HEADER,
+        FALLBACK
+    }
+
+    record LandingTargetDecision(LandingTargetKind kind) {
     }
 
     private final class ScheduleCardNode {
@@ -229,8 +247,22 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             return motionHandle;
         }
 
+        private StackPane getMotionHost() {
+            return cardMotionHost;
+        }
+
+        private Node getSurfaceNode() {
+            return cardShell;
+        }
+
+        private void restoreMotionSteadyState() {
+            motionHandle.restoreSteadyState();
+            ScheduleLandingTransition.finishTargetHandoff(cardShell);
+        }
+
         private void bindSchedule(Schedule schedule) {
             this.schedule = schedule;
+            restoreMotionSteadyState();
             statusControl.syncCompleted(schedule.isCompleted());
 
             ScheduleCardStyleSupport.applyCardPresentation(
@@ -282,7 +314,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         }
 
         private void syncAfterFailedCommit() {
-            motionHandle.restoreSteadyState();
+            restoreMotionSteadyState();
             statusControl.syncCompleted(schedule.isCompleted());
         }
     }
@@ -797,37 +829,71 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         if (schedule == null) {
             return false;
         }
-        if (!targetCompleted) {
-            return controller.updateScheduleCompletion(schedule, false);
-        }
 
         ScheduleCompletionCoordinator.PendingCompletion pendingCompletion =
-            controller.prepareScheduleCompletion(schedule, true);
+            controller.prepareScheduleCompletion(schedule, targetCompleted);
         if (pendingCompletion == null) {
             return false;
         }
 
-        String cardKey = schedule.getViewKey() != null && !schedule.getViewKey().isBlank()
-            ? schedule.getViewKey()
-            : schedule.getId();
+        String cardKey = resolveCardKey(schedule);
         Map<String, Bounds> beforeBounds =
             ScheduleReflowAnimator.captureVisibleCardBounds(listContent, cardKey);
 
-        ScheduleCollapsePopAnimator.playCollapseSource(
-            cardNode.getMotionHandle(),
-            pendingCompletion::commit,
-            () -> handleCommittedListCompletion(cardKey, beforeBounds),
-            () -> {
-                pendingCompletion.cancel();
-                cardNode.syncAfterFailedCommit();
+        BooleanSupplier commitAction = () -> {
+            ScheduleCardNode sourceNode = cardNodesById.remove(cardKey);
+            boolean success = pendingCompletion.commit();
+            if (!success && sourceNode != null) {
+                cardNodesById.put(cardKey, sourceNode);
+            }
+            return success;
+        };
+        Runnable onFailure = () -> {
+            pendingCompletion.cancel();
+            cardNode.syncAfterFailedCommit();
+        };
+
+        if (!canUseStagedTransfer(cardNode)) {
+            ScheduleCollapsePopAnimator.playCollapseSource(
+                cardNode.getMotionHandle(),
+                commitAction,
+                () -> handleCommittedListFallback(cardKey, targetCompleted, beforeBounds),
+                onFailure,
+                null
+            );
+            return true;
+        }
+
+        Point2D stagingPoint = resolveStagingScenePoint(cardNode.getMotionHost());
+        if (stagingPoint == null) {
+            ScheduleCollapsePopAnimator.playCollapseSource(
+                cardNode.getMotionHandle(),
+                commitAction,
+                () -> handleCommittedListFallback(cardKey, targetCompleted, beforeBounds),
+                onFailure,
+                null
+            );
+            return true;
+        }
+
+        Node sourceSurface = cardNode.getSurfaceNode();
+        ScheduleCardMotionSupport.playDropToStaging(
+            cardNode.getMotionHost(),
+            stagingPoint,
+            new ScheduleCardMotionSupport.StagedArchiveAnimationListener() {
+                @Override
+                public void onReadyToSettle(ScheduleCardMotionSupport.StagedLanding landing) {
+                    handleCommittedListTransfer(cardKey, targetCompleted, beforeBounds, landing, sourceSurface);
+                }
             },
-            null
+            commitAction,
+            onFailure
         );
         return true;
     }
 
-    private void handleCommittedListCompletion(String scheduleId, Map<String, Bounds> beforeBounds) {
-        ScheduleCollapsePopAnimator.MotionHandle targetHandle = resolveExpandedTargetHandle(scheduleId);
+    private void handleCommittedListFallback(String scheduleId, boolean targetCompleted, Map<String, Bounds> beforeBounds) {
+        ScheduleCollapsePopAnimator.MotionHandle targetHandle = resolveExpandedTargetHandle(scheduleId, targetCompleted);
         if (targetHandle != null) {
             ScheduleCollapsePopAnimator.prepareTargetPopState(targetHandle);
         }
@@ -839,27 +905,183 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             return;
         }
 
-        if (completedGroupHeaderNode != null && completedGroupHeaderNode.isVisible()) {
+        Node headerNode = resolveTargetHeaderNode(targetCompleted);
+        if (headerNode != null && headerNode.isVisible()) {
             ScheduleReflowAnimator.playCollapsedReceive(
-                completedGroupHeaderNode,
+                headerNode,
                 CollapsePopKeyframePreset.targetPopDuration(),
                 null
             );
         }
     }
 
-    private ScheduleCollapsePopAnimator.MotionHandle resolveExpandedTargetHandle(String scheduleId) {
-        if (completedCollapsed) {
+    private ScheduleCollapsePopAnimator.MotionHandle resolveExpandedTargetHandle(String scheduleId, boolean targetCompleted) {
+        if ((targetCompleted && completedCollapsed) || (!targetCompleted && pendingCollapsed)) {
             return null;
         }
-        ScheduleCardNode targetNode = cardNodesById.get(scheduleId);
-        if (targetNode == null || targetNode.getSchedule() == null || !targetNode.getSchedule().isCompleted()) {
-            return null;
-        }
-        if (!completedCardsBox.getChildren().contains(targetNode.getContainer())) {
+        ScheduleCardNode targetNode = resolveTargetCardNode(scheduleId, targetCompleted);
+        if (targetNode == null) {
             return null;
         }
         return targetNode.getMotionHandle();
+    }
+
+    private void handleCommittedListTransfer(
+        String scheduleId,
+        boolean targetCompleted,
+        Map<String, Bounds> beforeBounds,
+        ScheduleCardMotionSupport.StagedLanding landing,
+        Node sourceSurface
+    ) {
+        ScheduleCardNode targetNode = resolveTargetCardNode(scheduleId, targetCompleted);
+        Node headerNode = resolveTargetHeaderNode(targetCompleted);
+        LandingTargetDecision decision = resolveLandingTargetDecision(
+            targetCompleted ? completedCollapsed : pendingCollapsed,
+            targetNode != null,
+            headerNode != null && headerNode.isVisible()
+        );
+
+        if (decision.kind() == LandingTargetKind.EXPANDED_CARD && targetNode != null) {
+            Node targetSurface = targetNode.getSurfaceNode();
+            ScheduleLandingTransition.prepareTargetNodeForHandoff(targetSurface, 0.18);
+            ScheduleReflowAnimator.playVerticalReflow(
+                listContent,
+                beforeBounds,
+                null,
+                null,
+                null,
+                () -> ScheduleLandingTransition.handoffToExpandedTarget(
+                    landing,
+                    targetSurface,
+                    EXPANDED_SETTLE_DURATION,
+                    EXPANDED_MORPH_DURATION,
+                    EXPANDED_REVEAL_DURATION,
+                    null
+                )
+            );
+            return;
+        }
+
+        if (decision.kind() == LandingTargetKind.COLLAPSED_HEADER && headerNode != null) {
+            WritableImage previewSnapshot = resolveCollapsedPreviewSnapshot(targetNode, sourceSurface, targetCompleted);
+            Point2D headerCenter = resolveNodeSceneCenter(headerNode);
+            ScheduleReflowAnimator.playVerticalReflow(
+                listContent,
+                beforeBounds,
+                null,
+                null,
+                null,
+                () -> {
+                    if (previewSnapshot == null || headerCenter == null) {
+                        landing.finishSuccess();
+                        return;
+                    }
+                    ScheduleLandingTransition.morphIntoCollapsedEntry(
+                        landing,
+                        previewSnapshot,
+                        headerCenter,
+                        COLLAPSED_SETTLE_DURATION,
+                        COLLAPSED_MORPH_DURATION,
+                        COLLAPSED_ABSORB_DURATION,
+                        () -> ScheduleReflowAnimator.playCollapsedReceive(headerNode, COLLAPSED_ABSORB_DURATION, null)
+                    );
+                }
+            );
+            return;
+        }
+
+        ScheduleReflowAnimator.playVerticalReflow(listContent, beforeBounds, null, null, null, landing::finishSuccess);
+    }
+
+    private ScheduleCardNode resolveTargetCardNode(String scheduleId, boolean targetCompleted) {
+        ScheduleCardNode targetNode = cardNodesById.get(scheduleId);
+        if (targetNode == null || targetNode.getSchedule() == null) {
+            return null;
+        }
+        if (targetNode.getSchedule().isCompleted() != targetCompleted) {
+            return null;
+        }
+        VBox targetBox = targetCompleted ? completedCardsBox : pendingCardsBox;
+        if (targetBox == null || !targetBox.getChildren().contains(targetNode.getContainer())) {
+            return null;
+        }
+        return targetNode;
+    }
+
+    private Node resolveTargetHeaderNode(boolean targetCompleted) {
+        return targetCompleted ? completedHeader.getRoot() : pendingHeader.getRoot();
+    }
+
+    private boolean canUseStagedTransfer(ScheduleCardNode cardNode) {
+        return cardNode != null
+            && cardNode.getMotionHost() != null
+            && cardNode.getMotionHost().getScene() != null
+            && cardNode.getMotionHost().getScene().getRoot() instanceof javafx.scene.layout.Pane;
+    }
+
+    private Point2D resolveStagingScenePoint(Node node) {
+        if (node == null) {
+            return null;
+        }
+        Bounds sceneBounds = node.localToScene(node.getBoundsInLocal());
+        if (sceneBounds == null) {
+            return null;
+        }
+        return new Point2D(sceneBounds.getCenterX(), sceneBounds.getCenterY() + Math.max(24.0, sceneBounds.getHeight() * 0.7));
+    }
+
+    private Point2D resolveNodeSceneCenter(Node node) {
+        if (node == null) {
+            return null;
+        }
+        Bounds sceneBounds = node.localToScene(node.getBoundsInLocal());
+        if (sceneBounds == null) {
+            return null;
+        }
+        return new Point2D(sceneBounds.getCenterX(), sceneBounds.getCenterY());
+    }
+
+    private WritableImage resolveCollapsedPreviewSnapshot(
+        ScheduleCardNode targetNode,
+        Node sourceSurface,
+        boolean targetCompleted
+    ) {
+        if (targetNode != null) {
+            WritableImage snapshot = ScheduleLandingTransition.snapshotNode(targetNode.getSurfaceNode());
+            if (snapshot != null) {
+                return snapshot;
+            }
+        }
+        if (sourceSurface == null) {
+            return null;
+        }
+        if (targetCompleted) {
+            return ScheduleLandingTransition.snapshotNodeWithTemporaryClass(
+                sourceSurface,
+                ScheduleLandingTransition.COMPLETED_PREVIEW_CLASS
+            );
+        }
+        return ScheduleLandingTransition.snapshotNode(sourceSurface);
+    }
+
+    private String resolveCardKey(Schedule schedule) {
+        return schedule.getViewKey() != null && !schedule.getViewKey().isBlank()
+            ? schedule.getViewKey()
+            : schedule.getId();
+    }
+
+    static LandingTargetDecision resolveLandingTargetDecision(
+        boolean targetGroupCollapsed,
+        boolean targetCardPresent,
+        boolean headerVisible
+    ) {
+        if (!targetGroupCollapsed && targetCardPresent) {
+            return new LandingTargetDecision(LandingTargetKind.EXPANDED_CARD);
+        }
+        if (targetGroupCollapsed && headerVisible) {
+            return new LandingTargetDecision(LandingTargetKind.COLLAPSED_HEADER);
+        }
+        return new LandingTargetDecision(LandingTargetKind.FALLBACK);
     }
 
     @Override

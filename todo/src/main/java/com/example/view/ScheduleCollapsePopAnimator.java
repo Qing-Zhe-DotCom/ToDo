@@ -13,6 +13,7 @@ import javafx.util.Duration;
 
 final class ScheduleCollapsePopAnimator {
     private static final String MOTION_HANDLE_KEY = "schedule.collapsePop.motionHandle";
+    private static final String ACTIVE_TIMELINE_KEY = "schedule.collapsePop.activeTimeline";
     private static final Interpolator COLLAPSE_EASE_IN = Interpolator.SPLINE(0.42, 0.0, 1.0, 1.0);
     private static final Interpolator POP_SPRING = Interpolator.SPLINE(0.2, 0.88, 0.18, 1.0);
     private static final Interpolator POP_SETTLE = Interpolator.SPLINE(0.24, 0.84, 0.22, 1.0);
@@ -51,7 +52,23 @@ final class ScheduleCollapsePopAnimator {
             shell.setCacheHint(hint);
         }
 
+        void stopActiveTimeline() {
+            Object activeTimeline = host.getProperties().get(ACTIVE_TIMELINE_KEY);
+            if (activeTimeline instanceof Timeline) {
+                ((Timeline) activeTimeline).stop();
+            }
+            host.getProperties().remove(ACTIVE_TIMELINE_KEY);
+        }
+
+        void registerTimeline(Timeline timeline) {
+            stopActiveTimeline();
+            if (timeline != null) {
+                host.getProperties().put(ACTIVE_TIMELINE_KEY, timeline);
+            }
+        }
+
         void restoreSteadyState() {
+            stopActiveTimeline();
             host.setManaged(true);
             host.setVisible(true);
             host.setMouseTransparent(false);
@@ -67,6 +84,7 @@ final class ScheduleCollapsePopAnimator {
         }
 
         void prepareTargetPopState() {
+            stopActiveTimeline();
             host.setManaged(true);
             host.setVisible(true);
             host.setMouseTransparent(true);
@@ -82,6 +100,7 @@ final class ScheduleCollapsePopAnimator {
         }
 
         void finishTargetPop() {
+            stopActiveTimeline();
             host.setManaged(true);
             host.setVisible(true);
             host.setMouseTransparent(false);
@@ -145,6 +164,7 @@ final class ScheduleCollapsePopAnimator {
             return;
         }
 
+        sourceHandle.stopActiveTimeline();
         sourceHandle.setAnimationCache(true);
         sourceHandle.getHost().setMouseTransparent(true);
         sourceHandle.getShell().setMouseTransparent(true);
@@ -206,6 +226,8 @@ final class ScheduleCollapsePopAnimator {
                 new KeyValue(sourceHandle.getShell().translateYProperty(), 10.0, COLLAPSE_EASE_IN)
             )
         );
+        sourceHandle.registerTimeline(collapseTimeline);
+        collapseTimeline.setOnFinished(event -> sourceHandle.getHost().getProperties().remove(ACTIVE_TIMELINE_KEY));
         collapseTimeline.playFromStart();
     }
 
@@ -217,6 +239,7 @@ final class ScheduleCollapsePopAnimator {
             return;
         }
 
+        handle.stopActiveTimeline();
         handle.setAnimationCache(true);
 
         Timeline popTimeline = new Timeline(
@@ -255,7 +278,9 @@ final class ScheduleCollapsePopAnimator {
                 new KeyValue(handle.getShell().translateYProperty(), 0.0, POP_SETTLE)
             )
         );
+        handle.registerTimeline(popTimeline);
         popTimeline.setOnFinished(event -> {
+            handle.getHost().getProperties().remove(ACTIVE_TIMELINE_KEY);
             handle.finishTargetPop();
             if (onFinished != null) {
                 onFinished.run();
