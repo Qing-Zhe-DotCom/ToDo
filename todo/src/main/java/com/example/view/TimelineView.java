@@ -284,29 +284,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             updateRenderedTimelineGeometry();
         });
 
-        timelinePane.setOnScroll(event -> {
-            if (event.getDeltaY() != 0) {
-                WheelModifier modifier = controller.getTimelineZoomWheelModifier();
-                if (modifier != null && modifier.matches(event)) {
-                    double multiplier = event.getDeltaY() > 0 ? ZOOM_STEP : (1.0 / ZOOM_STEP);
-                    zoomBy(multiplier, resolveMouseAnchorViewportX(event));
-                    event.consume();
-                    return;
-                }
-
-                TimelineMetrics metrics = buildMetrics(displayZoomFactor);
-                double viewportWidth = resolveViewportWidth();
-                double maxScroll = Math.max(0.0, metrics.contentWidth() - viewportWidth);
-
-                if (maxScroll > 0) {
-                    double pixelDelta = Math.signum(event.getDeltaY()) * (BASE_CELL_MINUTES * metrics.pixelsPerMinute());
-                    double hvalueDelta = pixelDelta / maxScroll;
-                    double hvalue = TimelineZoomGeometry.clamp(scrollPane.getHvalue() - hvalueDelta, 0.0, 1.0);
-                    scrollPane.setHvalue(hvalue);
-                }
-                event.consume();
-            }
-        });
+        scrollPane.addEventFilter(ScrollEvent.SCROLL, this::handleTimelineScroll);
 
         timelineStateLabel = new Label();
         timelineStateLabel.getStyleClass().addAll("label-subtitle", "timeline-state");
@@ -316,6 +294,31 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         timelineContainer.getChildren().addAll(scrollPane, timelineStateLabel);
 
         root.getChildren().addAll(header, timelineContainer);
+    }
+
+    private void handleTimelineScroll(ScrollEvent event) {
+        if (event == null || event.getDeltaY() == 0 || scrollPane == null) {
+            return;
+        }
+
+        WheelModifier modifier = controller.getTimelineZoomWheelModifier();
+        if (modifier != null && modifier.matches(event)) {
+            double multiplier = event.getDeltaY() > 0 ? ZOOM_STEP : (1.0 / ZOOM_STEP);
+            zoomBy(multiplier, null);
+            event.consume();
+            return;
+        }
+
+        TimelineMetrics metrics = buildMetrics(displayZoomFactor);
+        double viewportWidth = resolveViewportWidth();
+        double maxScroll = Math.max(0.0, metrics.contentWidth() - viewportWidth);
+        if (maxScroll > 0) {
+            double pixelDelta = Math.signum(event.getDeltaY()) * (BASE_CELL_MINUTES * metrics.pixelsPerMinute());
+            double hvalueDelta = pixelDelta / maxScroll;
+            double hvalue = TimelineZoomGeometry.clamp(scrollPane.getHvalue() - hvalueDelta, 0.0, 1.0);
+            scrollPane.setHvalue(hvalue);
+        }
+        event.consume();
     }
 
     private HBox createHeader() {
