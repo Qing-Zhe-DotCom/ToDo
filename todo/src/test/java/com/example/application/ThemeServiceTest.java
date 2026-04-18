@@ -84,6 +84,17 @@ class ThemeServiceTest {
     }
 
     @Test
+    void neoBrutalismPreferenceFallsBackToClassicWhenLabsAreDisabled() {
+        ThemeService service = serviceFor(
+            Map.of(ThemeService.PREF_THEME_FAMILY_KEY, "neo-brutalism"),
+            false
+        );
+
+        assertEquals(ThemeFamily.CLASSIC, service.getCurrentThemeFamily());
+        assertEquals(ClassicThemePalette.LIGHT, service.getCurrentClassicPalette());
+    }
+
+    @Test
     void macaronPreferenceIsKeptWhenLabsAreEnabled() {
         ThemeService service = serviceFor(
             Map.of(ThemeService.PREF_THEME_FAMILY_KEY, "macaron"),
@@ -91,6 +102,16 @@ class ThemeServiceTest {
         );
 
         assertEquals(ThemeFamily.MACARON, service.getCurrentThemeFamily());
+    }
+
+    @Test
+    void neoBrutalismPreferenceIsKeptWhenLabsAreEnabled() {
+        ThemeService service = serviceFor(
+            Map.of(ThemeService.PREF_THEME_FAMILY_KEY, "neo-brutalism"),
+            true
+        );
+
+        assertEquals(ThemeFamily.NEO_BRUTALISM, service.getCurrentThemeFamily());
     }
 
     @Test

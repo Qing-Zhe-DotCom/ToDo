@@ -37,17 +37,35 @@ class MainControllerSettingsPageTest {
     }
 
     @Test
-    void macaronIsHiddenFromThemeSelectionWhenLabsAreDisabled() {
+    void returnsMappedPageForExpandedTopLevelSections() {
+        Map<String, String> pages = new LinkedHashMap<>();
+        pages.put("general", "general-scroll");
+        pages.put("personalization", "personalization-scroll");
+        pages.put("custom", "custom-scroll");
+        pages.put("shortcuts", "shortcuts-scroll");
+        pages.put("labs", "labs-scroll");
+        pages.put("data", "data-scroll");
+
+        assertEquals("custom-scroll", MainController.resolveSettingsPage("custom", pages, "general-scroll"));
+        assertEquals("shortcuts-scroll", MainController.resolveSettingsPage("shortcuts", pages, "general-scroll"));
+        assertEquals("labs-scroll", MainController.resolveSettingsPage("labs", pages, "general-scroll"));
+        assertEquals("data-scroll", MainController.resolveSettingsPage("data", pages, "general-scroll"));
+    }
+
+    @Test
+    void labsThemesAreHiddenFromThemeSelectionWhenLabsAreDisabled() {
         List<ThemeFamily> filtered = MainController.filterThemeFamilies(ThemeFamily.supportedValues(), false);
 
         assertFalse(filtered.contains(ThemeFamily.MACARON));
+        assertFalse(filtered.contains(ThemeFamily.NEO_BRUTALISM));
         assertTrue(filtered.contains(ThemeFamily.CLASSIC));
     }
 
     @Test
-    void macaronIsVisibleInThemeSelectionWhenLabsAreEnabled() {
+    void labsThemesAreVisibleInThemeSelectionWhenLabsAreEnabled() {
         List<ThemeFamily> filtered = MainController.filterThemeFamilies(ThemeFamily.supportedValues(), true);
 
         assertTrue(filtered.contains(ThemeFamily.MACARON));
+        assertTrue(filtered.contains(ThemeFamily.NEO_BRUTALISM));
     }
 }

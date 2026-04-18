@@ -126,6 +126,18 @@ class LocalizationServiceTest {
         assertEquals("\u500b\u4eba\u5316", traditional.text("settings.tab.personalization"));
         assertEquals("Personalization", english.text("settings.tab.personalization"));
 
+        assertEquals("\u81ea\u5b9a\u4e49", simplified.text("settings.tab.custom"));
+        assertEquals("\u81ea\u8a02", traditional.text("settings.tab.custom"));
+        assertEquals("Custom", english.text("settings.tab.custom"));
+
+        assertEquals("\u5feb\u6377\u952e", simplified.text("settings.tab.shortcuts"));
+        assertEquals("\u5feb\u6377\u9375", traditional.text("settings.tab.shortcuts"));
+        assertEquals("Shortcuts", english.text("settings.tab.shortcuts"));
+
+        assertEquals("\u5b9e\u9a8c\u5ba4", simplified.text("settings.tab.labs"));
+        assertEquals("\u5be6\u9a57\u5ba4", traditional.text("settings.tab.labs"));
+        assertEquals("Labs", english.text("settings.tab.labs"));
+
         assertEquals("\u7ecf\u5178", simplified.themeFamilyLabel(ThemeFamily.CLASSIC));
         assertEquals("\u9a6c\u5361\u9f99\u73bb\u7483\u98ce", simplified.themeFamilyLabel(ThemeFamily.MACARON));
         assertEquals("\u73fe\u4ee3\u9ad8\u7d1a\u6975\u7c21\u98a8", traditional.themeFamilyLabel(ThemeFamily.MODERN_MINIMAL));

@@ -132,42 +132,34 @@ public final class GlassBackdropCoordinator {
             List<SurfaceAttachment> visibleAttachments = attachments.values().stream()
                 .filter(SurfaceAttachment::isVisible)
                 .toList();
+            
             if (visibleAttachments.isEmpty()) {
                 clearInactiveAttachments();
                 return;
             }
 
-            List<SurfaceAttachment> hiddenForSnapshot = new ArrayList<>(visibleAttachments.size());
-            for (SurfaceAttachment attachment : visibleAttachments) {
-                attachment.hideForSnapshot();
-                hiddenForSnapshot.add(attachment);
-            }
-
-            WritableImage snapshot = null;
-            try {
-                SnapshotParameters parameters = new SnapshotParameters();
-                parameters.setFill(Color.TRANSPARENT);
-                snapshot = root.snapshot(parameters, null);
-            } finally {
-                for (SurfaceAttachment attachment : hiddenForSnapshot) {
-                    attachment.restoreAfterSnapshot();
-                }
-            }
-
-            if (snapshot == null || snapshot.getPixelReader() == null) {
+            // 核心改进：只对马卡龙背景层进行快照，而不是整个 Root，避免递归隐藏组件
+            Node macaronLayer = findMacaronLayer(root);
+            if (macaronLayer == null) {
                 clearInactiveAttachments();
                 return;
             }
 
-            WritableImage blurredSnapshot = blur(snapshot);
-            PixelReader reader = blurredSnapshot.getPixelReader();
-            if (reader == null) {
+            SnapshotParameters parameters = new SnapshotParameters();
+            parameters.setFill(Color.TRANSPARENT);
+            WritableImage rawSnapshot = macaronLayer.snapshot(parameters, null);
+            
+            if (rawSnapshot == null) {
                 clearInactiveAttachments();
                 return;
             }
 
+            // GPU 加速的模糊处理 (通过 ImageView 离屏渲染)
+            WritableImage blurredSnapshot = blur(rawSnapshot);
+            
             for (SurfaceAttachment attachment : visibleAttachments) {
-                attachment.applyBackdrop(reader, blurredSnapshot.getWidth(), blurredSnapshot.getHeight());
+                // 将模糊图直接作为背景，通过 Viewport 偏移实现玻璃透视感
+                attachment.applyBackdrop(blurredSnapshot, rawSnapshot.getWidth(), rawSnapshot.getHeight());
             }
         } catch (Exception ignored) {
         } finally {
@@ -175,9 +167,19 @@ public final class GlassBackdropCoordinator {
         }
     }
 
+    private Node findMacaronLayer(Parent root) {
+        for (Node child : root.getChildrenUnmodifiable()) {
+            if (child.getStyleClass().contains("macaron-background-layer")) {
+                return child;
+            }
+        }
+        return null;
+    }
+
     private WritableImage blur(WritableImage source) {
         ImageView blurView = new ImageView(source);
         blurView.setEffect(new GaussianBlur(BLUR_RADIUS));
+        blurView.setCache(true);
         SnapshotParameters parameters = new SnapshotParameters();
         parameters.setFill(Color.TRANSPARENT);
         return blurView.snapshot(parameters, null);
@@ -343,13 +345,15 @@ public final class GlassBackdropCoordinator {
         private final ChangeListener<Scene> sceneListener = (obs, oldScene, newScene) -> requestRefresh();
 
         private GlassSurfaceVariant variant;
-        private double opacityBeforeSnapshot = 1.0;
 
         private SurfaceAttachment(Region region, GlassSurfaceVariant variant) {
             this.region = region;
             this.variant = variant;
             region.visibleProperty().addListener(visibilityListener);
             region.sceneProperty().addListener(sceneListener);
+            // 确保玻璃层不会拦截事件
+            region.setMouseTransparent(false); // 容器本身可以有点击事件
+            region.setPickOnBounds(false); // 但只响应子节点或非透明区域
         }
 
         private boolean isVisible() {
@@ -363,39 +367,27 @@ public final class GlassBackdropCoordinator {
             this.variant = variant;
         }
 
-        private void hideForSnapshot() {
-            opacityBeforeSnapshot = region.getOpacity();
-            region.setOpacity(0.0);
-        }
-
-        private void restoreAfterSnapshot() {
-            region.setOpacity(opacityBeforeSnapshot);
-        }
-
-        private void applyBackdrop(PixelReader reader, double maxWidth, double maxHeight) {
+        private void applyBackdrop(WritableImage blurredImage, double snapshotWidth, double snapshotHeight) {
             Bounds bounds = region.localToScene(region.getLayoutBounds());
             if (bounds == null || bounds.getWidth() < 2 || bounds.getHeight() < 2) {
                 clearBackdrop();
                 return;
             }
 
-            int x = clamp((int) Math.floor(bounds.getMinX()), 0, (int) Math.floor(maxWidth) - 1);
-            int y = clamp((int) Math.floor(bounds.getMinY()), 0, (int) Math.floor(maxHeight) - 1);
-            int width = clamp((int) Math.ceil(bounds.getWidth()), 1, (int) Math.ceil(maxWidth) - x);
-            int height = clamp((int) Math.ceil(bounds.getHeight()), 1, (int) Math.ceil(maxHeight) - y);
-            if (width <= 0 || height <= 0) {
-                clearBackdrop();
-                return;
-            }
-
-            WritableImage tinted = tintImage(reader, x, y, width, height, variant);
-            BackgroundImage image = new BackgroundImage(
-                tinted,
-                BackgroundRepeat.NO_REPEAT,
-                BackgroundRepeat.NO_REPEAT,
-                BackgroundPosition.DEFAULT,
-                new BackgroundSize(width, height, false, false, false, false)
+            // 核心对齐逻辑：通过 BackgroundPosition 的负偏移量，让背景图相对于 Region 的左上角对齐到 Scene 坐标系
+            BackgroundPosition position = new BackgroundPosition(
+                javafx.geometry.Side.LEFT, -bounds.getMinX(), false,
+                javafx.geometry.Side.TOP, -bounds.getMinY(), false
             );
+
+            BackgroundImage image = new BackgroundImage(
+                blurredImage,
+                BackgroundRepeat.NO_REPEAT,
+                BackgroundRepeat.NO_REPEAT,
+                position,
+                new BackgroundSize(snapshotWidth, snapshotHeight, false, false, false, false)
+            );
+            
             region.setBackground(new Background(image));
         }
 
@@ -408,27 +400,6 @@ public final class GlassBackdropCoordinator {
             region.visibleProperty().removeListener(visibilityListener);
             region.sceneProperty().removeListener(sceneListener);
         }
-    }
-
-    private WritableImage tintImage(
-        PixelReader reader,
-        int x,
-        int y,
-        int width,
-        int height,
-        GlassSurfaceVariant variant
-    ) {
-        WritableImage target = new WritableImage(width, height);
-        PixelWriter writer = target.getPixelWriter();
-        for (int py = 0; py < height; py++) {
-            for (int px = 0; px < width; px++) {
-                Color base = reader.getColor(x + px, y + py);
-                Color overlay = variant.resolveOverlayColor(appearance);
-                Color mixed = base.interpolate(overlay, variant.overlayStrength);
-                writer.setColor(px, py, new Color(mixed.getRed(), mixed.getGreen(), mixed.getBlue(), base.getOpacity()));
-            }
-        }
-        return target;
     }
 
     private int clamp(int value, int min, int max) {

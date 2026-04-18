@@ -172,7 +172,7 @@ public final class ThemeService {
     }
 
     private void enforceThemeAvailability() {
-        if (currentThemeFamily == ThemeFamily.MACARON && !experimentalFeaturesService.isLabsEnabled()) {
+        if (currentThemeFamily.isLabsOnly() && !experimentalFeaturesService.isLabsEnabled()) {
             currentThemeFamily = ThemeFamily.CLASSIC;
             currentAppearance = defaultAppearance;
             currentClassicPalette = defaultClassicPalette;

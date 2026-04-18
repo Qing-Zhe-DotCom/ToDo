@@ -451,6 +451,28 @@
     -fx-padding: 0;
 }
 
+/* ── 延后一天按钮 ────────────────────── */
+.schedule-card-action-btn {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 3 5 3 5;
+    -fx-cursor: hand;
+    -fx-opacity: 0;
+}
+.schedule-card-inner:hover .schedule-card-action-btn {
+    -fx-opacity: 0.55;
+}
+.schedule-card-action-btn:hover {
+    -fx-opacity: 1;
+    -fx-background-color: -color-primary-soft;
+    -fx-background-radius: 6;
+}
+.schedule-card-action-btn:pressed {
+    -fx-opacity: 1;
+    -fx-background-color: -color-primary-glow;
+    -fx-background-radius: 6;
+}
+
 .schedule-card-surface {
     -schedule-card-accent: -color-primary;
     -schedule-status-ring-shadow-color: rgba(255, 255, 255, 0.96);
@@ -3977,5 +3999,25 @@
     -fx-text-fill: -color-text-sub;
     -fx-font-size: 12px;
     -fx-line-spacing: 2px;
+}
+
+/* --- 玻璃马卡龙效果 (Glass Macaron) 核心样式 --- */
+.root.theme-family-macaron .sidebar,
+.root.theme-family-macaron .info-panel,
+.root.theme-family-macaron .settings-shell,
+.root.theme-family-macaron .settings-card,
+.root.theme-family-macaron .quick-add-shell,
+.root.theme-family-macaron .date-picker-popup,
+.root.theme-family-macaron .context-menu,
+.root.theme-family-macaron .dialog-pane {
+    -fx-background-color: transparent !important;
+}
+.root.theme-family-macaron .info-panel {
+    -fx-border-color: rgba(255, 255, 255, 0.2);
+    -fx-border-width: 0 0 0 1;
+}
+.root.theme-family-macaron .sidebar {
+    -fx-border-color: rgba(255, 255, 255, 0.2);
+    -fx-border-width: 0 1 0 0;
 }
 
