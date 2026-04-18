@@ -182,77 +182,80 @@ public final class ScheduleReflowAnimator {
         Duration safeReflowDuration = reflowDuration != null ? reflowDuration : REFLOW_DURATION;
         Duration safeTargetDuration = targetFeedbackDuration != null ? targetFeedbackDuration : TARGET_FEEDBACK_DURATION;
 
-        Platform.runLater(() -> Platform.runLater(() -> {
-            Map<String, VisibleCard> visibleCards = captureVisibleCards(container);
-            Map<VisibleCard, Timeline> reflowTimelines = new LinkedHashMap<>();
-            for (VisibleCard card : visibleCards.values()) {
-                Bounds before = beforeBounds.get(card.getScheduleId());
-                if (before == null) {
-                    continue;
-                }
+        if (container instanceof Parent) {
+            ((Parent) container).applyCss();
+            ((Parent) container).layout();
+        }
 
-                Bounds after = card.getBounds();
-                if (after == null) {
-                    continue;
-                }
-
-                double deltaY = before.getMinY() - after.getMinY();
-                if (Math.abs(deltaY) < 1.0) {
-                    continue;
-                }
-
-                stopTimeline(card.getNode(), SHIFT_TIMELINE_KEY);
-                card.getNode().setTranslateY(deltaY);
-                Timeline reflow = new Timeline(
-                    new KeyFrame(
-                        Duration.ZERO,
-                        new KeyValue(card.getNode().translateYProperty(), deltaY)
-                    ),
-                    new KeyFrame(
-                        safeReflowDuration,
-                        new KeyValue(card.getNode().translateYProperty(), 0.0, REFLOW_INTERPOLATOR)
-                    )
-                );
-                reflow.setOnFinished(event -> {
-                    card.getNode().setTranslateY(0.0);
-                    card.getNode().getProperties().remove(SHIFT_TIMELINE_KEY);
-                });
-                card.getNode().getProperties().put(SHIFT_TIMELINE_KEY, reflow);
-                reflowTimelines.put(card, reflow);
+        Map<String, VisibleCard> visibleCards = captureVisibleCards(container);
+        Map<VisibleCard, Timeline> reflowTimelines = new LinkedHashMap<>();
+        for (VisibleCard card : visibleCards.values()) {
+            Bounds before = beforeBounds.get(card.getScheduleId());
+            if (before == null) {
+                continue;
             }
 
-            Node targetNode = targetSupplier != null ? targetSupplier.get() : null;
-            int completionCount = reflowTimelines.size() + (targetNode != null ? 1 : 0);
-            if (completionCount == 0) {
-                if (onFinished != null) {
-                    onFinished.run();
-                }
-                return;
+            Bounds after = card.getBounds();
+            if (after == null) {
+                continue;
             }
 
-            final int[] pendingCallbacks = {completionCount};
-            Runnable completeOne = () -> {
-                pendingCallbacks[0]--;
-                if (pendingCallbacks[0] == 0 && onFinished != null) {
-                    onFinished.run();
-                }
-            };
-
-            for (Map.Entry<VisibleCard, Timeline> entry : reflowTimelines.entrySet()) {
-                VisibleCard card = entry.getKey();
-                Timeline reflowTimeline = entry.getValue();
-                reflowTimeline.setOnFinished(event -> {
-                    card.getNode().setTranslateY(0.0);
-                    card.getNode().getProperties().remove(SHIFT_TIMELINE_KEY);
-                    completeOne.run();
-                });
-                reflowTimeline.playFromStart();
+            double deltaY = before.getMinY() - after.getMinY();
+            if (Math.abs(deltaY) < 1.0) {
+                continue;
             }
 
-            if (targetNode != null) {
-                playTargetPulse(targetNode, safeTargetDuration, completeOne);
+            stopTimeline(card.getNode(), SHIFT_TIMELINE_KEY);
+            card.getNode().setTranslateY(deltaY);
+            Timeline reflow = new Timeline(
+                new KeyFrame(
+                    Duration.ZERO,
+                    new KeyValue(card.getNode().translateYProperty(), deltaY)
+                ),
+                new KeyFrame(
+                    safeReflowDuration,
+                    new KeyValue(card.getNode().translateYProperty(), 0.0, REFLOW_INTERPOLATOR)
+                )
+            );
+            reflow.setOnFinished(event -> {
+                card.getNode().setTranslateY(0.0);
+                card.getNode().getProperties().remove(SHIFT_TIMELINE_KEY);
+            });
+            card.getNode().getProperties().put(SHIFT_TIMELINE_KEY, reflow);
+            reflowTimelines.put(card, reflow);
+        }
+
+        Node targetNode = targetSupplier != null ? targetSupplier.get() : null;
+        int completionCount = reflowTimelines.size() + (targetNode != null ? 1 : 0);
+        if (completionCount == 0) {
+            if (onFinished != null) {
+                onFinished.run();
             }
-        }));
+            return;
+        }
+
+        final int[] pendingCallbacks = {completionCount};
+        Runnable completeOne = () -> {
+            pendingCallbacks[0]--;
+            if (pendingCallbacks[0] == 0 && onFinished != null) {
+                onFinished.run();
+            }
+        };
+
+        for (Map.Entry<VisibleCard, Timeline> entry : reflowTimelines.entrySet()) {
+            VisibleCard card = entry.getKey();
+            Timeline reflowTimeline = entry.getValue();
+            reflowTimeline.setOnFinished(event -> {
+                card.getNode().setTranslateY(0.0);
+                card.getNode().getProperties().remove(SHIFT_TIMELINE_KEY);
+                completeOne.run();
+            });
+            reflowTimeline.playFromStart();
+        }
+
+        if (targetNode != null) {
+            playTargetPulse(targetNode, safeTargetDuration, completeOne);
+        }
     }
 
     public static void playTargetPulse(Node node) {
