@@ -319,10 +319,13 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             pendingCollapsed = !pendingCollapsed;
             renderSchedules();
         });
+        ScheduleReflowAnimator.bindNode(pendingHeader.getRoot(), "header-pending", false);
+
         completedHeader = new GroupHeader(controller.text("schedule.list.completed"), () -> {
             completedCollapsed = !completedCollapsed;
             renderSchedules();
         });
+        ScheduleReflowAnimator.bindNode(completedHeader.getRoot(), "header-completed", true);
         completedGroupHeaderNode = completedHeader.getRoot();
 
         pendingCardsBox = new VBox(8);

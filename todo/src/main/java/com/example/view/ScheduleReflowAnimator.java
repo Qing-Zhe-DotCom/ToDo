@@ -71,8 +71,15 @@ public final class ScheduleReflowAnimator {
         if (cardId == null || cardId.isBlank()) {
             return;
         }
-        node.getProperties().put(CARD_ID_KEY, cardId);
-        node.getProperties().put(CARD_COMPLETED_KEY, schedule.isCompleted());
+        bindNode(node, cardId, schedule.isCompleted());
+    }
+
+    public static void bindNode(Node node, String id, boolean completed) {
+        if (node == null || id == null || id.isBlank()) {
+            return;
+        }
+        node.getProperties().put(CARD_ID_KEY, id);
+        node.getProperties().put(CARD_COMPLETED_KEY, completed);
     }
 
     public static Map<String, VisibleCard> captureVisibleCards(Node container) {
