@@ -68,65 +68,64 @@ class TimelineViewTest {
     }
 
     @Test
-    void viewportCenterAnchorRoundTripsAcrossZoomLevels() {
+    void zoomAnchorPreservesViewportCenterAcrossScaleChanges() {
         long totalMinutes = 21L * 24 * 60;
+        long anchorMinuteOffset = 8L * 24 * 60 + 135;
         double viewportWidth = 640;
-        double leftPadding = 36;
-        double rightPadding = 36;
-        double centerViewportX = viewportWidth / 2.0;
-        double anchorMinuteOffset = 8L * 24 * 60 + 135;
+        double pixelsPerMinuteBefore = 0.6;
+        double totalWidthBefore = TimelineView.computeTimelineWidth(totalMinutes, pixelsPerMinuteBefore);
 
-        double pixelsPerMinuteBefore = TimelineZoomGeometry.pixelsPerMinute(90, 1.0, 360);
-        double totalWidthBefore = TimelineZoomGeometry.totalWidth(
-            leftPadding,
-            rightPadding,
-            totalMinutes,
-            pixelsPerMinuteBefore
-        );
-        double hvalueBefore = TimelineZoomGeometry.hvalueForAnchor(
+        double hvalueBefore = TimelineView.computeAnchoredHvalue(
             anchorMinuteOffset,
-            centerViewportX,
-            viewportWidth,
             totalWidthBefore,
-            leftPadding,
-            pixelsPerMinuteBefore
+            pixelsPerMinuteBefore,
+            viewportWidth,
+            0.5
         );
         assertEquals(
             anchorMinuteOffset,
-            TimelineZoomGeometry.minuteOffsetAtViewportX(
-                centerViewportX,
-                hvalueBefore,
+            TimelineView.resolveViewportCenterMinuteOffset(
                 viewportWidth,
                 totalWidthBefore,
-                leftPadding,
+                hvalueBefore,
                 pixelsPerMinuteBefore,
                 totalMinutes
             )
         );
 
-        double pixelsPerMinuteAfter = TimelineZoomGeometry.pixelsPerMinute(90, 1.12, 360);
-        double totalWidthAfter = TimelineZoomGeometry.totalWidth(
-            leftPadding,
-            rightPadding,
-            totalMinutes,
-            pixelsPerMinuteAfter
-        );
-        double hvalueAfter = TimelineZoomGeometry.hvalueForAnchor(
-            anchorMinuteOffset,
-            centerViewportX,
+        double accidentallyScrolledHvalue = TimelineView.computeHorizontalScrollHvalue(
+            hvalueBefore,
+            120,
             viewportWidth,
+            totalWidthBefore,
+            pixelsPerMinuteBefore
+        );
+        assertNotEquals(
+            anchorMinuteOffset,
+            TimelineView.resolveViewportCenterMinuteOffset(
+                viewportWidth,
+                totalWidthBefore,
+                accidentallyScrolledHvalue,
+                pixelsPerMinuteBefore,
+                totalMinutes
+            )
+        );
+
+        double pixelsPerMinuteAfter = pixelsPerMinuteBefore * 1.12;
+        double totalWidthAfter = TimelineView.computeTimelineWidth(totalMinutes, pixelsPerMinuteAfter);
+        double hvalueAfter = TimelineView.computeAnchoredHvalue(
+            anchorMinuteOffset,
             totalWidthAfter,
-            leftPadding,
-            pixelsPerMinuteAfter
+            pixelsPerMinuteAfter,
+            viewportWidth,
+            0.5
         );
         assertEquals(
             anchorMinuteOffset,
-            TimelineZoomGeometry.minuteOffsetAtViewportX(
-                centerViewportX,
-                hvalueAfter,
+            TimelineView.resolveViewportCenterMinuteOffset(
                 viewportWidth,
                 totalWidthAfter,
-                leftPadding,
+                hvalueAfter,
                 pixelsPerMinuteAfter,
                 totalMinutes
             )
@@ -134,9 +133,36 @@ class TimelineViewTest {
     }
 
     @Test
-    void timelineZoomGeometryClampPreventsExtraScrollAtEdges() {
-        assertEquals(0.0, TimelineZoomGeometry.clamp(-0.2, 0.0, 1.0));
-        assertEquals(1.0, TimelineZoomGeometry.clamp(1.2, 0.0, 1.0));
-        assertEquals(0.5, TimelineZoomGeometry.clamp(0.5, 0.0, 1.0));
+    void horizontalWheelScrollMovesAcrossTimelineAndClampsAtEdges() {
+        double viewportWidth = 400;
+        double contentWidth = 2_000;
+        double pixelsPerMinute = 0.5;
+
+        assertTrue(
+            TimelineView.computeHorizontalScrollHvalue(0.5, 120, viewportWidth, contentWidth, pixelsPerMinute) < 0.5
+        );
+        assertTrue(
+            TimelineView.computeHorizontalScrollHvalue(0.5, -120, viewportWidth, contentWidth, pixelsPerMinute) > 0.5
+        );
+        assertEquals(
+            0.0,
+            TimelineView.computeHorizontalScrollHvalue(0.01, 120, viewportWidth, contentWidth, pixelsPerMinute)
+        );
+        assertEquals(
+            1.0,
+            TimelineView.computeHorizontalScrollHvalue(0.99, -120, viewportWidth, contentWidth, pixelsPerMinute)
+        );
+    }
+
+    @Test
+    void anchoredHvalueClampsWhenViewportIsWideOrAnchorIsOutOfRange() {
+        long totalMinutes = 120;
+        double pixelsPerMinute = 1.0;
+        double totalWidth = TimelineView.computeTimelineWidth(totalMinutes, pixelsPerMinute);
+
+        assertEquals(0.0, TimelineView.computeAnchoredHvalue(30, totalWidth, pixelsPerMinute, totalWidth + 50, 0.5));
+        assertEquals(0.0, TimelineView.computeAnchoredHvalue(0, totalWidth, pixelsPerMinute, 80, 0.5));
+        assertEquals(1.0, TimelineView.computeAnchoredHvalue(totalMinutes, totalWidth, pixelsPerMinute, 80, 0.5));
+        assertEquals(1.0, TimelineView.computeAnchoredHvalue(totalMinutes + 500, totalWidth, pixelsPerMinute, 80, 0.5));
     }
 }
