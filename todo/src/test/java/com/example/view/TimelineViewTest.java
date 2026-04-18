@@ -66,4 +66,103 @@ class TimelineViewTest {
         assertNull(TimelineView.parseRangeDate("   "));
         assertEquals(LocalDate.of(2026, 4, 4), TimelineView.parseRangeDate("2026-04-04"));
     }
+
+    @Test
+    void zoomAnchorPreservesViewportCenterAcrossScaleChanges() {
+        long totalMinutes = 21L * 24 * 60;
+        long anchorMinuteOffset = 8L * 24 * 60 + 135;
+        double viewportWidth = 640;
+        double pixelsPerMinuteBefore = 0.6;
+        double totalWidthBefore = TimelineView.computeTimelineWidth(totalMinutes, pixelsPerMinuteBefore);
+
+        double hvalueBefore = TimelineView.computeAnchoredHvalue(
+            anchorMinuteOffset,
+            totalWidthBefore,
+            pixelsPerMinuteBefore,
+            viewportWidth,
+            0.5
+        );
+        assertEquals(
+            anchorMinuteOffset,
+            TimelineView.resolveViewportCenterMinuteOffset(
+                viewportWidth,
+                totalWidthBefore,
+                hvalueBefore,
+                pixelsPerMinuteBefore,
+                totalMinutes
+            )
+        );
+
+        double accidentallyScrolledHvalue = TimelineView.computeHorizontalScrollHvalue(
+            hvalueBefore,
+            120,
+            viewportWidth,
+            totalWidthBefore,
+            pixelsPerMinuteBefore
+        );
+        assertNotEquals(
+            anchorMinuteOffset,
+            TimelineView.resolveViewportCenterMinuteOffset(
+                viewportWidth,
+                totalWidthBefore,
+                accidentallyScrolledHvalue,
+                pixelsPerMinuteBefore,
+                totalMinutes
+            )
+        );
+
+        double pixelsPerMinuteAfter = pixelsPerMinuteBefore * 1.12;
+        double totalWidthAfter = TimelineView.computeTimelineWidth(totalMinutes, pixelsPerMinuteAfter);
+        double hvalueAfter = TimelineView.computeAnchoredHvalue(
+            anchorMinuteOffset,
+            totalWidthAfter,
+            pixelsPerMinuteAfter,
+            viewportWidth,
+            0.5
+        );
+        assertEquals(
+            anchorMinuteOffset,
+            TimelineView.resolveViewportCenterMinuteOffset(
+                viewportWidth,
+                totalWidthAfter,
+                hvalueAfter,
+                pixelsPerMinuteAfter,
+                totalMinutes
+            )
+        );
+    }
+
+    @Test
+    void horizontalWheelScrollMovesAcrossTimelineAndClampsAtEdges() {
+        double viewportWidth = 400;
+        double contentWidth = 2_000;
+        double pixelsPerMinute = 0.5;
+
+        assertTrue(
+            TimelineView.computeHorizontalScrollHvalue(0.5, 120, viewportWidth, contentWidth, pixelsPerMinute) < 0.5
+        );
+        assertTrue(
+            TimelineView.computeHorizontalScrollHvalue(0.5, -120, viewportWidth, contentWidth, pixelsPerMinute) > 0.5
+        );
+        assertEquals(
+            0.0,
+            TimelineView.computeHorizontalScrollHvalue(0.01, 120, viewportWidth, contentWidth, pixelsPerMinute)
+        );
+        assertEquals(
+            1.0,
+            TimelineView.computeHorizontalScrollHvalue(0.99, -120, viewportWidth, contentWidth, pixelsPerMinute)
+        );
+    }
+
+    @Test
+    void anchoredHvalueClampsWhenViewportIsWideOrAnchorIsOutOfRange() {
+        long totalMinutes = 120;
+        double pixelsPerMinute = 1.0;
+        double totalWidth = TimelineView.computeTimelineWidth(totalMinutes, pixelsPerMinute);
+
+        assertEquals(0.0, TimelineView.computeAnchoredHvalue(30, totalWidth, pixelsPerMinute, totalWidth + 50, 0.5));
+        assertEquals(0.0, TimelineView.computeAnchoredHvalue(0, totalWidth, pixelsPerMinute, 80, 0.5));
+        assertEquals(1.0, TimelineView.computeAnchoredHvalue(totalMinutes, totalWidth, pixelsPerMinute, 80, 0.5));
+        assertEquals(1.0, TimelineView.computeAnchoredHvalue(totalMinutes + 500, totalWidth, pixelsPerMinute, 80, 0.5));
+    }
 }
