@@ -102,8 +102,8 @@ namespace ToDoToast {
         };
 
         public static void SetAppUserModelId(string shortcutPath, string appId) {
-            if (string.IsNullOrWhiteSpace(shortcutPath)) throw new ArgumentNullException(nameof(shortcutPath));
-            if (string.IsNullOrWhiteSpace(appId)) throw new ArgumentNullException(nameof(appId));
+            if (string.IsNullOrWhiteSpace(shortcutPath)) throw new ArgumentNullException("shortcutPath");
+            if (string.IsNullOrWhiteSpace(appId)) throw new ArgumentNullException("appId");
 
             object link = new ShellLink();
             var persist = (IPersistFile)link;

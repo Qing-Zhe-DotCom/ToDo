@@ -31,6 +31,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
@@ -40,6 +41,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.input.InputMethodEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -136,6 +138,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         private final Label dateLabel;
         private final Label categoryLabel;
         private final ScheduleCollapsePopAnimator.MotionHandle motionHandle;
+        private final Button postponeButton;
         private Schedule schedule;
 
         private ScheduleCardNode(Schedule schedule) {
@@ -194,7 +197,19 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
                 targetCompleted -> handleStatusToggle(this, targetCompleted)
             );
 
-            cardInner.getChildren().addAll(statusControl, priorityLabel, titleLabel, spacer, dateLabel, categoryLabel);
+            postponeButton = new Button();
+            postponeButton.getStyleClass().addAll("schedule-card-action-btn", "postpone-day-btn");
+            String postponeTooltip = controller.text("action.postponeDay");
+            postponeButton.setTooltip(new Tooltip(postponeTooltip));
+            Pane postponeIcon = controller.createSvgIcon(IconKey.POSTPONE_DAY, postponeTooltip, 16);
+            postponeButton.setGraphic(postponeIcon);
+            postponeButton.setOnAction(event -> {
+                handlePostponeDay(this.schedule);
+                event.consume();
+            });
+            postponeButton.addEventFilter(MouseEvent.MOUSE_CLICKED, javafx.event.Event::consume);
+
+            cardInner.getChildren().addAll(statusControl, priorityLabel, titleLabel, spacer, dateLabel, categoryLabel, postponeButton);
 
             container = new VBox(cardMotionHost);
             container.getStyleClass().add("schedule-list-card");
@@ -490,13 +505,29 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             Schedule createdSchedule = controller.quickCreateSchedule(title);
             quickAddField.clear();
             focusQuickAddInput();
-            showQuickAddFeedback(buildQuickAddSuccessText(
-                controller.text("schedule.list.quickAddSuccess"),
-                createdSchedule != null ? createdSchedule.getName() : title
-            ));
+            
+            // 触发新卡片的“诞生”动画
+            Platform.runLater(() -> {
+                String cardKey = resolveCardKey(createdSchedule);
+                ScheduleCardNode newNode = cardNodesById.get(cardKey);
+                if (newNode != null) {
+                    // 1. 添加高亮类
+                    newNode.getContainer().getStyleClass().add("schedule-card-newly-created");
+                    
+                    // 2. 播放带有过冲感的弹出动画
+                    ScheduleReflowAnimator.playTargetPulse(newNode.getContainer());
+                    
+                    // 3. 延时移除高亮，让视觉锚点停留
+                    PauseTransition highlightHold = new PauseTransition(Duration.seconds(3));
+                    highlightHold.setOnFinished(e -> newNode.getContainer().getStyleClass().remove("schedule-card-newly-created"));
+                    highlightHold.play();
+                    
+                    // 4. 确保滚动到可见区域 (如果列表很长)
+                    // listScrollPane.setVvalue(0); // 假设新任务在顶部
+                }
+            });
+            
         } catch (SQLException exception) {
-            stopQuickAddFeedbackTransitions();
-            hideQuickAddFeedback();
             controller.showError(controller.text("error.createSchedule.title"), exception.getMessage());
         }
     }
@@ -809,6 +840,28 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     public void deleteSchedule(Schedule schedule) throws SQLException {
         controller.removeSchedule(schedule.getId());
         refresh();
+    }
+
+    private void handlePostponeDay(Schedule schedule) {
+        if (schedule == null || schedule.isCompleted()) {
+            return;
+        }
+        LocalDateTime due = schedule.getDueAt();
+        if (due != null) {
+            schedule.setDueAt(due.plusDays(1));
+        } else {
+            schedule.setDueAt(LocalDateTime.now().plusDays(1)
+                .withHour(23).withMinute(59).withSecond(0).withNano(0));
+        }
+        try {
+            boolean ok = controller.saveSchedule(schedule);
+            if (ok) {
+                controller.refreshAllViews();
+            }
+        } catch (SQLException e) {
+            controller.showError(controller.text("error.scheduleUpdate.title"),
+                controller.text("error.schedulePersist.message"));
+        }
     }
 
     private boolean handleStatusToggle(ScheduleCardNode cardNode, boolean targetCompleted) {

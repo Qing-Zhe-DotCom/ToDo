@@ -98,6 +98,23 @@ class LocalizationResourceTest {
     }
 
     @Test
+    void settingsTabKeysExistInAllLocales() throws IOException {
+        for (String resource : new String[] {
+            "/i18n/messages.properties",
+            "/i18n/messages_zh_CN.properties",
+            "/i18n/messages_zh_TW.properties"
+        }) {
+            String content = read(resource);
+            assertTrue(content.contains("settings.tab.details="));
+            assertTrue(content.contains("settings.tab.personalization="));
+            assertTrue(content.contains("settings.tab.custom="));
+            assertTrue(content.contains("settings.tab.shortcuts="));
+            assertTrue(content.contains("settings.tab.labs="));
+            assertTrue(content.contains("settings.tab.data="));
+        }
+    }
+
+    @Test
     void dueRelativeKeysExistInAllLocales() throws IOException {
         String[] keys = new String[] {
             "time.due.relative.future.moreThanMonth=",

@@ -38,6 +38,7 @@ public enum IconKey {
     TODAY("today.svg"),
     TODO_ICON("todo_icon.svg"),
     USER("user.svg"),
+    POSTPONE_DAY("postpone_day.svg"),
     YEAR("year.svg");
 
     private final String fileName;

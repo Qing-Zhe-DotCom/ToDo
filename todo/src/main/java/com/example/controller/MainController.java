@@ -1510,8 +1510,30 @@ public class MainController {
         if (macaronBackgroundLayer != null) {
             macaronBackgroundLayer.setVisible(macaronActive);
             macaronBackgroundLayer.setOpacity(macaronActive ? 1.0 : 0.0);
+            macaronBackgroundLayer.setMouseTransparent(true);
         }
-        updateSceneGlass(scene);
+        
+        // 关键：切换 CSS 类名以激活玻璃透视规则
+        if (root != null) {
+            if (macaronActive) {
+                if (!root.getStyleClass().contains("theme-family-macaron")) {
+                    root.getStyleClass().add("theme-family-macaron");
+                }
+            } else {
+                root.getStyleClass().remove("theme-family-macaron");
+            }
+        }
+        
+        // 关键：强制刷新玻璃调度器
+        if (scene != null) {
+            GlassBackdropCoordinator coordinator = GlassBackdropCoordinator.install(scene);
+            coordinator.setActive(macaronActive);
+            coordinator.setAppearance(currentThemeAppearance);
+            if (macaronActive) {
+                // 给予一个短暂的 Burst 刷新，确保所有组件在切换瞬间对齐
+                coordinator.requestBurstRefresh(Duration.millis(500));
+            }
+        }
     }
 
     private List<ThemeFamily> getSelectableThemeFamilies() {
@@ -1521,7 +1543,7 @@ public class MainController {
     static List<ThemeFamily> filterThemeFamilies(List<ThemeFamily> families, boolean labsEnabled) {
         List<ThemeFamily> filtered = new ArrayList<>();
         for (ThemeFamily family : families) {
-            if (labsEnabled || family != ThemeFamily.MACARON) {
+            if (labsEnabled || !family.isLabsOnly()) {
                 filtered.add(family);
             }
         }
@@ -2077,14 +2099,27 @@ public class MainController {
         ToggleButton generalTab = new ToggleButton(text("settings.tab.details"));
         generalTab.setGraphic(createSvgIcon(IconKey.DETAIL, text("settings.tab.details"), 20));
         generalTab.setGraphicTextGap(8);
-        
+
         ToggleButton personalizationTab = new ToggleButton(text("settings.tab.personalization"));
         personalizationTab.setGraphic(createSvgIcon(IconKey.STYLE, text("settings.tab.personalization"), 20));
         personalizationTab.setGraphicTextGap(8);
+
+        ToggleButton customTab = new ToggleButton(text("settings.tab.custom"));
+        customTab.setGraphic(createSvgIcon(IconKey.TAG, text("settings.tab.custom"), 20));
+        customTab.setGraphicTextGap(8);
+
+        ToggleButton shortcutsTab = new ToggleButton(text("settings.tab.shortcuts"));
+        shortcutsTab.setGraphic(createSvgIcon(IconKey.TIMELINE, text("settings.tab.shortcuts"), 20));
+        shortcutsTab.setGraphicTextGap(8);
+
+        ToggleButton labsTab = new ToggleButton(text("settings.tab.labs"));
+        labsTab.setGraphic(createSvgIcon(IconKey.ANIM, text("settings.tab.labs"), 20));
+        labsTab.setGraphicTextGap(8);
+
         ToggleButton dataTab = new ToggleButton(text("settings.tab.data"));
         dataTab.setGraphic(createSvgIcon(IconKey.FOLDER, text("settings.tab.data"), 20));
         dataTab.setGraphicTextGap(8);
-        for (ToggleButton tab : List.of(generalTab, personalizationTab, dataTab)) {
+        for (ToggleButton tab : List.of(generalTab, personalizationTab, customTab, shortcutsTab, labsTab, dataTab)) {
             tab.getStyleClass().add("nav-button");
             tab.setMaxWidth(Double.MAX_VALUE);
             tab.setContentDisplay(ContentDisplay.LEFT);
@@ -2093,7 +2128,16 @@ public class MainController {
             tab.setToggleGroup(categoryGroup);
             LabeledTextAutoFit.install(tab, LabeledTextAutoFit.buttonSpec());
         }
-        navBar.getChildren().addAll(navTitle, navSubTitle, generalTab, personalizationTab, dataTab);
+        navBar.getChildren().addAll(
+            navTitle,
+            navSubTitle,
+            generalTab,
+            personalizationTab,
+            customTab,
+            shortcutsTab,
+            labsTab,
+            dataTab
+        );
 
         StackPane contentHost = new StackPane();
         contentHost.getStyleClass().add("settings-content-host");
@@ -2291,7 +2335,7 @@ public class MainController {
             createSettingRow(text("settings.labs.toggle.label"), text("settings.labs.toggle.description"), labsToggle),
             labsFootnote
         );
-        generalPage.getChildren().addAll(aboutCard, currentCard, languageFontCard, shortcutsCard, labsCard);
+        generalPage.getChildren().addAll(aboutCard, currentCard, languageFontCard);
 
         VBox personalizationPage = new VBox(18);
         personalizationPage.getStyleClass().add("settings-page");
@@ -2380,6 +2424,9 @@ public class MainController {
         Runnable refreshSettingsDialogIcons = () -> {
             generalTab.setGraphic(createSvgIcon(IconKey.DETAIL, text("settings.tab.details"), 20));
             personalizationTab.setGraphic(createSvgIcon(IconKey.STYLE, text("settings.tab.personalization"), 20));
+            customTab.setGraphic(createSvgIcon(IconKey.TAG, text("settings.tab.custom"), 20));
+            shortcutsTab.setGraphic(createSvgIcon(IconKey.TIMELINE, text("settings.tab.shortcuts"), 20));
+            labsTab.setGraphic(createSvgIcon(IconKey.ANIM, text("settings.tab.labs"), 20));
             dataTab.setGraphic(createSvgIcon(IconKey.FOLDER, text("settings.tab.data"), 20));
         };
         Runnable updateThemeSummary = () ->
@@ -2402,7 +2449,7 @@ public class MainController {
         };
         Runnable updateLabsThemeVisibility = () -> {
             for (Map.Entry<ThemeFamily, ToggleButton> entry : familyChips.entrySet()) {
-                boolean visible = selectedLabsEnabled[0] || entry.getKey() != ThemeFamily.MACARON;
+                boolean visible = selectedLabsEnabled[0] || !entry.getKey().isLabsOnly();
                 entry.getValue().setManaged(visible);
                 entry.getValue().setVisible(visible);
             }
@@ -2476,7 +2523,7 @@ public class MainController {
                 labsToggle.getStyleClass().remove("on");
             }
 
-            if (!labsEnabled && selectedThemeFamily[0] == ThemeFamily.MACARON) {
+            if (!labsEnabled && selectedThemeFamily[0] != null && selectedThemeFamily[0].isLabsOnly()) {
                 selectedThemeFamily[0] = ThemeFamily.CLASSIC;
                 selectedClassicPalette[0] = ClassicThemePalette.LIGHT;
                 ToggleButton classicChip = familyChips.get(ThemeFamily.CLASSIC);
@@ -2544,7 +2591,12 @@ public class MainController {
             )
         );
 
-        personalizationPage.getChildren().addAll(themeCard, iconCard, customCard);
+        personalizationPage.getChildren().addAll(themeCard, iconCard);
+
+        VBox customPage = new VBox(18);
+        customPage.getStyleClass().add("settings-page");
+        customPage.setFillWidth(true);
+        customPage.setMinHeight(0);
         VBox dataPage = new VBox(18);
         dataPage.getStyleClass().add("settings-page");
         dataPage.setFillWidth(true);
@@ -2697,15 +2749,34 @@ public class MainController {
         trashItemsBox.getStyleClass().add("settings-trash-list");
         populateTrashSettingsList(trashItemsBox, trashSummary);
         trashCard.getChildren().addAll(trashSummary, trashItemsBox);
-        dataPage.getChildren().addAll(customOptionsCard, trashCard);
+        VBox shortcutsPage = new VBox(18);
+        shortcutsPage.getStyleClass().add("settings-page");
+        shortcutsPage.setFillWidth(true);
+        shortcutsPage.setMinHeight(0);
+        shortcutsPage.getChildren().add(shortcutsCard);
+
+        VBox labsPage = new VBox(18);
+        labsPage.getStyleClass().add("settings-page");
+        labsPage.setFillWidth(true);
+        labsPage.setMinHeight(0);
+        labsPage.getChildren().add(labsCard);
+
+        customPage.getChildren().addAll(customCard, customOptionsCard);
+        dataPage.getChildren().add(trashCard);
 
         ScrollPane generalPageScroll = createSettingsScrollPane(generalPage);
         ScrollPane personalizationPageScroll = createSettingsScrollPane(personalizationPage);
+        ScrollPane customPageScroll = createSettingsScrollPane(customPage);
+        ScrollPane shortcutsPageScroll = createSettingsScrollPane(shortcutsPage);
+        ScrollPane labsPageScroll = createSettingsScrollPane(labsPage);
         ScrollPane dataPageScroll = createSettingsScrollPane(dataPage);
 
         Map<ToggleButton, Node> pages = new LinkedHashMap<>();
         pages.put(generalTab, generalPageScroll);
         pages.put(personalizationTab, personalizationPageScroll);
+        pages.put(customTab, customPageScroll);
+        pages.put(shortcutsTab, shortcutsPageScroll);
+        pages.put(labsTab, labsPageScroll);
         pages.put(dataTab, dataPageScroll);
 
         Runnable updateNavActive = () -> {

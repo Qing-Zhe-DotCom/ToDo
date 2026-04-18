@@ -1,422 +1,108 @@
+/*
+ * Neo-Brutalism Theme (Dark)
+ * Characteristics: Hard edges, high contrast, thick white/neon borders, flat dark background.
+ */
+
 .root {
-    -color-bg-base: #0f0c0d;
-    -color-bg-panel: #161012;
-    -color-bg-active: #2b1a20;
-    -color-bg-hover: #1f1417;
-    -color-text-main: #f8f6f7;
-    -color-text-sub: #e0d7da;
-    -color-text-hint: #b7a8ae;
-    -color-text-muted: #8a7c82;
-    -color-border: rgba(255, 255, 255, 0.14);
-    -color-border-dark: rgba(255, 255, 255, 0.22);
-    -color-primary: #ff4f7b;
-    -color-primary-hover: #ff7a9a;
-    -color-primary-pressed: #e53a67;
-    -color-primary-soft: rgba(255, 79, 123, 0.18);
-    -color-primary-glow: rgba(255, 79, 123, 0.28);
-    -color-success: #39a14a;
-    -color-success-hover: #2c853b;
-    -color-success-pressed: #21662d;
-    -color-success-bg: rgba(57, 161, 74, 0.16);
-    -color-success-soft: rgba(57, 161, 74, 0.16);
-    -color-danger-soft: rgba(224, 49, 49, 0.16);
-    -color-warning-soft: rgba(240, 140, 0, 0.18);
-    -color-shadow-soft: rgba(0, 0, 0, 0.34);
-    -color-shadow-medium: rgba(0, 0, 0, 0.48);
-    -color-shadow-strong: rgba(0, 0, 0, 0.62);
+    /* 颜色定义 */
+    -color-bg-base: #121212;
+    -color-bg-panel: #1e1e1e;
+    -color-bg-active: #00f3ff; /* 霓虹青 */
+    -color-bg-hover: #333333;
+    
+    -color-primary: #00f3ff;
+    -color-primary-hover: #00d4df;
+    -color-primary-pressed: #00b0ba;
+    -color-primary-glow: rgba(0, 243, 255, 0.4);
+    
+    -color-text-main: #ffffff;
+    -color-text-sub: #ffffff;
+    -color-text-hint: #cccccc;
+    -color-text-muted: #999999;
+    
+    -color-border: #ffffff;
+    -color-border-dark: #ffffff;
+    
+    /* 核心风格：强制直角与粗边框 */
+    -color-border-width: 2.5px;
+    -fx-background-radius: 0 !important;
+    -fx-border-radius: 0 !important;
 }
 
-.settings-dialog-pane,
-.settings-shell,
-.settings-content-host,
-.main-content,
-.timeline-container,
-.timeline-pane {
-    -fx-background-color: -color-bg-base;
-}
-
-.timeline-scroll > .viewport,
-.heatmap-scroll > .viewport,
-.heatmap-main-pane {
-    -fx-background-color: -color-bg-base;
-}
-
-.sidebar,
-.settings-nav,
-.settings-card,
-.info-panel,
-.heatmap-day-panel,
-.heatmap-year-card,
-.heatmap-day-card,
-.timeline-range-pill,
-.timeline-state,
-.dialog-pane,
-.schedule-dialog-pane .dialog-pane,
-.quick-add-shell,
-.info-panel-description-card,
-.info-panel-time-trigger,
-.ios-wheel-popup,
-.combo-box-popup .list-view,
+/* 覆盖全局圆角设置 */
+.button, 
+.toggle-button, 
+.text-field, 
+.text-area, 
+.combo-box, 
+.list-cell,
+.scroll-bar .thumb,
 .date-picker-popup,
-.search-field,
-.quick-add-input,
-.text-field,
-.text-area,
-.password-field,
-.combo-box,
-.button-secondary,
-.toggle-button,
-.settings-style-chip,
-.info-panel-chip,
-.info-panel-toolbar-button,
-.info-panel-icon-button,
-.heatmap-sidebar-toggle,
-.schedule-card-surface,
-.timeline-schedule-card,
-.heatmap-sidebar,
-.heatmap-day-rail {
-    -fx-background-color: -color-bg-panel;
-    -fx-border-color: rgba(255, 255, 255, 0.22);
-    -fx-border-width: 2;
-    -fx-background-radius: 6;
-    -fx-border-radius: 6;
-}
-
-.sidebar,
-.settings-nav,
-.settings-card,
-.info-panel,
-.heatmap-day-panel,
-.heatmap-year-card,
-.heatmap-day-card,
-.timeline-range-pill,
-.timeline-state,
+.context-menu,
 .dialog-pane,
-.schedule-dialog-pane .dialog-pane,
-.quick-add-shell,
-.schedule-card-surface,
-.timeline-schedule-card {
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.60), 0, 0, 6, 6);
-}
-
-.nav-button,
-.sidebar-bottom-actions .sidebar-action-button {
-    -fx-background-radius: 6;
-    -fx-border-radius: 6;
-    -fx-border-width: 2;
-    -fx-border-color: transparent;
-    -fx-font-weight: 800;
-}
-
-.nav-button:hover,
-.sidebar-bottom-actions .sidebar-action-button:hover,
-.sidebar-bottom-actions .sidebar-action-button:focused {
-    -fx-background-color: rgba(255, 231, 132, 0.16);
-    -fx-border-color: rgba(255, 255, 255, 0.24);
-}
-
-.nav-button.active {
-    -fx-background-color: -color-bg-active;
-    -fx-border-color: rgba(255, 255, 255, 0.24);
-    -fx-border-width: 2;
-    -fx-text-fill: -color-text-main;
-}
-
-.button,
-.info-panel-primary-button,
-.ios-wheel-save-button {
-    -fx-background-color: -color-primary;
-    -fx-text-fill: #111111;
-    -fx-border-color: rgba(255, 255, 255, 0.24);
-    -fx-border-width: 2;
-    -fx-background-radius: 6;
-    -fx-border-radius: 6;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.60), 0, 0, 5, 5);
-}
-
-.button:hover,
-.info-panel-primary-button:hover,
-.ios-wheel-save-button:hover {
-    -fx-background-color: -color-primary-hover;
-}
-
-.settings-nav-title,
-.settings-card-title,
-.info-panel-heading,
-.info-panel-section-title,
-.timeline-group-header,
-.timeline-card-title,
-.heatmap-day-title,
-.heatmap-year-title,
-.quick-add-title,
-.schedule-card-title-text {
-    -fx-text-fill: -color-text-main;
-    -fx-font-weight: 800;
-}
-
-.settings-nav-subtitle,
-.settings-card-subtitle,
-.settings-row-desc,
-.info-panel-meta-label,
-.info-panel-description-placeholder,
-.timeline-range-label,
-.heatmap-completed-zone-label,
-.schedule-card-subtitle-text {
-    -fx-text-fill: -color-text-hint;
-}
-
-.settings-shell,
-.timeline-header,
-.heatmap-meta-bar,
-.heatmap-sidebar-shell,
-.info-panel-header,
-.quick-add-section {
-    -fx-background-color: linear-gradient(to bottom, rgba(255, 231, 132, 0.14), rgba(255, 231, 132, 0.05));
-    -fx-border-color: rgba(255, 255, 255, 0.22);
-    -fx-border-width: 2;
-    -fx-background-radius: 6;
-    -fx-border-radius: 6;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.52), 0, 0, 4, 4);
-}
-
-.info-panel-inline-editor,
-.info-panel-borderless-combo,
-.info-panel-notes-input,
-.info-panel-title-input,
-.timeline-range-group,
-.timeline-range-picker,
-.timeline-range-icon-wrap {
-    -fx-background-color: derive(-color-bg-panel, 10%);
-    -fx-border-color: rgba(255, 255, 255, 0.22);
-    -fx-border-width: 2;
-    -fx-background-radius: 6;
-    -fx-border-radius: 6;
-}
-
-.timeline-track-bg {
-    -fx-fill: rgba(255, 231, 132, 0.14);
-}
-
-.timeline-grid-line,
-.timeline-track-sep {
-    -fx-stroke: rgba(255, 255, 255, 0.14);
-    -fx-opacity: 0.22;
-}
-
-.timeline-axis-line,
-.timeline-range-connector {
-    -fx-stroke: rgba(255, 255, 255, 0.26);
-}
-
-.timeline-node {
-    -fx-background-color: -color-primary;
-    -fx-border-color: rgba(255, 255, 255, 0.24);
-    -fx-border-width: 2;
-    -fx-background-radius: 999;
-    -fx-border-radius: 999;
-}
-
-.heatmap-year-cell {
-    -fx-stroke: rgba(255, 255, 255, 0.22);
-    -fx-stroke-width: 1.25;
-}
-
-.heatmap-cell-selected {
-    -fx-background-color: -color-bg-active;
-    -fx-border-color: rgba(255, 255, 255, 0.24);
-    -fx-border-width: 2;
-    -fx-background-radius: 6;
-    -fx-border-radius: 6;
-}
-
-.quick-add-badge,
-.heatmap-day-rail-badge,
-.settings-inline-value,
-.settings-style-chip:selected,
-.info-panel-status-ongoing,
-.heatmap-day-card-selected {
-    -fx-background-color: -color-bg-active;
-    -fx-border-color: rgba(255, 255, 255, 0.22);
-    -fx-border-width: 2;
-}
-
-.timeline-schedule-selected,
-.settings-theme-swatch:selected {
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.60), 0, 0, 6, 6);
-}
-
-.heatmap-completed-zone {
-    -fx-background-color: linear-gradient(to right, rgba(57, 161, 74, 0.18), rgba(57, 161, 74, 0.06));
-    -fx-border-color: rgba(255, 255, 255, 0.22);
-    -fx-border-width: 2;
-    -fx-background-radius: 6;
-    -fx-border-radius: 6;
-}
-
-/* Bone Border Cleanup */
-.settings-shell,
-.timeline-header,
-.heatmap-meta-bar,
-.heatmap-sidebar-shell,
-.info-panel-header,
-.quick-add-section,
-.quick-add-shell,
 .info-panel-description-card,
-.info-panel-time-trigger,
-.heatmap-day-card,
-.timeline-state,
-.timeline-schedule-card,
-.info-panel-inline-editor,
-.info-panel-borderless-combo,
-.info-panel-notes-input,
-.info-panel-title-input,
-.timeline-range-group,
-.timeline-range-picker,
-.timeline-range-icon-wrap,
-.heatmap-sidebar,
-.heatmap-day-rail,
-.search-field,
-.quick-add-input,
-.text-field,
-.text-area,
-.password-field,
-.combo-box,
-.button-secondary,
-.toggle-button,
-.settings-style-chip,
-.settings-style-chip:selected,
 .info-panel-chip,
-.info-panel-toolbar-button,
-.info-panel-icon-button,
-.heatmap-sidebar-toggle,
-.quick-add-badge,
-.heatmap-day-rail-badge,
-.settings-inline-value,
-.info-panel-status-pill,
-.info-panel-status-ongoing,
-.heatmap-day-card-selected,
-.heatmap-completed-zone {
-    -fx-border-color: transparent;
-    -fx-border-width: 0;
-}
-
-.settings-shell,
-.timeline-header,
-.heatmap-meta-bar,
-.heatmap-sidebar-shell,
-.info-panel-header,
-.quick-add-section,
-.quick-add-shell,
-.info-panel-description-card,
-.info-panel-time-trigger,
-.heatmap-day-card,
-.timeline-state,
-.timeline-schedule-card,
 .info-panel-inline-editor,
-.info-panel-borderless-combo,
-.info-panel-notes-input,
-.info-panel-title-input,
-.timeline-range-group,
-.timeline-range-picker,
-.timeline-range-icon-wrap,
-.heatmap-sidebar,
-.heatmap-day-rail,
-.quick-add-badge,
-.heatmap-day-rail-badge {
-    -fx-effect: none;
+.settings-card,
+.settings-style-chip,
+.quick-add-shell,
+.schedule-card-inner,
+.schedule-group-toggle {
+    -fx-background-radius: 0 !important;
+    -fx-border-radius: 0 !important;
+    -fx-border-width: 2.5px !important;
+    -fx-border-color: -color-border !important;
 }
 
-.nav-button,
-.sidebar-bottom-actions .sidebar-action-button,
-.nav-button:hover,
-.sidebar-bottom-actions .sidebar-action-button:hover,
-.sidebar-bottom-actions .sidebar-action-button:focused,
+/* 硬投影效果 (Neo-Brutalism Signature Shadow) */
+.button:hover,
+.toggle-button:selected,
+.schedule-card-inner:hover,
+.quick-add-shell-focused,
+.settings-card {
+    -fx-effect: dropshadow(one-pass-box, #00f3ff, 0, 0, 4, 4) !important;
+}
+
+.button:pressed {
+    -fx-translate-x: 2;
+    -fx-translate-y: 2;
+    -fx-effect: dropshadow(one-pass-box, #00f3ff, 0, 0, 1, 1) !important;
+}
+
+/* 侧边栏特殊处理 */
 .nav-button.active {
-    -fx-border-color: transparent;
-    -fx-border-width: 0;
+    -fx-background-color: -color-bg-active !important;
+    -fx-text-fill: #000000 !important;
+    -fx-border-width: 0 0 0 6 !important;
+    -fx-border-color: #ffffff !important;
 }
 
-/* Quick Add Single Surface */
-.quick-add-section {
-    -fx-background-color: transparent;
-    -fx-border-color: transparent;
-    -fx-border-width: 0;
-    -fx-background-radius: 0;
-    -fx-border-radius: 0;
-    -fx-effect: none;
+/* 任务卡片深度直角化 */
+.schedule-card-inner {
+    -fx-padding: 12 16;
+    -fx-background-color: #1e1e1e;
+    -fx-effect: dropshadow(one-pass-box, #ffffff, 0, 0, 3, 3);
 }
 
-.quick-add-badge {
-    -fx-background-color: transparent;
-    -fx-border-color: transparent;
-    -fx-border-width: 0;
-    -fx-background-radius: 0;
-    -fx-border-radius: 0;
-    -fx-effect: none;
+.schedule-card-state-selected .schedule-card-inner {
+    -fx-background-color: -color-bg-active !important;
+    -fx-effect: dropshadow(one-pass-box, #ffffff, 0, 0, 6, 6) !important;
 }
 
-.quick-add-input {
-    -fx-background-color: transparent;
-    -fx-border-color: transparent;
-    -fx-border-width: 0;
-    -fx-background-radius: 0;
-    -fx-border-radius: 0;
-    -fx-effect: none;
+.schedule-card-state-selected .schedule-card-inner .label {
+    -fx-text-fill: #000000 !important;
 }
 
-.quick-add-input:focused {
-    -fx-background-color: transparent;
-    -fx-border-color: transparent;
-    -fx-border-width: 0;
-    -fx-background-radius: 0;
-    -fx-border-radius: 0;
-    -fx-effect: none;
+/* 优先级标签 - 即使是标签也要直角 */
+.priority-high, .priority-medium, .priority-low, .category-tag {
+    -fx-background-radius: 0 !important;
+    -fx-border-radius: 0 !important;
+    -fx-border-width: 1.5px !important;
+    -fx-font-weight: 900 !important;
+    -fx-border-color: #ffffff !important;
 }
 
-/* Timeline Range Single Surface */
-.timeline-range-group {
-    -fx-background-color: transparent;
-    -fx-border-color: transparent;
-    -fx-border-width: 0;
-    -fx-background-radius: 0;
-    -fx-border-radius: 0;
-    -fx-effect: none;
+/* 隐藏不符合风格的装饰 */
+.schedule-card-newly-created .schedule-card-inner {
+    -fx-effect: dropshadow(one-pass-box, -color-primary, 0, 0, 8, 8) !important;
 }
-
-.timeline-range-picker {
-    -fx-background-color: transparent;
-    -fx-border-color: transparent;
-    -fx-border-width: 0;
-    -fx-background-radius: 0;
-    -fx-border-radius: 0;
-    -fx-effect: none;
-}
-
-.timeline-range-icon-wrap {
-    -fx-background-color: transparent;
-    -fx-border-color: transparent;
-    -fx-border-width: 0;
-    -fx-background-radius: 0;
-    -fx-border-radius: 0;
-    -fx-effect: none;
-}
-
-.timeline-range-picker > .text-field {
-    -fx-background-color: transparent;
-    -fx-border-color: transparent;
-    -fx-border-width: 0;
-    -fx-background-radius: 0;
-    -fx-border-radius: 0;
-    -fx-effect: none;
-}
-
-.timeline-range-picker:focused > .text-field,
-.timeline-range-picker:showing > .text-field {
-    -fx-background-color: transparent;
-    -fx-border-color: transparent;
-    -fx-border-width: 0;
-    -fx-background-radius: 0;
-    -fx-border-radius: 0;
-    -fx-effect: none;
-}
-

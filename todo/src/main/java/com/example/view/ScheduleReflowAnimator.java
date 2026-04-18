@@ -21,12 +21,18 @@ public final class ScheduleReflowAnimator {
     private static final String CARD_COMPLETED_KEY = "schedule.reflow.completed";
     private static final String SHIFT_TIMELINE_KEY = "schedule.reflow.shiftTimeline";
     private static final String TARGET_TIMELINE_KEY = "schedule.reflow.targetTimeline";
-    private static final Duration REFLOW_DURATION = Duration.millis(320);
-    private static final Duration TARGET_FEEDBACK_DURATION = Duration.millis(320);
-    private static final Duration COLLAPSED_RECEIVE_DURATION = Duration.millis(320);
-    private static final Interpolator LIVE_SHIFT_INTERPOLATOR = Interpolator.SPLINE(0.14, 0.78, 0.2, 1.0);
-    private static final Interpolator REFLOW_INTERPOLATOR = Interpolator.SPLINE(0.18, 0.82, 0.22, 1.0);
-    private static final Interpolator TARGET_INTERPOLATOR = Interpolator.SPLINE(0.2, 0.76, 0.22, 1.0);
+    private static final Duration REFLOW_DURATION = Duration.millis(380);
+    private static final Duration TARGET_FEEDBACK_DURATION = Duration.millis(420);
+    private static final Duration COLLAPSED_RECEIVE_DURATION = Duration.millis(350);
+    
+    // 更加平滑且带有惯性的流体曲线
+    private static final Interpolator LIVE_SHIFT_INTERPOLATOR = Interpolator.SPLINE(0.1, 0.9, 0.2, 1.0);
+    
+    // 模拟物理质感的重排曲线：快速启动，带有微小的过冲感
+    private static final Interpolator REFLOW_INTERPOLATOR = Interpolator.SPLINE(0.25, 0.1, 0.25, 1.0);
+    
+    // 重点反馈曲线：使用合法的强力 Ease-Out 曲线 (接近 Overshoot 感官但符合 [0,1] 限制)
+    private static final Interpolator TARGET_INTERPOLATOR = Interpolator.SPLINE(0.1, 0.9, 0.2, 1.0);
 
     private ScheduleReflowAnimator() {
     }
