@@ -66,4 +66,77 @@ class TimelineViewTest {
         assertNull(TimelineView.parseRangeDate("   "));
         assertEquals(LocalDate.of(2026, 4, 4), TimelineView.parseRangeDate("2026-04-04"));
     }
+
+    @Test
+    void viewportCenterAnchorRoundTripsAcrossZoomLevels() {
+        long totalMinutes = 21L * 24 * 60;
+        double viewportWidth = 640;
+        double leftPadding = 36;
+        double rightPadding = 36;
+        double centerViewportX = viewportWidth / 2.0;
+        double anchorMinuteOffset = 8L * 24 * 60 + 135;
+
+        double pixelsPerMinuteBefore = TimelineZoomGeometry.pixelsPerMinute(90, 1.0, 360);
+        double totalWidthBefore = TimelineZoomGeometry.totalWidth(
+            leftPadding,
+            rightPadding,
+            totalMinutes,
+            pixelsPerMinuteBefore
+        );
+        double hvalueBefore = TimelineZoomGeometry.hvalueForAnchor(
+            anchorMinuteOffset,
+            centerViewportX,
+            viewportWidth,
+            totalWidthBefore,
+            leftPadding,
+            pixelsPerMinuteBefore
+        );
+        assertEquals(
+            anchorMinuteOffset,
+            TimelineZoomGeometry.minuteOffsetAtViewportX(
+                centerViewportX,
+                hvalueBefore,
+                viewportWidth,
+                totalWidthBefore,
+                leftPadding,
+                pixelsPerMinuteBefore,
+                totalMinutes
+            )
+        );
+
+        double pixelsPerMinuteAfter = TimelineZoomGeometry.pixelsPerMinute(90, 1.12, 360);
+        double totalWidthAfter = TimelineZoomGeometry.totalWidth(
+            leftPadding,
+            rightPadding,
+            totalMinutes,
+            pixelsPerMinuteAfter
+        );
+        double hvalueAfter = TimelineZoomGeometry.hvalueForAnchor(
+            anchorMinuteOffset,
+            centerViewportX,
+            viewportWidth,
+            totalWidthAfter,
+            leftPadding,
+            pixelsPerMinuteAfter
+        );
+        assertEquals(
+            anchorMinuteOffset,
+            TimelineZoomGeometry.minuteOffsetAtViewportX(
+                centerViewportX,
+                hvalueAfter,
+                viewportWidth,
+                totalWidthAfter,
+                leftPadding,
+                pixelsPerMinuteAfter,
+                totalMinutes
+            )
+        );
+    }
+
+    @Test
+    void timelineZoomGeometryClampPreventsExtraScrollAtEdges() {
+        assertEquals(0.0, TimelineZoomGeometry.clamp(-0.2, 0.0, 1.0));
+        assertEquals(1.0, TimelineZoomGeometry.clamp(1.2, 0.0, 1.0));
+        assertEquals(0.5, TimelineZoomGeometry.clamp(0.5, 0.0, 1.0));
+    }
 }
