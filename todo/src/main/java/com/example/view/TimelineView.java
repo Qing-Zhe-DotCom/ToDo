@@ -1,6 +1,5 @@
 package com.example.view;
 
-import com.example.controller.ScheduleCompletionMutation;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -10,15 +9,21 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 import com.example.application.IconKey;
 import com.example.application.ScheduleOccurrenceProjector;
 import com.example.application.WheelModifier;
 import com.example.controller.MainController;
+import com.example.controller.ScheduleCompletionMutation;
 import com.example.model.Schedule;
 import com.example.model.ScheduleItem;
 
 import javafx.animation.AnimationTimer;
+import javafx.animation.ParallelTransition;
+import javafx.animation.PauseTransition;
+import javafx.animation.ScaleTransition;
+import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -30,6 +35,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
@@ -39,16 +45,11 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
-
-import javafx.animation.PauseTransition;
-import javafx.animation.ScaleTransition;
-import javafx.animation.TranslateTransition;
-import javafx.animation.ParallelTransition;
 import javafx.util.Duration;
-import javafx.scene.input.ScrollEvent;
 import javafx.util.StringConverter;
 
 public class TimelineView implements View, ScheduleCompletionParticipant {
+    private static final System.Logger LOGGER = System.getLogger(TimelineView.class.getName());
 
     private static final double BASE_CELL_WIDTH_PX = 90;
     private static final long BASE_CELL_MINUTES = 360; // 6 hours per grid cell
@@ -73,8 +74,183 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("MM/dd HH:mm");
     private static final DateTimeFormatter RANGE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final String DEBUG_SCROLL_PROPERTY = "todo.timeline.debugScroll";
 
-    private final MainController controller;
+    enum ScrollAction {
+        IGNORE,
+        ZOOM_IN,
+        ZOOM_OUT,
+        HORIZONTAL_SCROLL
+    }
+
+    record ScrollDecision(ScrollAction action, double targetHvalue) {
+        static ScrollDecision ignore() {
+            return new ScrollDecision(ScrollAction.IGNORE, 0);
+        }
+
+        static ScrollDecision zoomIn() {
+            return new ScrollDecision(ScrollAction.ZOOM_IN, 0);
+        }
+
+        static ScrollDecision zoomOut() {
+            return new ScrollDecision(ScrollAction.ZOOM_OUT, 0);
+        }
+
+        static ScrollDecision horizontalScroll(double targetHvalue) {
+            return new ScrollDecision(ScrollAction.HORIZONTAL_SCROLL, targetHvalue);
+        }
+    }
+
+    interface TimelineController {
+        default double parseDoublePreference(String key, double fallback) {
+            return fallback;
+        }
+
+        default void putPreference(String key, String value) {
+        }
+
+        default WheelModifier getTimelineZoomWheelModifier() {
+            return WheelModifier.CTRL;
+        }
+
+        default Node createSvgIcon(IconKey iconKey, String title, double size) {
+            return new Region();
+        }
+
+        default Label createHeaderClockLabel() {
+            return new Label();
+        }
+
+        default void installDatePickerArrowSupport(DatePicker datePicker) {
+        }
+
+        default String text(String key, Object... args) {
+            return key;
+        }
+
+        default void showError(String title, String message) {
+        }
+
+        default List<Schedule> applyPendingCompletionMutations(List<Schedule> schedules) {
+            return schedules == null ? List.of() : schedules;
+        }
+
+        default List<Schedule> loadAllSchedules() throws SQLException {
+            return List.of();
+        }
+
+        default String getCurrentScheduleCardStyle() {
+            return "";
+        }
+
+        default boolean isScheduleSelected(Schedule schedule) {
+            return false;
+        }
+
+        default boolean updateScheduleCompletion(Schedule schedule, boolean targetCompleted) {
+            return false;
+        }
+
+        default void showScheduleDetailsAndFocusTitle(Schedule schedule) {
+        }
+
+        default void showScheduleDetails(Schedule schedule) {
+        }
+
+        default String priorityDisplayName(String priority) {
+            return priority == null ? "" : priority;
+        }
+    }
+
+    private static final class MainControllerTimelineController implements TimelineController {
+        private final MainController delegate;
+
+        private MainControllerTimelineController(MainController delegate) {
+            this.delegate = Objects.requireNonNull(delegate, "delegate");
+        }
+
+        @Override
+        public double parseDoublePreference(String key, double fallback) {
+            return delegate.parseDoublePreference(key, fallback);
+        }
+
+        @Override
+        public void putPreference(String key, String value) {
+            delegate.putPreference(key, value);
+        }
+
+        @Override
+        public WheelModifier getTimelineZoomWheelModifier() {
+            return delegate.getTimelineZoomWheelModifier();
+        }
+
+        @Override
+        public Node createSvgIcon(IconKey iconKey, String title, double size) {
+            return delegate.createSvgIcon(iconKey, title, size);
+        }
+
+        @Override
+        public Label createHeaderClockLabel() {
+            return delegate.createHeaderClockLabel();
+        }
+
+        @Override
+        public void installDatePickerArrowSupport(DatePicker datePicker) {
+            DatePickerArrowSupport.install(datePicker, delegate);
+        }
+
+        @Override
+        public String text(String key, Object... args) {
+            return delegate.text(key, args);
+        }
+
+        @Override
+        public void showError(String title, String message) {
+            delegate.showError(title, message);
+        }
+
+        @Override
+        public List<Schedule> applyPendingCompletionMutations(List<Schedule> schedules) {
+            return delegate.applyPendingCompletionMutations(schedules);
+        }
+
+        @Override
+        public List<Schedule> loadAllSchedules() throws SQLException {
+            return delegate.loadAllSchedules();
+        }
+
+        @Override
+        public String getCurrentScheduleCardStyle() {
+            return delegate.getCurrentScheduleCardStyle();
+        }
+
+        @Override
+        public boolean isScheduleSelected(Schedule schedule) {
+            return delegate.isScheduleSelected(schedule);
+        }
+
+        @Override
+        public boolean updateScheduleCompletion(Schedule schedule, boolean targetCompleted) {
+            return delegate.updateScheduleCompletion(schedule, targetCompleted);
+        }
+
+        @Override
+        public void showScheduleDetailsAndFocusTitle(Schedule schedule) {
+            delegate.showScheduleDetailsAndFocusTitle(schedule);
+        }
+
+        @Override
+        public void showScheduleDetails(Schedule schedule) {
+            delegate.showScheduleDetails(schedule);
+        }
+
+        @Override
+        public String priorityDisplayName(String priority) {
+            return delegate.priorityDisplayName(priority);
+        }
+    }
+
+    private final TimelineController controller;
 
     private VBox root;
     private StackPane timelineContainer;
@@ -96,12 +272,20 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     private PauseTransition zoomSaveDebouncer;
     private final List<Runnable> zoomUpdaters = new ArrayList<>();
     private LocalDate cachedMinDate;
+    private boolean lastScrollRestoreUsedRunLater;
 
     public TimelineView(MainController controller) {
-        this.controller = controller;
+        this(new MainControllerTimelineController(controller), true);
+    }
+
+    TimelineView(TimelineController controller, boolean startAutoScroll) {
+        this.controller = Objects.requireNonNull(controller, "controller");
+
         loadZoomPreference();
         initializeUI();
-        startAutoScroll();
+        if (startAutoScroll) {
+            startAutoScroll();
+        }
     }
 
     public double getZoomFactor() {
@@ -148,6 +332,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             long totalMinutes = resolveTotalMinutes();
             double totalWidth = computeTimelineWidth(totalMinutes, pixelsPerMinute);
             timelinePane.setPrefWidth(totalWidth);
+            timelinePane.resize(totalWidth, Math.max(timelinePane.getHeight(), timelinePane.getPrefHeight()));
             
             for (Runnable updater : zoomUpdaters) {
                 updater.run();
@@ -161,8 +346,12 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         }
     }
 
-    private double computePixelsPerMinute() {
+    static double computePixelsPerMinute(double zoomFactor) {
         return (BASE_CELL_WIDTH_PX * zoomFactor) / BASE_CELL_MINUTES;
+    }
+
+    private double computePixelsPerMinute() {
+        return computePixelsPerMinute(zoomFactor);
     }
 
     private long resolveTotalMinutes() {
@@ -253,18 +442,33 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         return clampDouble(currentHvalue - hvalueDelta, 0, 1);
     }
 
+    static ScrollDecision resolveScrollDecision(
+        boolean modifierMatched,
+        double deltaX,
+        double deltaY,
+        double currentHvalue,
+        double viewportWidth,
+        double contentWidth,
+        double pixelsPerMinute
+    ) {
+        if (!Double.isFinite(deltaX) || !Double.isFinite(deltaY) || deltaY == 0) {
+            return ScrollDecision.ignore();
+        }
+        if (modifierMatched) {
+            return deltaY > 0 ? ScrollDecision.zoomIn() : ScrollDecision.zoomOut();
+        }
+        return ScrollDecision.horizontalScroll(
+            computeHorizontalScrollHvalue(currentHvalue, deltaY, viewportWidth, contentWidth, pixelsPerMinute)
+        );
+    }
+
     private double resolveTimelineContentWidth() {
         if (timelinePane == null) {
             return 0;
         }
 
-        double contentWidth = timelinePane.getWidth();
-        if (contentWidth <= 0) {
-            contentWidth = timelinePane.getLayoutBounds().getWidth();
-        }
-        if (contentWidth <= 0) {
-            contentWidth = timelinePane.getPrefWidth();
-        }
+        double contentWidth = Math.max(timelinePane.getWidth(), timelinePane.getLayoutBounds().getWidth());
+        contentWidth = Math.max(contentWidth, timelinePane.getPrefWidth());
         return Math.max(0, contentWidth);
     }
 
@@ -289,6 +493,45 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             return min;
         }
         return Math.max(min, Math.min(max, value));
+    }
+
+    private static boolean isScrollDebugEnabled() {
+        return Boolean.getBoolean(DEBUG_SCROLL_PROPERTY);
+    }
+
+    private void logScrollDebug(
+        String eventType,
+        double deltaX,
+        double deltaY,
+        boolean modifierMatched,
+        String decision,
+        double hvalueBefore,
+        double hvalueAfter,
+        double viewportWidth,
+        double contentWidth,
+        long centerMinuteBefore,
+        long centerMinuteAfter,
+        boolean usedRunLater
+    ) {
+        if (!isScrollDebugEnabled()) {
+            return;
+        }
+        LOGGER.log(
+            System.Logger.Level.INFO,
+            "timelineScroll eventType={0} deltaX={1} deltaY={2} modifierMatched={3} decision={4} hvalueBefore={5} hvalueAfter={6} viewportWidth={7} contentWidth={8} centerMinuteBefore={9} centerMinuteAfter={10} runLaterFallback={11}",
+            eventType,
+            deltaX,
+            deltaY,
+            modifierMatched,
+            decision,
+            hvalueBefore,
+            hvalueAfter,
+            viewportWidth,
+            contentWidth,
+            centerMinuteBefore,
+            centerMinuteAfter,
+            usedRunLater
+        );
     }
 
     private void initializeUI() {
@@ -324,27 +567,92 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     }
 
     private void handleTimelineScroll(ScrollEvent event) {
-        if (event == null || event.getDeltaY() == 0 || scrollPane == null) {
+        if (event == null || scrollPane == null) {
             return;
         }
 
-        WheelModifier modifier = controller.getTimelineZoomWheelModifier();
-        if (modifier != null && modifier.matches(event)) {
-            double multiplier = event.getDeltaY() > 0 ? ZOOM_STEP : (1.0 / ZOOM_STEP);
-            zoomBy(multiplier);
-            event.consume();
-            return;
-        }
-
-        double hvalue = computeHorizontalScrollHvalue(
-            scrollPane.getHvalue(),
-            event.getDeltaY(),
-            scrollPane.getViewportBounds().getWidth(),
-            resolveTimelineContentWidth(),
-            computePixelsPerMinute()
+        double viewportWidthBefore = scrollPane.getViewportBounds().getWidth();
+        double contentWidthBefore = resolveTimelineContentWidth();
+        double pixelsPerMinuteBefore = computePixelsPerMinute();
+        double hvalueBefore = scrollPane.getHvalue();
+        long centerMinuteBefore = resolveViewportCenterMinuteOffset(
+            viewportWidthBefore,
+            contentWidthBefore,
+            hvalueBefore,
+            pixelsPerMinuteBefore,
+            resolveTotalMinutes()
         );
-        scrollPane.setHvalue(hvalue);
+        WheelModifier modifier = controller.getTimelineZoomWheelModifier();
+        boolean modifierMatched = modifier != null && modifier.matches(event);
+        ScrollDecision decision = resolveScrollDecision(
+            modifierMatched,
+            event.getDeltaX(),
+            event.getDeltaY(),
+            hvalueBefore,
+            viewportWidthBefore,
+            contentWidthBefore,
+            pixelsPerMinuteBefore
+        );
+
+        boolean usedRunLater = false;
+        switch (decision.action()) {
+            case IGNORE -> {
+                logScrollDebug(
+                    event.getEventType().getName(),
+                    event.getDeltaX(),
+                    event.getDeltaY(),
+                    modifierMatched,
+                    decision.action().name(),
+                    hvalueBefore,
+                    hvalueBefore,
+                    viewportWidthBefore,
+                    contentWidthBefore,
+                    centerMinuteBefore,
+                    centerMinuteBefore,
+                    false
+                );
+                return;
+            }
+            case ZOOM_IN -> {
+                lastScrollRestoreUsedRunLater = false;
+                zoomBy(ZOOM_STEP);
+                usedRunLater = lastScrollRestoreUsedRunLater;
+            }
+            case ZOOM_OUT -> {
+                lastScrollRestoreUsedRunLater = false;
+                zoomBy(1.0 / ZOOM_STEP);
+                usedRunLater = lastScrollRestoreUsedRunLater;
+            }
+            case HORIZONTAL_SCROLL -> scrollPane.setHvalue(decision.targetHvalue());
+        }
+
         event.consume();
+
+        double viewportWidthAfter = scrollPane.getViewportBounds().getWidth();
+        double contentWidthAfter = resolveTimelineContentWidth();
+        double pixelsPerMinuteAfter = computePixelsPerMinute();
+        double hvalueAfter = scrollPane.getHvalue();
+        long centerMinuteAfter = resolveViewportCenterMinuteOffset(
+            viewportWidthAfter,
+            contentWidthAfter,
+            hvalueAfter,
+            pixelsPerMinuteAfter,
+            resolveTotalMinutes()
+        );
+        logScrollDebug(
+            event.getEventType().getName(),
+            event.getDeltaX(),
+            event.getDeltaY(),
+            modifierMatched,
+            decision.action().name(),
+            hvalueBefore,
+            hvalueAfter,
+            viewportWidthAfter,
+            contentWidthAfter,
+            centerMinuteBefore,
+            centerMinuteAfter,
+            usedRunLater
+        );
     }
 
     private HBox createHeader() {
@@ -424,7 +732,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         picker.setMaxWidth(Double.MAX_VALUE);
         picker.setConverter(createRangeDateConverter());
         picker.getStyleClass().add("timeline-range-picker");
-        DatePickerArrowSupport.install(picker, controller);
+        controller.installDatePickerArrowSupport(picker);
         return picker;
     }
 
@@ -589,6 +897,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
 
         timelinePane.setPrefWidth(totalWidth);
         timelinePane.setPrefHeight(Math.max(320, paneHeight));
+        timelinePane.resize(totalWidth, Math.max(320, paneHeight));
 
         renderTracksBackground(totalWidth, paneHeight);
         renderDateAxis(minDate, maxDate, totalWidth, paneHeight, pixelsPerMinute, totalMinutes);
@@ -984,10 +1293,67 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     }
 
     private void scrollToToday(LocalDate minDate, LocalDate maxDate, double totalWidth, double pixelsPerMinute) {
+        double hvalueBefore = scrollPane != null ? scrollPane.getHvalue() : 0;
+        double viewportWidth = scrollPane != null ? scrollPane.getViewportBounds().getWidth() : 0;
+        double contentWidth = resolveTimelineContentWidth();
+        long centerMinuteBefore = resolveViewportCenterMinuteOffset(
+            viewportWidth,
+            contentWidth,
+            hvalueBefore,
+            pixelsPerMinute,
+            resolveTotalMinutes()
+        );
         if (applyTodayScroll(minDate, maxDate, totalWidth, pixelsPerMinute)) {
+            lastScrollRestoreUsedRunLater = false;
+            logScrollDebug(
+                "TODAY_RESTORE",
+                0,
+                0,
+                false,
+                "APPLY_TODAY_SCROLL",
+                hvalueBefore,
+                scrollPane != null ? scrollPane.getHvalue() : hvalueBefore,
+                scrollPane != null ? scrollPane.getViewportBounds().getWidth() : viewportWidth,
+                resolveTimelineContentWidth(),
+                centerMinuteBefore,
+                resolveViewportCenterMinuteOffset(),
+                false
+            );
             return;
         }
-        Platform.runLater(() -> applyTodayScroll(minDate, maxDate, totalWidth, pixelsPerMinute));
+        lastScrollRestoreUsedRunLater = true;
+        logScrollDebug(
+            "TODAY_RESTORE",
+            0,
+            0,
+            false,
+            "SCHEDULE_TODAY_SCROLL",
+            hvalueBefore,
+            hvalueBefore,
+            viewportWidth,
+            contentWidth,
+            centerMinuteBefore,
+            centerMinuteBefore,
+            true
+        );
+        Platform.runLater(() -> {
+            double beforeRunLaterHvalue = scrollPane != null ? scrollPane.getHvalue() : 0;
+            boolean applied = applyTodayScroll(minDate, maxDate, totalWidth, pixelsPerMinute);
+            logScrollDebug(
+                "TODAY_RESTORE",
+                0,
+                0,
+                false,
+                applied ? "RUNLATER_TODAY_SCROLL" : "RUNLATER_TODAY_SCROLL_SKIPPED",
+                beforeRunLaterHvalue,
+                scrollPane != null ? scrollPane.getHvalue() : beforeRunLaterHvalue,
+                scrollPane != null ? scrollPane.getViewportBounds().getWidth() : 0,
+                resolveTimelineContentWidth(),
+                resolveViewportCenterMinuteOffset(),
+                resolveViewportCenterMinuteOffset(),
+                true
+            );
+        });
     }
 
     private void scrollToMinuteOffset(
@@ -996,10 +1362,67 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         double pixelsPerMinute,
         double viewportAnchorRatio
     ) {
+        double hvalueBefore = scrollPane != null ? scrollPane.getHvalue() : 0;
+        double viewportWidth = scrollPane != null ? scrollPane.getViewportBounds().getWidth() : 0;
+        double contentWidth = resolveTimelineContentWidth();
+        long centerMinuteBefore = resolveViewportCenterMinuteOffset(
+            viewportWidth,
+            contentWidth,
+            hvalueBefore,
+            pixelsPerMinute,
+            resolveTotalMinutes()
+        );
         if (applyAnchoredScroll(minuteOffset, totalWidth, pixelsPerMinute, viewportAnchorRatio)) {
+            lastScrollRestoreUsedRunLater = false;
+            logScrollDebug(
+                "ANCHOR_RESTORE",
+                0,
+                0,
+                false,
+                "APPLY_ANCHORED_SCROLL",
+                hvalueBefore,
+                scrollPane != null ? scrollPane.getHvalue() : hvalueBefore,
+                scrollPane != null ? scrollPane.getViewportBounds().getWidth() : viewportWidth,
+                resolveTimelineContentWidth(),
+                centerMinuteBefore,
+                resolveViewportCenterMinuteOffset(),
+                false
+            );
             return;
         }
-        Platform.runLater(() -> applyAnchoredScroll(minuteOffset, totalWidth, pixelsPerMinute, viewportAnchorRatio));
+        lastScrollRestoreUsedRunLater = true;
+        logScrollDebug(
+            "ANCHOR_RESTORE",
+            0,
+            0,
+            false,
+            "SCHEDULE_ANCHORED_SCROLL",
+            hvalueBefore,
+            hvalueBefore,
+            viewportWidth,
+            contentWidth,
+            centerMinuteBefore,
+            centerMinuteBefore,
+            true
+        );
+        Platform.runLater(() -> {
+            double beforeRunLaterHvalue = scrollPane != null ? scrollPane.getHvalue() : 0;
+            boolean applied = applyAnchoredScroll(minuteOffset, totalWidth, pixelsPerMinute, viewportAnchorRatio);
+            logScrollDebug(
+                "ANCHOR_RESTORE",
+                0,
+                0,
+                false,
+                applied ? "RUNLATER_ANCHORED_SCROLL" : "RUNLATER_ANCHORED_SCROLL_SKIPPED",
+                beforeRunLaterHvalue,
+                scrollPane != null ? scrollPane.getHvalue() : beforeRunLaterHvalue,
+                scrollPane != null ? scrollPane.getViewportBounds().getWidth() : 0,
+                resolveTimelineContentWidth(),
+                resolveViewportCenterMinuteOffset(),
+                resolveViewportCenterMinuteOffset(),
+                true
+            );
+        });
     }
 
     private boolean applyTodayScroll(LocalDate minDate, LocalDate maxDate, double totalWidth, double pixelsPerMinute) {
