@@ -201,8 +201,9 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             postponeButton.getStyleClass().addAll("schedule-card-action-btn", "postpone-day-btn");
             String postponeTooltip = controller.text("action.postponeDay");
             postponeButton.setTooltip(new Tooltip(postponeTooltip));
-            Pane postponeIcon = controller.createSvgIcon(IconKey.POSTPONE_DAY, postponeTooltip, 16);
+            Pane postponeIcon = controller.createSvgIcon(IconKey.POSTPONE_DAY, postponeTooltip, 18);
             postponeButton.setGraphic(postponeIcon);
+            HBox.setMargin(postponeButton, new Insets(0, 0, 0, 12));
             postponeButton.setOnAction(event -> {
                 handlePostponeDay(this.schedule);
                 event.consume();
@@ -281,6 +282,11 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             if (schedule.isCompleted()) {
                 titleLabel.getStyleClass().add("title-completed");
             }
+
+            // 仅未完成的任务显示延后按钮
+            boolean showPostpone = !schedule.isCompleted();
+            postponeButton.setVisible(showPostpone);
+            postponeButton.setManaged(showPostpone);
 
             String dateText = buildScheduleDateText(schedule, controller);
             boolean usingRelativeDueText = !schedule.isCompleted()

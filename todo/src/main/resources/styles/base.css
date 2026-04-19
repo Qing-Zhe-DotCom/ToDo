@@ -1,396 +1,199 @@
 /* 浅色主题 - Light Theme */
-
-
-
 .root {
-
     -fx-background-color: -color-bg-base;
-
     -fx-font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
-
 }
-
-
 
 /* 菜单栏样式 */
-
 .menu-bar {
-
     -fx-background-color: -color-bg-panel;
-
     -fx-border-color: -color-border;
-
     -fx-border-width: 0 0 1 0;
-
 }
-
-
 
 .menu-bar > .container {
-
     -fx-background-color: -color-bg-panel;
-
 }
-
-
 
 .menu-bar > .container > .menu-button {
-
     -fx-background-color: transparent;
-
     -fx-padding: 5 10;
-
 }
-
-
 
 .menu-bar > .container > .menu-button > .label {
-
     -fx-text-fill: -color-text-main;
-
 }
-
-
 
 .menu-bar > .container > .menu-button:hover,
-
 .menu-bar > .container > .menu-button:focused,
-
 .menu-bar > .container > .menu-button:showing {
-
     -fx-background-color: -color-bg-active;
-
 }
-
-
 
 .context-menu {
-
     -fx-background-color: -color-bg-panel;
-
     -fx-border-color: -color-border;
-
     -fx-border-width: 1;
-
     -fx-background-insets: 0;
-
     -fx-padding: 4 0;
-
 }
-
-
 
 .context-menu .menu-item {
-
     -fx-background-color: transparent;
-
 }
-
-
 
 .context-menu .menu-item > .label {
-
     -fx-text-fill: -color-text-main;
-
 }
-
-
 
 .context-menu .menu-item:focused {
-
     -fx-background-color: -color-bg-active;
-
 }
-
-
 
 .context-menu .menu-item:focused > .label,
-
 .context-menu .menu-item:hover > .label {
-
     -fx-text-fill: -color-primary-hover;
-
 }
-
-
 
 .menu-item .accelerator-text {
-
     -fx-text-fill: -color-text-hint;
-
 }
-
-
 
 .separator-menu-item .line {
-
     -fx-border-color: -color-border;
-
 }
-
-
 
 .menu {
-
     -fx-padding: 5 10;
-
 }
-
-
 
 .menu:hover {
-
     -fx-background-color: -color-bg-active;
-
 }
-
-
 
 .menu-item {
-
     -fx-padding: 8 15;
-
 }
-
-
 
 .menu-item:hover {
-
     -fx-background-color: -color-bg-active;
-
 }
-
-
 
 /* 左侧导航栏 */
-
 .sidebar {
-
     -fx-background-color: -color-bg-panel;
-
     -fx-border-color: -color-border;
-
     -fx-border-width: 0 1 0 0;
-
     -fx-padding: 10;
-
 }
-
-
 
 .sidebar-bottom-actions {
-
     -fx-padding: 4 0 0 0;
-
 }
-
-
 
 .nav-button {
-
     -fx-background-color: transparent;
-
     -fx-text-fill: -color-text-sub;
-
     -fx-font-size: 13px;
-
     -fx-padding: 12 15;
-
     -fx-cursor: hand;
-
     -fx-alignment: center-left;
-
     -fx-min-width: 0;
-
 }
-
-
 
 .sidebar-collapse-button {
-
     -fx-font-weight: bold;
-
 }
-
-
 
 .sidebar-action-button {
-
     -fx-font-size: 12px;
-
     -fx-background-color: transparent;
-
     -fx-border-color: transparent;
-
     -fx-background-insets: 0;
-
     -fx-background-radius: 0;
-
 }
-
-
 
 .sidebar-bottom-actions .sidebar-action-button {
-
     -fx-text-fill: -color-text-sub;
-
     -fx-background-color: transparent;
-
     -fx-border-color: transparent;
-
     -fx-background-radius: 8;
-
     -fx-border-radius: 8;
-
     -fx-effect: null;
-
 }
-
-
 
 .sidebar-feature-toggle {
-
     -fx-font-size: 16px;
-
     -fx-font-weight: bold;
-
 }
-
-
 
 .sidebar-bottom-actions .sidebar-action-button:hover,
-
 .sidebar-bottom-actions .sidebar-action-button:focused,
-
 .sidebar-bottom-actions .sidebar-action-button:pressed {
-
     -fx-background-color: transparent;
-
     -fx-text-fill: -color-text-sub;
-
     -fx-opacity: 0.82;
-
     -fx-border-color: transparent;
-
     -fx-effect: null;
-
 }
-
-
 
 .sidebar-svg-icon {
 }
 
-
-
 .theme-icon-light {
-
     -fx-opacity: 1.0;
-
 }
-
-
 
 .theme-icon-dark {
-
     -fx-opacity: 0.95;
-
 }
-
-
 
 .nav-button:hover {
-
     -fx-background-color: -color-bg-base;
-
     -fx-text-fill: -color-primary-hover;
-
 }
-
-
 
 .nav-button.active {
-
     -fx-background-color: -color-bg-active;
-
     -fx-text-fill: -color-primary-hover;
-
     -fx-border-color: -color-primary-hover;
-
     -fx-border-width: 0 0 0 3;
-
 }
-
-
 
 .nav-button {
-
     -fx-text-overrun: clip;
-
     -fx-border-color: transparent;
-
     -fx-border-width: 0 0 0 3;
-
     -fx-padding: 10 12 10 12;
-
     -fx-graphic-text-gap: 8;
-
 }
-
-
 
 /* 中央主显示区 */
-
 .main-content {
-
     -fx-background-color: -color-bg-base;
-
     -fx-padding: 15;
-
 }
-
-
 
 /* 右侧信息面板 */
-
 .info-panel {
-
     -fx-background-color: -color-bg-panel;
-
     -fx-border-color: -color-border;
-
     -fx-border-width: 0 0 0 1;
-
     -fx-padding: 15;
-
     -fx-min-width: 250px;
-
 }
-
-
 
 .info-panel-title {
-
     -fx-font-size: 16px;
-
     -fx-font-weight: bold;
-
     -fx-text-fill: -color-text-main;
-
     -fx-padding: 0 0 10 0;
-
 }
 
-
-
 /* 日程列表样式 */
-
 .schedule-list {
-
     -fx-background-color: transparent;
-
     -fx-border-color: transparent;
-
 }
 
 .schedule-list-scroll {
@@ -424,8 +227,6 @@
     -fx-cursor: hand;
 }
 
-
-
 .schedule-list .list-cell {
     -fx-background-color: transparent;
     -fx-border-color: transparent;
@@ -451,27 +252,7 @@
     -fx-padding: 0;
 }
 
-/* ── 延后一天按钮 ────────────────────── */
-.schedule-card-action-btn {
-    -fx-background-color: transparent;
-    -fx-border-color: transparent;
-    -fx-padding: 3 5 3 5;
-    -fx-cursor: hand;
-    -fx-opacity: 0;
-}
-.schedule-card-inner:hover .schedule-card-action-btn {
-    -fx-opacity: 0.55;
-}
-.schedule-card-action-btn:hover {
-    -fx-opacity: 1;
-    -fx-background-color: -color-primary-soft;
-    -fx-background-radius: 6;
-}
-.schedule-card-action-btn:pressed {
-    -fx-opacity: 1;
-    -fx-background-color: -color-primary-glow;
-    -fx-background-radius: 6;
-}
+/* ── 延后一天按钮（低优先级占位，实际样式在 .button.postpone-day-btn 处）── */
 
 .schedule-card-surface {
     -schedule-card-accent: -color-primary;
@@ -677,8 +458,6 @@
     -fx-border-width: 2;
 }
 
-
-
 /* 开发中提示标签 */
 .developing-label {
     -fx-font-size: 24px;
@@ -744,16 +523,11 @@
     -fx-effect: none;
 }
 
-
-
 /* 强制将已完成的标题变成浅灰色，并加上删除线 */
-
 .schedule-list .list-cell.completed .schedule-title {
-
     -fx-text-fill: -color-text-muted; 
 
     -fx-strikethrough: true;
-
 }
 
 .schedule-list-card.completed .schedule-title {
@@ -761,34 +535,21 @@
     -fx-strikethrough: true;
 }
 
-
-
 /* 强制将已完成的日期变成更浅的灰色 */
-
 .schedule-list .list-cell.completed .schedule-date {
-
     -fx-text-fill: -color-border;
-
 }
 
 .schedule-list-card.completed .schedule-date {
     -fx-text-fill: -color-border;
 }
 
-
-
 /* 终极优化：将已完成项目里的彩色标签（优先级、分类）变半透明，防止颜色过于抢眼 */
-
 .schedule-list .list-cell.completed .priority-high,
-
 .schedule-list .list-cell.completed .priority-medium,
-
 .schedule-list .list-cell.completed .priority-low,
-
 .schedule-list .list-cell.completed .category-tag {
-
     -fx-opacity: 0.4;
-
 }
 
 .schedule-list-card.completed .priority-high,
@@ -797,8 +558,6 @@
 .schedule-list-card.completed .category-tag {
     -fx-opacity: 0.4;
 }
-
-
 
 .schedule-list .list-cell.overdue .schedule-card-inner {
     -fx-border-color: -color-danger;
@@ -824,44 +583,24 @@
     -fx-background-color: derive(-color-warning-bg, 85%);
 }
 
-
-
 /* 日程卡片 */
-
 .schedule-card {
-
     -fx-background-color: -color-bg-panel;
-
     -fx-border-color: -color-border;
-
     -fx-border-radius: 4;
-
     -fx-background-radius: 4;
-
     -fx-padding: 12;
-
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 2, 0, 0, 1);
-
 }
-
-
 
 .schedule-card:hover {
-
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 4, 0, 0, 2);
-
 }
 
-
-
 .schedule-title {
-
     -fx-font-size: 14px;
-
     -fx-font-weight: bold;
-
     -fx-text-fill: -color-text-main;
-
 }
 
 .schedule-card-title-text {
@@ -870,14 +609,9 @@
     -fx-text-fill: -color-text-main;
 }
 
-
-
 .schedule-date {
-
     -fx-font-size: 12px;
-
     -fx-text-fill: -color-text-hint;
-
 }
 
 .schedule-card-subtitle-text {
@@ -885,22 +619,15 @@
     -fx-text-fill: -color-text-hint;
 }
 
-
-
 .schedule-description {
-
     -fx-font-size: 12px;
-
     -fx-text-fill: -color-text-sub;
-
 }
 
 .schedule-card-body-text {
     -fx-font-size: 12px;
     -fx-text-fill: -color-text-sub;
 }
-
-
 
 /* 状态标签样式 */
 .status-label {
@@ -927,75 +654,40 @@
 }
 
 /* 优先级标签 */
-
 .priority-high {
-
     -fx-background-color: -color-danger-bg;
-
     -fx-text-fill: -color-danger-pressed;
-
     -fx-padding: 2 8;
-
     -fx-background-radius: 3;
-
     -fx-font-size: 11px;
-
 }
-
-
 
 .priority-medium {
-
     -fx-background-color: -color-warning-bg;
-
     -fx-text-fill: -color-warning-dark;
-
     -fx-padding: 2 8;
-
     -fx-background-radius: 3;
-
     -fx-font-size: 11px;
-
 }
-
-
 
 .priority-low {
-
     -fx-background-color: -color-success-bg;
-
     -fx-text-fill: -color-success-pressed;
-
     -fx-padding: 2 8;
-
     -fx-background-radius: 3;
-
     -fx-font-size: 11px;
-
 }
-
-
 
 /* 分类标签 */
-
 .category-tag {
-
     -fx-background-color: -color-bg-active;
-
     -fx-text-fill: -color-primary-hover;
-
     -fx-padding: 2 8;
-
     -fx-background-radius: 3;
-
     -fx-font-size: 11px;
-
 }
 
-
-
 /* 按钮样式 */
-
 .button {
     -fx-background-color: -color-primary;
     -fx-text-fill: -color-bg-panel;
@@ -1015,6 +707,40 @@
     -fx-background-color: -color-primary-pressed;
     -fx-effect: none;
     -fx-translate-y: 1;
+}
+
+/* ── 延后一天按钮（使用双类选择器 specificity=0,2,0 覆盖 .button 的强调色）── */
+.button.postpone-day-btn {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 2;
+    -fx-cursor: hand;
+    -fx-opacity: 0.5;
+    -fx-min-width: 26;
+    -fx-min-height: 26;
+    -fx-effect: none;
+    -fx-background-radius: 0;
+}
+/* specificity=0,3,0 — 高于任何主题 .button:hover (0,2,0)，不添加背景色或阴影 */
+.button.postpone-day-btn:hover {
+    -fx-background-color: transparent !important;
+    -fx-effect: none !important;
+    -fx-opacity: 1.0;
+    -fx-scale-x: 1.0;
+    -fx-scale-y: 1.0;
+    -fx-translate-x: 0;
+    -fx-translate-y: 0;
+}
+.button.postpone-day-btn:pressed {
+    -fx-background-color: transparent !important;
+    -fx-effect: none !important;
+    -fx-opacity: 0.6;
+    -fx-translate-x: 0;
+    -fx-translate-y: 0;
+}
+.button.postpone-day-btn:focused {
+    -fx-background-color: transparent;
+    -fx-effect: none;
 }
 
 .button-secondary {
@@ -1414,66 +1140,35 @@
     -fx-text-fill: transparent;
 }
 
-
-
 /* 滚动条 */
-
 .scroll-bar {
-
     -fx-background-color: -color-bg-base;
-
 }
-
-
 
 .scroll-bar .thumb {
-
     -fx-background-color: -color-border-dark;
-
     -fx-background-radius: 3;
-
 }
-
-
 
 .scroll-bar .thumb:hover {
-
     -fx-background-color: -color-text-hint;
-
 }
-
-
 
 /* 标签样式 */
-
 .label-title {
-
     -fx-font-size: 18px;
-
     -fx-font-weight: bold;
-
     -fx-text-fill: -color-text-main;
-
 }
-
-
 
 .label-subtitle {
-
     -fx-font-size: 14px;
-
     -fx-text-fill: -color-text-sub;
-
 }
 
-
-
 .label-hint {
-
     -fx-font-size: 11px;
-
     -fx-text-fill: -color-text-hint;
-
 }
 
 .header-clock {
@@ -1482,98 +1177,52 @@
     -fx-text-fill: -color-text-sub;
 }
 
-
-
 .sidebar-function-title {
-
     -fx-font-size: 12px;
-
     -fx-font-weight: 700;
-
     -fx-text-fill: -color-text-sub;
-
 }
-
-
 
 /* 分隔线 */
-
 .separator {
-
     -fx-padding: 10 0;
-
 }
-
-
 
 .separator .line {
-
     -fx-border-color: -color-border;
-
     -fx-border-width: 1 0 0 0;
-
 }
 
-
-
 /* 搜索框 */
-
 .search-field {
-
     -fx-background-color: -color-bg-panel;
-
     -fx-border-color: transparent;
-
     -fx-border-width: 0;
-
     -fx-border-radius: 20;
-
     -fx-padding: 8 15;
-
     -fx-prompt-text-fill: -color-text-hint;
-
 }
 
 .search-field.search-field-with-actions {
-
     -fx-padding: 8 60 8 15;
-
 }
-
-
 
 .search-field:focused {
-
     -fx-border-color: transparent;
-
     -fx-background-color: derive(-color-bg-hover, 6%);
-
     -fx-effect: dropshadow(gaussian, -color-primary-glow, 8, 0.12, 0, 0);
-
 }
-
-
 
 /* 时间轴样式 */
-
 .timeline-container {
-
     -fx-background-color: -color-bg-base;
-
 }
-
-
 
 .timeline-header {
-
     -fx-alignment: center-left;
-
 }
 
-
-
 .timeline-range-group {
-
     -fx-alignment: center-right;
     -fx-background-color: transparent;
     -fx-border-color: transparent;
@@ -1581,77 +1230,41 @@
     -fx-background-radius: 0;
     -fx-border-radius: 0;
     -fx-effect: none;
-
 }
-
-
 
 .timeline-range-label-box {
-
     -fx-alignment: center-left;
-
     -fx-padding: 0 2 0 0;
-
 }
-
-
 
 .timeline-range-label {
-
     -fx-text-fill: -color-text-sub;
-
     -fx-font-size: 13px;
-
     -fx-font-weight: 700;
-
     -fx-line-spacing: -2px;
-
 }
-
-
 
 .timeline-range-pill {
-
     -fx-alignment: center-left;
-
     -fx-spacing: 10;
-
     -fx-padding: 6 12 6 10;
-
     -fx-background-color: -color-bg-panel;
-
     -fx-background-radius: 999;
-
     -fx-border-color: transparent;
-
     -fx-border-width: 0;
-
     -fx-border-radius: 999;
-
     -fx-effect: dropshadow(gaussian, -color-shadow-soft, 10, 0, 0, 2);
-
 }
-
-
 
 .timeline-range-pill:hover {
-
     -fx-background-color: derive(-color-bg-hover, 3%);
-
     -fx-effect: dropshadow(gaussian, -color-shadow-soft, 12, 0.08, 0, 2);
-
 }
 
-
-
 .timeline-range-icon-wrap {
-
     -fx-alignment: center;
-
     -fx-min-width: 28;
-
     -fx-pref-width: 28;
-
     -fx-max-width: 28;
     -fx-background-color: transparent;
     -fx-border-color: transparent;
@@ -1659,640 +1272,347 @@
     -fx-background-radius: 0;
     -fx-border-radius: 0;
     -fx-effect: none;
-
 }
-
-
 
 .timeline-range-icon-wrap .sidebar-svg-icon {
-
     -fx-background-color: transparent;
-
 }
-
-
 
 .timeline-range-connector {
-
     -fx-text-fill: -color-text-hint;
-
     -fx-font-size: 15px;
-
     -fx-font-weight: 600;
-
     -fx-padding: 0 2;
-
 }
-
-
 
 .timeline-range-picker {
-
     -fx-background-color: transparent;
-
     -fx-border-color: transparent;
     -fx-border-width: 0;
-
     -fx-background-insets: 0;
-
     -fx-border-insets: 0;
     -fx-background-radius: 0;
     -fx-border-radius: 0;
-
     -fx-padding: 0;
     -fx-effect: none;
-
 }
-
-
 
 .timeline-range-picker > .text-field {
-
     -fx-background-color: transparent;
-
     -fx-border-color: transparent;
-
     -fx-background-insets: 0;
-
     -fx-border-insets: 0;
-
     -fx-background-radius: 0;
-
     -fx-border-radius: 0;
-
     -fx-padding: 8 6;
-
     -fx-font-size: 13px;
-
     -fx-font-weight: 600;
-
     -fx-text-fill: -color-text-main;
-
     -fx-prompt-text-fill: -color-text-hint;
-
     -fx-effect: none;
-
 }
-
-
 
 .timeline-range-picker:focused > .text-field,
-
 .timeline-range-picker:showing > .text-field {
-
     -fx-background-color: transparent;
-
     -fx-border-color: transparent;
-
     -fx-effect: none;
-
 }
-
-
 
 .timeline-range-picker > .arrow-button {
-
     -fx-background-color: transparent;
-
     -fx-border-color: transparent;
-
     -fx-background-insets: 0;
-
     -fx-border-insets: 0;
-
     -fx-padding: 0 6 0 2;
-
 }
-
-
 
 .timeline-range-picker > .arrow-button > .arrow {
-
     -fx-background-color: -color-text-hint;
-
     -fx-scale-x: 0.85;
-
     -fx-scale-y: 0.85;
-
 }
-
-
 
 .timeline-range-picker:hover > .arrow-button > .arrow,
-
 .timeline-range-picker:focused > .arrow-button > .arrow,
-
 .timeline-range-picker:showing > .arrow-button > .arrow {
-
     -fx-background-color: -color-primary;
-
 }
-
-
 
 .timeline-range-reset {
-
     -fx-min-height: 48;
-
     -fx-pref-height: 48;
-
     -fx-padding: 0 22;
-
     -fx-font-size: 13px;
-
     -fx-font-weight: 700;
-
     -fx-background-radius: 999;
-
     -fx-border-radius: 999;
-
 }
-
-
 
 .timeline-scroll {
-
     -fx-background-color: transparent;
-
     -fx-border-color: transparent;
-
 }
-
-
 
 .timeline-scroll > .viewport {
-
     -fx-background-color: -color-bg-base;
-
 }
-
-
 
 .timeline-pane {
-
     -fx-background-color: -color-bg-base;
-
 }
-
-
 
 .timeline-state {
-
     -fx-background-color: -color-bg-panel;
-
     -fx-border-color: transparent;
-
     -fx-border-width: 0;
-
     -fx-border-radius: 6;
-
     -fx-background-radius: 6;
-
     -fx-padding: 12 16;
-
     -fx-text-fill: -color-text-sub;
-
 }
-
-
 
 .timeline-line {
-
     -fx-stroke: -color-border-dark;
-
     -fx-stroke-width: 2;
-
 }
-
-
 
 .timeline-tick {
-
     -fx-stroke: -color-border-dark;
-
 }
-
-
 
 .timeline-node {
-
     -fx-background-color: -color-primary;
-
     -fx-background-radius: 50%;
-
     -fx-min-width: 12;
-
     -fx-min-height: 12;
-
 }
-
-
 
 .timeline-node.completed {
-
     -fx-background-color: -color-success;
-
 }
-
-
 
 .schedule-bar {
-
     -fx-arc-width: 5;
-
     -fx-arc-height: 5;
-
 }
-
-
 
 .schedule-bar:hover {
-
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 4, 0, 0, 2);
-
 }
-
-
 
 .schedule-bar.completed {
-
     -fx-fill: -color-success;
-
     -fx-opacity: 0.7;
-
 }
-
-
 
 .schedule-bar.overdue {
-
     -fx-fill: -color-danger;
-
 }
-
-
 
 .timeline-card-title {
-
     -fx-text-fill: -color-text-main;
-
     -fx-font-size: 12px;
-
     -fx-font-weight: bold;
-
 }
-
-
 
 .timeline-schedule-card {
-
     -fx-padding: 0;
-
 }
-
-
 
 .timeline-schedule-selected {
-
     -fx-effect: dropshadow(gaussian, -color-primary-glow, 14, 0.35, 0, 0);
-
 }
 
-
-
 /* 热力图样式 */
-
 .heatmap-meta-bar {
-
     -fx-alignment: center-left;
-
     -fx-spacing: 12;
-
     -fx-padding: 0 2 0 0;
-
 }
 
 .heatmap-legend {
-
     -fx-alignment: center-right;
-
     -fx-spacing: 8;
-
     -fx-padding: 0;
-
 }
 
 .heatmap-body {
-
     -fx-alignment: top-left;
-
     -fx-spacing: 16;
-
 }
 
 .heatmap-main-pane {
-
     -fx-background-color: transparent;
-
 }
 
 .heatmap-scroll {
-
     -fx-background-color: transparent;
-
     -fx-border-color: transparent;
-
 }
-
-
 
 .heatmap-scroll > .viewport {
-
     -fx-background-color: -color-bg-base;
-
 }
-
-
 
 .heatmap-grid {
-
     -fx-background-color: transparent;
-
 }
-
-
 
 .heatmap-cell {
-
     -fx-background-radius: 3;
-
     -fx-min-width: 15;
-
     -fx-min-height: 15;
-
 }
-
-
 
 .heatmap-cell-selected {
-
     -fx-background-color: -color-primary-soft;
-
     -fx-border-color: -color-primary;
-
     -fx-border-width: 2;
-
     -fx-border-radius: 5;
-
     -fx-background-radius: 5;
-
 }
-
-
 
 .heatmap-cell-inactive {
-
     -fx-opacity: 0.35;
-
 }
 
-
-
 .heatmap-day-panel {
-
     -fx-background-color: -color-bg-panel;
-
     -fx-border-color: -color-border;
-
     -fx-border-width: 1;
-
     -fx-border-radius: 6;
-
     -fx-background-radius: 6;
-
     -fx-padding: 12;
-
 }
 
 .heatmap-sidebar-shell {
-
     -fx-background-color: transparent;
-
     -fx-border-color: transparent;
-
     -fx-padding: 0;
-
 }
 
 .heatmap-sidebar {
 }
 
 .heatmap-sidebar-collapsed {
-
     -fx-background-color: transparent;
-
     -fx-border-color: transparent;
-
     -fx-padding: 0;
-
     -fx-min-width: 40px;
-
     -fx-pref-width: 40px;
-
     -fx-max-width: 40px;
-
 }
 
 .heatmap-sidebar-expanded {
-
     -fx-background-color: transparent;
-
     -fx-min-width: 280px;
-
     -fx-pref-width: 280px;
-
     -fx-max-width: 280px;
-
 }
 
 .heatmap-day-panel-content {
-
     -fx-spacing: 12;
-
 }
 
 .heatmap-day-panel-header {
-
     -fx-alignment: center-left;
-
     -fx-spacing: 10;
-
 }
 
-
-
 .heatmap-day-title {
-
     -fx-font-size: 15px;
-
     -fx-font-weight: bold;
-
     -fx-text-fill: -color-text-main;
-
 }
 
 .heatmap-day-count,
 .heatmap-day-rail-badge {
-
     -fx-background-color: -color-bg-active;
-
     -fx-text-fill: -color-primary-hover;
-
     -fx-padding: 3 10;
-
     -fx-background-radius: 999;
-
     -fx-font-size: 11px;
-
     -fx-font-weight: 700;
-
 }
-
-
 
 .heatmap-day-scroll {
-
     -fx-background-color: transparent;
-
     -fx-border-color: transparent;
-
 }
-
-
 
 .heatmap-day-scroll > .viewport {
-
     -fx-background-color: transparent;
-
 }
-
-
 
 .heatmap-day-cards {
-
     -fx-background-color: transparent;
-
     -fx-padding: 2;
-
     -fx-spacing: 8;
-
 }
 
-
-
 .heatmap-day-card {
-
     -fx-background-color: -color-bg-panel;
-
     -fx-border-color: -color-border;
-
     -fx-border-width: 1;
-
     -fx-border-radius: 12;
-
     -fx-background-radius: 12;
-
     -fx-padding: 9 10;
-
     -fx-cursor: hand;
-
     -fx-effect: dropshadow(gaussian, -color-shadow-soft, 3, 0, 0, 1);
 }
 
 .heatmap-day-card-top,
 .heatmap-day-card-meta,
 .heatmap-day-card-tags {
-
     -fx-spacing: 8;
-
 }
 
 .heatmap-day-card-tags {
-
     -fx-alignment: center-right;
-
 }
 
 .heatmap-day-card .schedule-card-title-text {
-
     -fx-font-size: 13px;
-
 }
 
 .heatmap-day-card .schedule-card-subtitle-text {
-
     -fx-font-size: 11px;
-
 }
 
 .schedule-color-mark.mark-completed { -fx-fill: -color-success; }
 .schedule-color-mark.mark-overdue { -fx-fill: -color-danger; }
 .schedule-color-mark.mark-default { -fx-fill: -color-primary; }
 
-
-
 .heatmap-day-card:hover {
-
     -fx-border-color: derive(-schedule-card-accent, -10%);
-
     -fx-effect: dropshadow(gaussian, -color-shadow-medium, 6, 0, 0, 2);
-
 }
 
-
-
 .heatmap-day-card-selected {
-
     -fx-border-color: -color-primary;
-
     -fx-border-width: 2;
-
     -fx-background-color: -color-bg-active;
-
 }
 
 .heatmap-sidebar-toggle {
-
     -fx-min-width: 30px;
-
     -fx-min-height: 30px;
-
     -fx-pref-width: 30px;
-
     -fx-pref-height: 30px;
-
     -fx-padding: 0;
-
 }
 
 .heatmap-day-rail {
-
     -fx-alignment: top-center;
-
     -fx-spacing: 0;
-
     -fx-padding: 4 0 0 0;
-
 }
 
 .heatmap-day-rail-date {
-
     -fx-font-size: 11px;
-
     -fx-font-weight: 700;
-
     -fx-text-fill: -color-text-main;
-
 }
 
 .heatmap-year-card {
@@ -2304,96 +1624,58 @@
     -fx-padding: 2 0 0 0;
     -fx-spacing: 8;
     -fx-effect: none;
-
 }
 
 .heatmap-year-title {
-
     -fx-font-size: 13px;
-
     -fx-font-weight: 700;
-
     -fx-text-fill: -color-text-main;
-
 }
 
 .heatmap-year-month-grid {
-
     -fx-hgap: 3;
-
     -fx-vgap: 3;
-
 }
 
 .heatmap-year-weekday {
-
     -fx-min-width: 16px;
-
     -fx-alignment: center;
-
 }
 
 .heatmap-cell-placeholder {
-
     -fx-background-color: transparent;
-
 }
 
 .heatmap-year-cell {
-
     -fx-stroke: derive(-color-border-dark, 10%);
-
     -fx-stroke-width: 0.75;
-
 }
 
 .heatmap-completed-zone {
-
     -fx-alignment: center-left;
-
     -fx-padding: 8 10;
-
     -fx-background-color: linear-gradient(to right, -color-success-soft 0%, transparent 100%);
-
     -fx-border-color: -color-success;
-
     -fx-border-width: 1;
-
     -fx-border-radius: 12;
-
     -fx-background-radius: 12;
-
 }
 
 .heatmap-completed-zone-label {
-
     -fx-text-fill: -color-success-pressed;
-
     -fx-font-size: 12px;
-
     -fx-font-weight: 700;
-
 }
 
 .heatmap-completed-proxy {
-
     -fx-padding: 0 0 0 8;
-
 }
-
-
 
 .heatmap-day-empty {
-
     -fx-text-fill: -color-text-hint;
-
     -fx-font-size: 12px;
-
     -fx-padding: 6 0;
-
 }
-
-
 
 .heatmap-cell.level-0 { -fx-fill: -color-heatmap-0; }
 .heatmap-cell.level-1 { -fx-fill: -color-heatmap-1; }
@@ -2401,210 +1683,114 @@
 .heatmap-cell.level-3 { -fx-fill: -color-heatmap-3; }
 .heatmap-cell.level-4 { -fx-fill: -color-heatmap-4; }
 
-
-
 /* 对话框样式 */
-
 .dialog-pane {
-
     -fx-background-color: -color-bg-panel;
-
 }
-
-
 
 .dialog-pane .header-panel {
-
     -fx-background-color: -color-bg-base;
-
     -fx-padding: 15;
-
 }
-
-
 
 .schedule-dialog-pane .header-panel .label {
-
     -fx-text-fill: -color-text-main;
-
 }
-
-
 
 .schedule-dialog-grid {
-
     -fx-background-color: -color-bg-panel;
-
 }
-
-
 
 .schedule-dialog-label {
-
     -fx-text-fill: -color-text-main;
-
     -fx-font-weight: 600;
-
 }
-
-
 
 .schedule-dialog-check {
-
     -fx-text-fill: -color-text-main;
-
 }
-
-
 
 .schedule-dialog-pane .combo-box,
-
 .schedule-dialog-pane .date-picker,
-
 .schedule-dialog-pane .text-field,
-
 .schedule-dialog-pane .text-area,
-
 .schedule-dialog-pane .color-picker {
-
     -fx-background-color: -color-bg-panel;
-
     -fx-text-fill: -color-text-main;
-
     -fx-border-color: transparent;
-
     -fx-border-width: 0;
-
 }
-
-
 
 .schedule-dialog-pane .button-bar .button {
-
     -fx-background-color: -color-primary;
-
     -fx-text-fill: -color-bg-panel;
-
 }
-
-
 
 .schedule-dialog-pane .button-bar .button:hover {
-
     -fx-background-color: -color-primary-hover;
-
 }
-
-
 
 /* 工具提示 */
-
 .tooltip {
-
     -fx-background-color: -color-text-sub;
-
     -fx-text-fill: -color-bg-panel;
-
     -fx-font-size: 12px;
-
     -fx-padding: 8;
-
     -fx-background-radius: 4;
-
 }
 
-
-
 /* ======== 03|~Ys~*}.xO`]/p(Rixq͓\!} ======== */
-
-
-
 /* RU|͓V}m^WS,V */
-
 .timeline-group-header {
-
     -fx-font-weight: bold;
-
     -fx-text-fill: -color-text-hint;
-
     -fx-font-size: 13px;
-
 }
 
 .timeline-group-empty {
-
     -fx-text-fill: -color-text-muted;
-
     -fx-font-size: 12px;
-
 }
 
 .timeline-group-sep {
-
     -fx-stroke: -color-timeline-axis;
-
     -fx-opacity: 0.3;
-
 }
 
-
-
 /* ^g)1Ns~\jm^Wo͓Vq */
-
 .timeline-track-bg {
-
     -fx-fill: -color-timeline-track-even;
-
 }
 
 .timeline-track-sep {
-
     -fx-stroke: -color-timeline-track-sep;
-
 }
 
 .timeline-axis-line {
-
     -fx-stroke: -color-timeline-axis;
-
     -fx-stroke-width: 2;
-
 }
 
 .timeline-grid-line {
-
     -fx-stroke: -color-timeline-grid;
-
     -fx-opacity: 0.55;
-
 }
 
 .timeline-axis-tick {
-
     -fx-stroke: -color-timeline-axis;
-
 }
 
 .timeline-today-highlight {
-
     -fx-fill: -color-primary;
-
     -fx-opacity: 0.09; /* kept light for highlight */
-
 }
 
 .timeline-date-today {
-
     -fx-text-fill: -color-primary;
-
     -fx-font-weight: bold;
-
 }
 
-
-
 /* ======= 共享日程卡样式系统 ======= */
-
 .schedule-card-surface.schedule-card-state-selected {
     -fx-border-color: -color-primary-hover;
 }
