@@ -25,8 +25,10 @@ import javafx.stage.Stage;
 
 public class MainApp extends Application {
     private static final String APP_ICON_RESOURCE = "/icons/macaron_todo_icon.png";
-    private static final double MIN_WIDTH = 1200;
-    private static final double MIN_HEIGHT = 700;
+    private static final double MIN_WIDTH = 860;
+    private static final double MIN_HEIGHT = 540;
+    private static final double DEFAULT_WIDTH = 1280;
+    private static final double DEFAULT_HEIGHT = 720;
 
     private MainController mainController;
     private Stage primaryStageRef;
@@ -57,7 +59,7 @@ public class MainApp extends Application {
             fontService.applyTo(root, localizationService.getActiveLanguage());
             mainController = loader.getController();
 
-            Scene scene = new Scene(root, MIN_WIDTH, MIN_HEIGHT);
+            Scene scene = new Scene(root, DEFAULT_WIDTH, DEFAULT_HEIGHT);
             mainController.setScene(scene);
 
             primaryStageRef = primaryStage;

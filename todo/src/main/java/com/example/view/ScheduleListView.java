@@ -100,6 +100,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     private static final class GroupHeader {
         private final HBox root;
         private final Label arrowLabel;
+        private final Label countLabel;
 
         private GroupHeader(String title, Runnable toggleAction) {
             arrowLabel = new Label("\u25b6");
@@ -108,7 +109,10 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             Label textLabel = new Label(title);
             textLabel.getStyleClass().addAll("completed-group-header", "schedule-group-title");
 
-            root = new HBox(6, arrowLabel, textLabel);
+            countLabel = new Label("0");
+            countLabel.getStyleClass().add("schedule-group-count");
+
+            root = new HBox(6, arrowLabel, textLabel, countLabel);
             root.setAlignment(Pos.CENTER_LEFT);
             root.getStyleClass().add("schedule-group-toggle");
             root.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> event.consume());
@@ -124,6 +128,10 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
         private void updateCollapsed(boolean collapsed) {
             arrowLabel.setRotate(collapsed ? 0 : 90);
+        }
+
+        private void updateCount(int count) {
+            countLabel.setText(String.valueOf(count));
         }
     }
 
@@ -680,6 +688,9 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
         pendingCardsBox.getChildren().setAll(pendingNodes);
         completedCardsBox.getChildren().setAll(completedNodes);
+
+        pendingHeader.updateCount(pendingNodes.size());
+        completedHeader.updateCount(completedNodes.size());
 
         pendingHeader.updateCollapsed(pendingCollapsed);
         completedHeader.updateCollapsed(completedCollapsed);

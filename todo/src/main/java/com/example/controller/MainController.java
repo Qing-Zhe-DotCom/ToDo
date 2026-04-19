@@ -30,6 +30,7 @@ import com.example.application.CustomOptionsService;
 import com.example.application.ExperimentalFeaturesService;
 import com.example.application.FontService;
 import com.example.application.GlassBackdropCoordinator;
+import com.example.application.HeatmapColorScheme;
 import com.example.application.IconKey;
 import com.example.application.IconPack;
 import com.example.application.IconService;
@@ -2067,6 +2068,7 @@ public class MainController {
     
     private void showSettingsDialog() {
         Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setResizable(true);
         dialog.setTitle(text("settings.title"));
         dialog.setHeaderText(null);
         ButtonType saveButtonType = new ButtonType(text("common.save"), ButtonBar.ButtonData.OK_DONE);
@@ -2077,14 +2079,15 @@ public class MainController {
         applyDialogPreferences(dialog.getDialogPane());
         dialog.getDialogPane().setPrefWidth(940);
         dialog.getDialogPane().setPrefHeight(720);
-        dialog.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
+        dialog.getDialogPane().setMinWidth(760);
+        dialog.getDialogPane().setMinHeight(580);
 
         BorderPane shell = new BorderPane();
         shell.getStyleClass().add("settings-shell");
         shell.setPrefWidth(940);
         shell.setPrefHeight(640);
-        shell.setMinHeight(640);
-        shell.setMaxHeight(640);
+        shell.setMinHeight(480);
+        shell.setMaxHeight(Double.MAX_VALUE);
 
         VBox navBar = new VBox(8);
         navBar.getStyleClass().addAll("sidebar", "settings-nav");
@@ -2163,6 +2166,13 @@ public class MainController {
         List<CustomOptionRow> customTagRows = new ArrayList<>();
         boolean originalTimeTextInputEnabled = customOptionsService != null && customOptionsService.isTimeTextInputEnabled();
         boolean originalTagCommaSplitEnabled = customOptionsService != null && customOptionsService.isTagCommaSplitEnabled();
+        int originalHeatmapThreshold1 = customOptionsService != null ? customOptionsService.getHeatmapThreshold1() : CustomOptionsService.DEFAULT_HEATMAP_THRESHOLD_1;
+        int originalHeatmapThreshold2 = customOptionsService != null ? customOptionsService.getHeatmapThreshold2() : CustomOptionsService.DEFAULT_HEATMAP_THRESHOLD_2;
+        int originalHeatmapThreshold3 = customOptionsService != null ? customOptionsService.getHeatmapThreshold3() : CustomOptionsService.DEFAULT_HEATMAP_THRESHOLD_3;
+        boolean originalHeatmapColorBinding = customOptionsService == null || customOptionsService.isHeatmapColorBindingEnabled();
+        HeatmapColorScheme originalHeatmapColorScheme = customOptionsService != null
+            ? customOptionsService.getHeatmapColorScheme()
+            : HeatmapColorScheme.GREEN;
 
         VBox generalPage = new VBox(18);
         generalPage.getStyleClass().add("settings-page");
@@ -2565,6 +2575,105 @@ public class MainController {
             createStackedSettingRow(text("settings.icon.pack.label"), text("settings.icon.pack.description"), iconPackFlow)
         );
 
+        // Heatmap Color Scheme Card
+        VBox heatmapColorCard = createSettingsCard(text("settings.heatmap.color.title"), text("settings.heatmap.color.subtitle"));
+        boolean[] selectedHeatmapColorBinding = new boolean[] { originalHeatmapColorBinding };
+        HeatmapColorScheme[] selectedHeatmapScheme = new HeatmapColorScheme[] { originalHeatmapColorScheme };
+
+        ToggleButton heatmapColorBindingToggle = new ToggleButton();
+        heatmapColorBindingToggle.getStyleClass().add("modern-toggle-switch");
+        heatmapColorBindingToggle.setCursor(Cursor.HAND);
+        heatmapColorBindingToggle.setSelected(originalHeatmapColorBinding);
+        if (originalHeatmapColorBinding) {
+            heatmapColorBindingToggle.getStyleClass().add("on");
+        }
+
+        ToggleGroup heatmapSchemeGroup = new ToggleGroup();
+        FlowPane heatmapSchemeFlow = new FlowPane();
+        heatmapSchemeFlow.getStyleClass().add("settings-chip-flow");
+        heatmapSchemeFlow.setHgap(10);
+        heatmapSchemeFlow.setVgap(10);
+        heatmapSchemeFlow.setAlignment(Pos.CENTER_LEFT);
+        heatmapSchemeFlow.setMaxWidth(Double.MAX_VALUE);
+        Map<HeatmapColorScheme, ToggleButton> heatmapSchemeChips = new LinkedHashMap<>();
+
+        HeatmapColorScheme effectiveScheme = originalHeatmapColorBinding && themeService != null
+            ? themeService.getCurrentThemeFamily().getDefaultHeatmapColorScheme()
+            : originalHeatmapColorScheme;
+
+        for (HeatmapColorScheme scheme : HeatmapColorScheme.supportedValues()) {
+            HBox chipContent = new HBox(4);
+            chipContent.setAlignment(Pos.CENTER);
+            boolean dark = themeService != null && themeService.getCurrentAppearance() == com.example.application.ThemeAppearance.DARK;
+            for (int ci = 0; ci < 5; ci++) {
+                Rectangle colorRect = new Rectangle(12, 12);
+                colorRect.setArcWidth(3);
+                colorRect.setArcHeight(3);
+                colorRect.setFill(scheme.getColor(ci, dark));
+                chipContent.getChildren().add(colorRect);
+            }
+            Label chipLabel = new Label(text(scheme.getLabelKey()));
+            chipLabel.setStyle("-fx-padding: 0 0 0 4;");
+            chipContent.getChildren().add(chipLabel);
+
+            ToggleButton chip = new ToggleButton();
+            chip.setGraphic(chipContent);
+            chip.getStyleClass().add("settings-style-chip");
+            chip.setToggleGroup(heatmapSchemeGroup);
+            chip.setUserData(scheme);
+            if (scheme == effectiveScheme) {
+                chip.setSelected(true);
+            }
+            heatmapSchemeChips.put(scheme, chip);
+            heatmapSchemeFlow.getChildren().add(chip);
+        }
+
+        Runnable updateHeatmapSchemeInteractivity = () -> {
+            boolean manualEnabled = !selectedHeatmapColorBinding[0];
+            for (ToggleButton chip : heatmapSchemeChips.values()) {
+                chip.setDisable(!manualEnabled);
+            }
+            if (selectedHeatmapColorBinding[0] && themeService != null) {
+                HeatmapColorScheme boundScheme = selectedThemeFamily[0] != null
+                    ? selectedThemeFamily[0].getDefaultHeatmapColorScheme()
+                    : HeatmapColorScheme.GREEN;
+                selectedHeatmapScheme[0] = boundScheme;
+                ToggleButton boundChip = heatmapSchemeChips.get(boundScheme);
+                if (boundChip != null) {
+                    boundChip.setSelected(true);
+                }
+            }
+        };
+
+        heatmapColorBindingToggle.selectedProperty().addListener((obs, oldValue, newValue) -> {
+            boolean enabled = Boolean.TRUE.equals(newValue);
+            selectedHeatmapColorBinding[0] = enabled;
+            if (enabled) {
+                heatmapColorBindingToggle.getStyleClass().add("on");
+            } else {
+                heatmapColorBindingToggle.getStyleClass().remove("on");
+            }
+            updateHeatmapSchemeInteractivity.run();
+        });
+
+        for (javafx.scene.Node node : heatmapSchemeFlow.getChildren()) {
+            if (node instanceof ToggleButton chip) {
+                chip.setOnAction(event -> {
+                    if (selectedHeatmapColorBinding[0]) {
+                        return;
+                    }
+                    selectedHeatmapScheme[0] = (HeatmapColorScheme) ((ToggleButton) event.getSource()).getUserData();
+                });
+            }
+        }
+
+        updateHeatmapSchemeInteractivity.run();
+
+        heatmapColorCard.getChildren().addAll(
+            createSettingRow(text("settings.heatmap.color.binding.label"), text("settings.heatmap.color.binding.description"), heatmapColorBindingToggle),
+            createStackedSettingRow(text("settings.heatmap.color.scheme.label"), text("settings.heatmap.color.scheme.description"), heatmapSchemeFlow)
+        );
+
         VBox customCard = createSettingsCard(text("settings.custom.title"), text("settings.custom.subtitle"));
         boolean[] selectedTimeTextInputEnabled = new boolean[] { originalTimeTextInputEnabled };
         ToggleButton timeTextInputToggle = new ToggleButton();
@@ -2591,7 +2700,7 @@ public class MainController {
             )
         );
 
-        personalizationPage.getChildren().addAll(themeCard, iconCard);
+        personalizationPage.getChildren().addAll(themeCard, iconCard, heatmapColorCard);
 
         VBox customPage = new VBox(18);
         customPage.getStyleClass().add("settings-page");
@@ -2761,7 +2870,25 @@ public class MainController {
         labsPage.setMinHeight(0);
         labsPage.getChildren().add(labsCard);
 
-        customPage.getChildren().addAll(customCard, customOptionsCard);
+        VBox heatmapThresholdsCard = createSettingsCard(
+            text("settings.heatmap.thresholds.title"),
+            text("settings.heatmap.thresholds.subtitle")
+        );
+        int[] selectedHeatmapThreshold1 = new int[] { originalHeatmapThreshold1 };
+        int[] selectedHeatmapThreshold2 = new int[] { originalHeatmapThreshold2 };
+        int[] selectedHeatmapThreshold3 = new int[] { originalHeatmapThreshold3 };
+
+        HBox threshold1Input = createModernNumberInput(originalHeatmapThreshold1, 1, 999, v -> selectedHeatmapThreshold1[0] = v);
+        HBox threshold2Input = createModernNumberInput(originalHeatmapThreshold2, 1, 999, v -> selectedHeatmapThreshold2[0] = v);
+        HBox threshold3Input = createModernNumberInput(originalHeatmapThreshold3, 1, 999, v -> selectedHeatmapThreshold3[0] = v);
+
+        heatmapThresholdsCard.getChildren().addAll(
+            createSettingRow(text("settings.heatmap.thresholds.level1.label"), "", threshold1Input),
+            createSettingRow(text("settings.heatmap.thresholds.level2.label"), "", threshold2Input),
+            createSettingRow(text("settings.heatmap.thresholds.level3.label"), "", threshold3Input)
+        );
+
+        customPage.getChildren().addAll(customCard, customOptionsCard, heatmapThresholdsCard);
         dataPage.getChildren().add(trashCard);
 
         ScrollPane generalPageScroll = createSettingsScrollPane(generalPage);
@@ -2873,6 +3000,23 @@ public class MainController {
         if (selectedTagCommaSplitEnabled[0] != originalTagCommaSplitEnabled && customOptionsService != null) {
             customOptionsService.setTagCommaSplitEnabled(selectedTagCommaSplitEnabled[0]);
         }
+        if (customOptionsService != null) {
+            if (selectedHeatmapThreshold1[0] != originalHeatmapThreshold1) {
+                customOptionsService.setHeatmapThreshold1(selectedHeatmapThreshold1[0]);
+            }
+            if (selectedHeatmapThreshold2[0] != originalHeatmapThreshold2) {
+                customOptionsService.setHeatmapThreshold2(selectedHeatmapThreshold2[0]);
+            }
+            if (selectedHeatmapThreshold3[0] != originalHeatmapThreshold3) {
+                customOptionsService.setHeatmapThreshold3(selectedHeatmapThreshold3[0]);
+            }
+            if (selectedHeatmapColorBinding[0] != originalHeatmapColorBinding) {
+                customOptionsService.setHeatmapColorBindingEnabled(selectedHeatmapColorBinding[0]);
+            }
+            if (selectedHeatmapScheme[0] != originalHeatmapColorScheme) {
+                customOptionsService.setHeatmapColorScheme(selectedHeatmapScheme[0]);
+            }
+        }
         if (selectedTimelineZoomWheelModifier[0] != originalTimelineZoomWheelModifier
              || !selectedTimelineZoomInShortcut[0].equals(originalTimelineZoomInShortcut)
              || !selectedTimelineZoomOutShortcut[0].equals(originalTimelineZoomOutShortcut)) {
@@ -2921,6 +3065,72 @@ public class MainController {
     static <K, V> V resolveSettingsPage(K selectedKey, Map<K, V> pages, V generalPage) {
         V page = pages.get(selectedKey);
         return page != null ? page : generalPage;
+    }
+
+    private HBox createModernNumberInput(int initialValue, int min, int max, java.util.function.IntConsumer onChange) {
+        HBox container = new HBox(0);
+        container.getStyleClass().add("modern-number-input");
+        container.setAlignment(Pos.CENTER);
+
+        TextField field = new TextField(String.valueOf(initialValue));
+        field.getStyleClass().add("number-input-field");
+        field.setPrefWidth(44);
+        field.setMaxWidth(44);
+        field.setAlignment(Pos.CENTER);
+
+        Button decrementButton = new Button("\u2212");
+        decrementButton.getStyleClass().add("number-input-button");
+        decrementButton.setCursor(Cursor.HAND);
+
+        Button incrementButton = new Button("+");
+        incrementButton.getStyleClass().add("number-input-button");
+        incrementButton.setCursor(Cursor.HAND);
+
+        Runnable commitField = () -> {
+            try {
+                int value = Integer.parseInt(field.getText().trim());
+                int clamped = Math.max(min, Math.min(max, value));
+                field.setText(String.valueOf(clamped));
+                onChange.accept(clamped);
+            } catch (NumberFormatException ex) {
+                field.setText(String.valueOf(initialValue));
+                onChange.accept(initialValue);
+            }
+        };
+
+        field.setOnAction(e -> commitField.run());
+        field.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
+            if (!isFocused) {
+                commitField.run();
+            }
+        });
+
+        decrementButton.setOnAction(e -> {
+            try {
+                int value = Integer.parseInt(field.getText().trim());
+                int next = Math.max(min, value - 1);
+                field.setText(String.valueOf(next));
+                onChange.accept(next);
+            } catch (NumberFormatException ex) {
+                field.setText(String.valueOf(min));
+                onChange.accept(min);
+            }
+        });
+
+        incrementButton.setOnAction(e -> {
+            try {
+                int value = Integer.parseInt(field.getText().trim());
+                int next = Math.min(max, value + 1);
+                field.setText(String.valueOf(next));
+                onChange.accept(next);
+            } catch (NumberFormatException ex) {
+                field.setText(String.valueOf(min));
+                onChange.accept(min);
+            }
+        });
+
+        container.getChildren().addAll(decrementButton, field, incrementButton);
+        return container;
     }
 
     private HBox createSettingRow(String title, String description, Node control) {
@@ -3528,6 +3738,10 @@ public class MainController {
 
     public CustomOptionsService getCustomOptionsService() {
         return customOptionsService;
+    }
+
+    public ThemeService getThemeService() {
+        return themeService;
     }
 
     public FontService getFontService() {
