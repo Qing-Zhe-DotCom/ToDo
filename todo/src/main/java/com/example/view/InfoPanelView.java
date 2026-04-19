@@ -92,6 +92,8 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     private Button closeButton;
     private Button deleteButton;
     private Button postponeButton;
+    private Button pinButton;
+    private Button unpinButton;
     private Label statusLabel;
     private FlowPane chipPane;
     private TextField titleField;
@@ -485,11 +487,25 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         );
         postponeButton.setVisible(false);
         postponeButton.setManaged(false);
+        pinButton = actionIconButton(
+            IconKey.PIN,
+            text("action.pin"),
+            this::pinSchedule
+        );
+        pinButton.setVisible(false);
+        pinButton.setManaged(false);
+        unpinButton = actionIconButton(
+            IconKey.UNPIN,
+            text("action.unpin"),
+            this::unpinSchedule
+        );
+        unpinButton.setVisible(false);
+        unpinButton.setManaged(false);
         closeButton = iconButton(IconKey.CLOSE, text("info.close"), controller::closeScheduleDetails);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox actionGroup = new HBox(10, completeControl, postponeButton, deleteButton);
+        HBox actionGroup = new HBox(10, completeControl, postponeButton, pinButton, unpinButton, deleteButton);
         actionGroup.setAlignment(Pos.CENTER_LEFT);
         actionGroup.getStyleClass().add("info-panel-action-group");
         HBox header = new HBox(10, actionGroup, spacer, closeButton);
@@ -1122,6 +1138,10 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         completeControl.syncCompleted(false);
         postponeButton.setVisible(false);
         postponeButton.setManaged(false);
+        pinButton.setVisible(false);
+        pinButton.setManaged(false);
+        unpinButton.setVisible(false);
+        unpinButton.setManaged(false);
         setDisabled(true);
         updateTimeTriggers();
         titleField.setPromptText(text("info.title.empty"));
@@ -1152,6 +1172,12 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         boolean showPostpone = !currentSchedule.isCompleted();
         postponeButton.setVisible(showPostpone);
         postponeButton.setManaged(showPostpone);
+        boolean showPin = !currentSchedule.isCompleted() && !currentSchedule.isSuspended();
+        pinButton.setVisible(showPin);
+        pinButton.setManaged(showPin);
+        boolean showUnpin = !currentSchedule.isCompleted() && currentSchedule.isSuspended();
+        unpinButton.setVisible(showUnpin);
+        unpinButton.setManaged(showUnpin);
         setDisabled(false);
 
         updateTimeTriggers();
@@ -1228,6 +1254,8 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         completeControl.setDisable(disabled);
         deleteButton.setDisable(disabled);
         postponeButton.setDisable(disabled);
+        pinButton.setDisable(disabled);
+        unpinButton.setDisable(disabled);
         titleField.setDisable(disabled);
         allDayToggle.setDisable(disabled);
         dueToggle.setDisable(disabled);
@@ -1291,6 +1319,44 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
                 controller.refreshAllViews();
             }
         } catch (SQLException exception) {
+            controller.showError(text("error.scheduleUpdate.title"), exception.getMessage());
+        }
+    }
+
+    private void pinSchedule() {
+        if (currentSchedule == null || currentSchedule.isCompleted() || currentSchedule.isSuspended()) {
+            return;
+        }
+        currentSchedule.setSuspended(true);
+        try {
+            if (controller.saveSchedule(currentSchedule)) {
+                persistedSchedule = copyOf(currentSchedule);
+                updateDerivedState();
+                controller.refreshAllViews();
+            } else {
+                currentSchedule.setSuspended(false);
+            }
+        } catch (SQLException exception) {
+            currentSchedule.setSuspended(false);
+            controller.showError(text("error.scheduleUpdate.title"), exception.getMessage());
+        }
+    }
+
+    private void unpinSchedule() {
+        if (currentSchedule == null || currentSchedule.isCompleted() || !currentSchedule.isSuspended()) {
+            return;
+        }
+        currentSchedule.setSuspended(false);
+        try {
+            if (controller.saveSchedule(currentSchedule)) {
+                persistedSchedule = copyOf(currentSchedule);
+                updateDerivedState();
+                controller.refreshAllViews();
+            } else {
+                currentSchedule.setSuspended(true);
+            }
+        } catch (SQLException exception) {
+            currentSchedule.setSuspended(true);
             controller.showError(text("error.scheduleUpdate.title"), exception.getMessage());
         }
     }
@@ -1582,6 +1648,12 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         }
         if (postponeButton != null) {
             postponeButton.setGraphic(controller.createSvgIcon(IconKey.POSTPONE_DAY, text("action.postponeDay"), 16));
+        }
+        if (pinButton != null) {
+            pinButton.setGraphic(controller.createSvgIcon(IconKey.PIN, text("action.pin"), 16));
+        }
+        if (unpinButton != null) {
+            unpinButton.setGraphic(controller.createSvgIcon(IconKey.UNPIN, text("action.unpin"), 16));
         }
     }
 

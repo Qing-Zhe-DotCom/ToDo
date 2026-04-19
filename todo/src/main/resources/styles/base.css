@@ -752,6 +752,37 @@
     -fx-effect: none;
 }
 
+/* ── 挂起 / 取消挂起 按钮（与延后一天按钮风格一致）── */
+.button.pin-btn,
+.button.unpin-btn {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 2;
+    -fx-cursor: hand;
+    -fx-opacity: 0.5;
+    -fx-min-width: 26;
+    -fx-min-height: 26;
+    -fx-effect: none;
+    -fx-background-radius: 0;
+}
+.button.pin-btn:hover,
+.button.unpin-btn:hover {
+    -fx-background-color: transparent !important;
+    -fx-effect: none !important;
+    -fx-opacity: 1.0;
+}
+.button.pin-btn:pressed,
+.button.unpin-btn:pressed {
+    -fx-background-color: transparent !important;
+    -fx-effect: none !important;
+    -fx-opacity: 0.6;
+}
+
+/* ── 挂起区卡片样式 ── */
+.schedule-list-card.suspended-card {
+    -fx-opacity: 0.75;
+}
+
 .button-secondary {
     -fx-background-color: -color-bg-panel;
     -fx-text-fill: -color-text-main;

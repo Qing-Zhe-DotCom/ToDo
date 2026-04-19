@@ -54,6 +54,7 @@ public class ScheduleItem {
     private final ObjectProperty<LocalDateTime> dueAtUtc = new SimpleObjectProperty<>();
     private final ObjectProperty<LocalDateTime> completedAtUtc = new SimpleObjectProperty<>();
     private final BooleanProperty allDay = new SimpleBooleanProperty(false);
+    private final BooleanProperty suspended = new SimpleBooleanProperty(false);
     private final StringProperty timePrecision = new SimpleStringProperty(TIME_PRECISION_MINUTE);
     private final StringProperty timezone = new SimpleStringProperty(ZoneId.systemDefault().getId());
     private final StringProperty status = new SimpleStringProperty(STATUS_ACTIVE);
@@ -103,6 +104,7 @@ public class ScheduleItem {
         setDueAtUtc(source.getDueAtUtc());
         setCompletedAtUtc(source.getCompletedAtUtc());
         setAllDay(source.isAllDay());
+        setSuspended(source.isSuspended());
         setTimePrecision(source.getTimePrecision());
         setTimezone(source.getTimezone());
         setStatus(source.getStatus());
@@ -312,6 +314,18 @@ public class ScheduleItem {
 
     public BooleanProperty allDayProperty() {
         return allDay;
+    }
+
+    public boolean isSuspended() {
+        return suspended.get();
+    }
+
+    public void setSuspended(boolean suspended) {
+        this.suspended.set(suspended);
+    }
+
+    public BooleanProperty suspendedProperty() {
+        return suspended;
     }
 
     public String getTimePrecision() {

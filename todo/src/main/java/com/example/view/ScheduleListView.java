@@ -74,10 +74,13 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     private VBox listContent;
     private VBox pendingSection;
     private VBox completedSection;
+    private VBox suspendedSection;
     private VBox pendingCardsBox;
     private VBox completedCardsBox;
+    private VBox suspendedCardsBox;
     private GroupHeader pendingHeader;
     private GroupHeader completedHeader;
+    private GroupHeader suspendedHeader;
 
     private ComboBox<String> filterComboBox;
     private TextField quickAddField;
@@ -92,6 +95,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     private String currentSearchKeyword = "";
     private boolean pendingCollapsed = false;
     private boolean completedCollapsed = false;
+    private boolean suspendedCollapsed = false;
     private Node completedGroupHeaderNode;
 
     private record ProjectionWindow(LocalDate start, LocalDate end) {
@@ -147,6 +151,8 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         private final Label categoryLabel;
         private final ScheduleCollapsePopAnimator.MotionHandle motionHandle;
         private final Button postponeButton;
+        private final Button pinButton;
+        private final Button unpinButton;
         private Schedule schedule;
 
         private ScheduleCardNode(Schedule schedule) {
@@ -218,7 +224,33 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             });
             postponeButton.addEventFilter(MouseEvent.MOUSE_CLICKED, javafx.event.Event::consume);
 
-            cardInner.getChildren().addAll(statusControl, priorityLabel, titleLabel, spacer, dateLabel, categoryLabel, postponeButton);
+            pinButton = new Button();
+            pinButton.getStyleClass().addAll("schedule-card-action-btn", "pin-btn");
+            String pinTooltip = controller.text("action.pin");
+            pinButton.setTooltip(new Tooltip(pinTooltip));
+            Pane pinIcon = controller.createSvgIcon(IconKey.PIN, pinTooltip, 18);
+            pinButton.setGraphic(pinIcon);
+            HBox.setMargin(pinButton, new Insets(0, 0, 0, 4));
+            pinButton.setOnAction(event -> {
+                handlePinSchedule(this.schedule);
+                event.consume();
+            });
+            pinButton.addEventFilter(MouseEvent.MOUSE_CLICKED, javafx.event.Event::consume);
+
+            unpinButton = new Button();
+            unpinButton.getStyleClass().addAll("schedule-card-action-btn", "unpin-btn");
+            String unpinTooltip = controller.text("action.unpin");
+            unpinButton.setTooltip(new Tooltip(unpinTooltip));
+            Pane unpinIcon = controller.createSvgIcon(IconKey.UNPIN, unpinTooltip, 18);
+            unpinButton.setGraphic(unpinIcon);
+            HBox.setMargin(unpinButton, new Insets(0, 0, 0, 4));
+            unpinButton.setOnAction(event -> {
+                handleUnpinSchedule(this.schedule);
+                event.consume();
+            });
+            unpinButton.addEventFilter(MouseEvent.MOUSE_CLICKED, javafx.event.Event::consume);
+
+            cardInner.getChildren().addAll(statusControl, priorityLabel, titleLabel, spacer, dateLabel, categoryLabel, postponeButton, pinButton, unpinButton);
 
             container = new VBox(cardMotionHost);
             container.getStyleClass().add("schedule-list-card");
@@ -296,6 +328,14 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             postponeButton.setVisible(showPostpone);
             postponeButton.setManaged(showPostpone);
 
+            boolean showPin = !schedule.isCompleted() && !schedule.isSuspended();
+            pinButton.setVisible(showPin);
+            pinButton.setManaged(showPin);
+
+            boolean showUnpin = !schedule.isCompleted() && schedule.isSuspended();
+            unpinButton.setVisible(showUnpin);
+            unpinButton.setManaged(showUnpin);
+
             String dateText = buildScheduleDateText(schedule, controller);
             boolean usingRelativeDueText = !schedule.isCompleted()
                 && schedule.getDueAt() != null;
@@ -357,19 +397,31 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         ScheduleReflowAnimator.bindNode(completedHeader.getRoot(), "header-completed", true);
         completedGroupHeaderNode = completedHeader.getRoot();
 
+        suspendedHeader = new GroupHeader(controller.text("schedule.list.suspended"), () -> {
+            suspendedCollapsed = !suspendedCollapsed;
+            renderSchedules();
+        });
+        ScheduleReflowAnimator.bindNode(suspendedHeader.getRoot(), "header-suspended", true);
+
         pendingCardsBox = new VBox(8);
         pendingCardsBox.getStyleClass().add("schedule-list-cards");
 
         completedCardsBox = new VBox(8);
         completedCardsBox.getStyleClass().add("schedule-list-cards");
 
+        suspendedCardsBox = new VBox(8);
+        suspendedCardsBox.getStyleClass().add("schedule-list-cards");
+
         pendingSection = new VBox(8, pendingHeader.getRoot(), pendingCardsBox);
         pendingSection.getStyleClass().add("schedule-list-section");
+
+        suspendedSection = new VBox(8, suspendedHeader.getRoot(), suspendedCardsBox);
+        suspendedSection.getStyleClass().add("schedule-list-section");
 
         completedSection = new VBox(8, completedHeader.getRoot(), completedCardsBox);
         completedSection.getStyleClass().add("schedule-list-section");
 
-        listContent = new VBox(12, pendingSection, completedSection);
+        listContent = new VBox(12, pendingSection, suspendedSection, completedSection);
         listContent.getStyleClass().addAll("schedule-list", "schedule-list-pane");
         listContent.setFillWidth(true);
 
@@ -661,6 +713,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             .collect(Collectors.toCollection(LinkedHashSet::new));
 
         List<Node> pendingNodes = new ArrayList<>();
+        List<Node> suspendedNodes = new ArrayList<>();
         List<Node> completedNodes = new ArrayList<>();
         for (Schedule schedule : displayedSchedules) {
             String cardKey = schedule.getViewKey() != null && !schedule.getViewKey().isBlank()
@@ -670,6 +723,8 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             cardNode.bindSchedule(schedule);
             if (schedule.isCompleted()) {
                 completedNodes.add(cardNode.getContainer());
+            } else if (schedule.isSuspended()) {
+                suspendedNodes.add(cardNode.getContainer());
             } else {
                 pendingNodes.add(cardNode.getContainer());
             }
@@ -683,20 +738,25 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             if (staleNode != null) {
                 pendingCardsBox.getChildren().remove(staleNode.getContainer());
                 completedCardsBox.getChildren().remove(staleNode.getContainer());
+                suspendedCardsBox.getChildren().remove(staleNode.getContainer());
             }
         }
 
         pendingCardsBox.getChildren().setAll(pendingNodes);
         completedCardsBox.getChildren().setAll(completedNodes);
+        suspendedCardsBox.getChildren().setAll(suspendedNodes);
 
         pendingHeader.updateCount(pendingNodes.size());
         completedHeader.updateCount(completedNodes.size());
+        suspendedHeader.updateCount(suspendedNodes.size());
 
         pendingHeader.updateCollapsed(pendingCollapsed);
         completedHeader.updateCollapsed(completedCollapsed);
+        suspendedHeader.updateCollapsed(suspendedCollapsed);
 
         updateSectionState(pendingSection, pendingHeader.getRoot(), pendingCardsBox, !pendingNodes.isEmpty(), pendingCollapsed);
         updateSectionState(completedSection, completedHeader.getRoot(), completedCardsBox, !completedNodes.isEmpty(), completedCollapsed);
+        updateSectionState(suspendedSection, suspendedHeader.getRoot(), suspendedCardsBox, !suspendedNodes.isEmpty(), suspendedCollapsed);
         refreshSelectionState();
     }
 
@@ -859,6 +919,58 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         refresh();
     }
 
+    private void handlePinSchedule(Schedule schedule) {
+        if (schedule == null || schedule.isCompleted() || schedule.isSuspended()) {
+            return;
+        }
+        String cardKey = resolveCardKey(schedule);
+        Map<String, Bounds> beforeBounds = ScheduleReflowAnimator.captureVisibleCardBounds(listContent, cardKey);
+        schedule.setSuspended(true);
+        try {
+            boolean ok = controller.saveSchedule(schedule);
+            if (ok) {
+                ScheduleReflowAnimator.playVerticalReflow(listContent, beforeBounds, null);
+                ScheduleCardNode targetNode = cardNodesById.get(cardKey);
+                if (targetNode != null) {
+                    ScheduleReflowAnimator.playTargetPulse(targetNode.getContainer());
+                }
+                controller.refreshAllViews();
+            } else {
+                schedule.setSuspended(false);
+            }
+        } catch (SQLException e) {
+            schedule.setSuspended(false);
+            controller.showError(controller.text("error.scheduleUpdate.title"),
+                controller.text("error.schedulePersist.message"));
+        }
+    }
+
+    private void handleUnpinSchedule(Schedule schedule) {
+        if (schedule == null || schedule.isCompleted() || !schedule.isSuspended()) {
+            return;
+        }
+        String cardKey = resolveCardKey(schedule);
+        Map<String, Bounds> beforeBounds = ScheduleReflowAnimator.captureVisibleCardBounds(listContent, cardKey);
+        schedule.setSuspended(false);
+        try {
+            boolean ok = controller.saveSchedule(schedule);
+            if (ok) {
+                ScheduleReflowAnimator.playVerticalReflow(listContent, beforeBounds, null);
+                ScheduleCardNode targetNode = cardNodesById.get(cardKey);
+                if (targetNode != null) {
+                    ScheduleReflowAnimator.playTargetPulse(targetNode.getContainer());
+                }
+                controller.refreshAllViews();
+            } else {
+                schedule.setSuspended(true);
+            }
+        } catch (SQLException e) {
+            schedule.setSuspended(true);
+            controller.showError(controller.text("error.scheduleUpdate.title"),
+                controller.text("error.schedulePersist.message"));
+        }
+    }
+
     private void handlePostponeDay(Schedule schedule) {
         if (schedule == null || schedule.isCompleted()) {
             return;
@@ -962,7 +1074,14 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         if (targetNode.getSchedule().isCompleted() != targetCompleted) {
             return null;
         }
-        VBox targetBox = targetCompleted ? completedCardsBox : pendingCardsBox;
+        VBox targetBox;
+        if (targetCompleted) {
+            targetBox = completedCardsBox;
+        } else if (targetNode.getSchedule().isSuspended()) {
+            targetBox = suspendedCardsBox;
+        } else {
+            targetBox = pendingCardsBox;
+        }
         if (targetBox == null || !targetBox.getChildren().contains(targetNode.getContainer())) {
             return null;
         }

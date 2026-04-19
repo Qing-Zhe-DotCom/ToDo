@@ -33,7 +33,8 @@ public final class SqliteStageBSchemaManager implements SchemaManager {
             sync_status TEXT NOT NULL DEFAULT 'local_only',
             last_synced_at_utc TEXT,
             device_id TEXT,
-            metadata_json TEXT
+            metadata_json TEXT,
+            is_suspended INTEGER NOT NULL DEFAULT 0
         )
         """,
         """
@@ -144,6 +145,7 @@ public final class SqliteStageBSchemaManager implements SchemaManager {
 
             detectLegacySchema(connection);
             initializeSchema(connection);
+            runMigrations(connection);
             schemaInitialized = true;
         }
     }
@@ -184,5 +186,28 @@ public final class SqliteStageBSchemaManager implements SchemaManager {
         } finally {
             connection.setAutoCommit(originalAutoCommit);
         }
+    }
+
+    private void runMigrations(Connection connection) throws SQLException {
+        if (!columnExists(connection, "schedule_item", "is_suspended")) {
+            try (Statement statement = connection.createStatement()) {
+                statement.execute(
+                    "ALTER TABLE schedule_item ADD COLUMN is_suspended INTEGER NOT NULL DEFAULT 0"
+                );
+            }
+        }
+    }
+
+    private boolean columnExists(Connection connection, String tableName, String columnName)
+        throws SQLException {
+        try (ResultSet resultSet = connection.createStatement()
+            .executeQuery("PRAGMA table_info(" + tableName + ")")) {
+            while (resultSet.next()) {
+                if (columnName.equalsIgnoreCase(resultSet.getString("name"))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
