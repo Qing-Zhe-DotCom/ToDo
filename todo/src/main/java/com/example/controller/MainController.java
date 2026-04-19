@@ -116,6 +116,8 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
 import javafx.scene.shape.Circle;
+import javafx.scene.shape.Line;
+import javafx.scene.shape.Polyline;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.SVGPath;
 import javafx.scene.shape.Shape;
@@ -849,6 +851,28 @@ public class MainController {
             path.setContent(element.getAttribute("d"));
             applyShapeStyle(path, element);
             return path;
+        }
+        // SVG <line> — straight segment between two points.
+        // Previously missing; caused pin/unpin icons (which use <line> for needle and cap) to render empty.
+        if ("line".equals(tag)) {
+            Line line = new Line(
+                parseDouble(element.getAttribute("x1")),
+                parseDouble(element.getAttribute("y1")),
+                parseDouble(element.getAttribute("x2")),
+                parseDouble(element.getAttribute("y2"))
+            );
+            applyShapeStyle(line, element);
+            return line;
+        }
+        // SVG <polyline> — open polygon through a sequence of points.
+        if ("polyline".equals(tag)) {
+            String[] coords = element.getAttribute("points").trim().split("[,\\s]+");
+            Polyline polyline = new Polyline();
+            for (int i = 0; i + 1 < coords.length; i += 2) {
+                polyline.getPoints().addAll(parseDouble(coords[i]), parseDouble(coords[i + 1]));
+            }
+            applyShapeStyle(polyline, element);
+            return polyline;
         }
         if ("text".equals(tag)) {
             Text text = new Text(element.getTextContent());

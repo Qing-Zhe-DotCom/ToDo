@@ -258,6 +258,16 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             container.setMaxWidth(Double.MAX_VALUE);
             cardMotionHost.setMaxWidth(Double.MAX_VALUE);
 
+            // ── 卡片操作按钮悬停显示（Java 侧双重保险）──────────────────────────
+            // 根本原因：CSS opacity:0.5 在彩色卡片背景（upcoming/warning）上对比度
+            // 极低，且 <line> SVG 元素之前未被解析，导致 pin/unpin 图标完全透明。
+            // 新方案：按钮默认 opacity=0（由 CSS 控制），通过 MOUSE_ENTERED/EXITED
+            // 在 Java 侧也同步设置 opacity，确保跨主题可靠显示，不依赖 CSS 级联。
+            // 注意：MOUSE_ENTERED/EXITED 在鼠标移入/移出 cardMotionHost 边界时触发，
+            // 鼠标在子节点（按钮）上移动时不触发 EXITED（仍在卡片范围内），行为符合预期。
+            container.addEventHandler(MouseEvent.MOUSE_ENTERED, e -> syncActionButtonsOpacity(true));
+            container.addEventHandler(MouseEvent.MOUSE_EXITED, e -> syncActionButtonsOpacity(false));
+
             cardMotionHost.setOnMouseClicked(event -> {
                 if (event.getTarget() instanceof Node
                     && isDescendant((Node) event.getTarget(), statusControl)) {
@@ -298,6 +308,30 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
         private void restoreMotionSteadyState() {
             motionHandle.restoreSteadyState();
+        }
+
+        /**
+         * 同步操作按钮透明度（悬停高亮 / 离开恢复常态）。
+         *
+         * <p>设计说明：按钮常态以 opacity=0.55 显示（通过 CSS 设置），始终可见，
+         * 无需悬停卡片才能发现。悬停时提升到 1.0，提供视觉反馈。
+         * Java 侧事件监听与 CSS 互为双重保险，防止主题 CSS 级联意外覆盖。
+         *
+         * <p>可见性规则（managed/visible 由 bindSchedule 控制）：
+         * <ul>
+         *   <li>已完成日程：postpone/pin/unpin 均 setManaged(false)，不占布局空间
+         *   <li>非已完成 + 非挂起：显示"延后"和"挂起"按钮
+         *   <li>非已完成 + 已挂起：显示"延后"和"取消挂起"按钮
+         * </ul>
+         */
+        private void syncActionButtonsOpacity(boolean hovered) {
+            if (schedule.isCompleted()) {
+                return; // managed=false 时 opacity 无意义，跳过
+            }
+            double base = hovered ? 1.0 : 0.55;
+            postponeButton.setOpacity(base);
+            pinButton.setOpacity(schedule.isSuspended() ? 0.0 : base);
+            unpinButton.setOpacity(schedule.isSuspended() ? base : 0.0);
         }
 
         private void bindSchedule(Schedule schedule) {
@@ -421,7 +455,8 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         completedSection = new VBox(8, completedHeader.getRoot(), completedCardsBox);
         completedSection.getStyleClass().add("schedule-list-section");
 
-        listContent = new VBox(12, pendingSection, suspendedSection, completedSection);
+        // 挂起区位于待办区上方，提醒用户这些日程被主动搁置
+        listContent = new VBox(12, suspendedSection, pendingSection, completedSection);
         listContent.getStyleClass().addAll("schedule-list", "schedule-list-pane");
         listContent.setFillWidth(true);
 
