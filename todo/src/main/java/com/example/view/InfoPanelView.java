@@ -91,6 +91,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     private ScheduleStatusControl completeControl;
     private Button closeButton;
     private Button deleteButton;
+    private Button postponeButton;
     private Label statusLabel;
     private FlowPane chipPane;
     private TextField titleField;
@@ -477,11 +478,18 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
             "info-panel-icon-button-danger",
             "info-panel-delete-button"
         );
+        postponeButton = actionIconButton(
+            IconKey.POSTPONE_DAY,
+            text("action.postponeDay"),
+            this::postponeScheduleOneDay
+        );
+        postponeButton.setVisible(false);
+        postponeButton.setManaged(false);
         closeButton = iconButton(IconKey.CLOSE, text("info.close"), controller::closeScheduleDetails);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox actionGroup = new HBox(10, completeControl, deleteButton);
+        HBox actionGroup = new HBox(10, completeControl, postponeButton, deleteButton);
         actionGroup.setAlignment(Pos.CENTER_LEFT);
         actionGroup.getStyleClass().add("info-panel-action-group");
         HBox header = new HBox(10, actionGroup, spacer, closeButton);
@@ -1112,6 +1120,8 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         recurrenceSummaryLabel.setText(text("recurrence.none"));
 
         completeControl.syncCompleted(false);
+        postponeButton.setVisible(false);
+        postponeButton.setManaged(false);
         setDisabled(true);
         updateTimeTriggers();
         titleField.setPromptText(text("info.title.empty"));
@@ -1139,6 +1149,9 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         statusLabel.setVisible(true);
         statusLabel.setManaged(true);
         completeControl.syncCompleted(currentSchedule.isCompleted());
+        boolean showPostpone = !currentSchedule.isCompleted();
+        postponeButton.setVisible(showPostpone);
+        postponeButton.setManaged(showPostpone);
         setDisabled(false);
 
         updateTimeTriggers();
@@ -1214,6 +1227,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     private void setDisabled(boolean disabled) {
         completeControl.setDisable(disabled);
         deleteButton.setDisable(disabled);
+        postponeButton.setDisable(disabled);
         titleField.setDisable(disabled);
         allDayToggle.setDisable(disabled);
         dueToggle.setDisable(disabled);
@@ -1257,6 +1271,28 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
                 controller.showError(text("error.delete.title"), exception.getMessage());
             }
         });
+    }
+
+    private void postponeScheduleOneDay() {
+        if (currentSchedule == null || currentSchedule.isCompleted()) {
+            return;
+        }
+        LocalDateTime due = currentSchedule.getDueAt();
+        if (due != null) {
+            currentSchedule.setDueAt(due.plusDays(1));
+        } else {
+            currentSchedule.setDueAt(LocalDateTime.now().plusDays(1)
+                .withHour(23).withMinute(59).withSecond(0).withNano(0));
+        }
+        try {
+            if (controller.saveSchedule(currentSchedule)) {
+                persistedSchedule = copyOf(currentSchedule);
+                renderForm();
+                controller.refreshAllViews();
+            }
+        } catch (SQLException exception) {
+            controller.showError(text("error.scheduleUpdate.title"), exception.getMessage());
+        }
     }
 
     private void closeWheelPopup() {
@@ -1543,6 +1579,9 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         }
         if (closeButton != null) {
             closeButton.setGraphic(controller.createSvgIcon(IconKey.CLOSE, text("info.close"), 16));
+        }
+        if (postponeButton != null) {
+            postponeButton.setGraphic(controller.createSvgIcon(IconKey.POSTPONE_DAY, text("action.postponeDay"), 16));
         }
     }
 
