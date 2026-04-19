@@ -213,6 +213,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         todayBtn.setTooltip(new Tooltip(text("view.heatmap.today")));
         todayBtn.setOnAction(e -> {
             currentDate = LocalDate.now();
+            selectedDate = LocalDate.now();
             queueRefresh();
         });
 
