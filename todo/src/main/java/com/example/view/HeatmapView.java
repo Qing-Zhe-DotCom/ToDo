@@ -11,8 +11,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.example.application.CustomOptionsService;
+import com.example.application.HeatmapColorScheme;
 import com.example.application.IconKey;
 import com.example.application.ScheduleOccurrenceProjector;
+import com.example.application.ThemeAppearance;
+import com.example.application.ThemeService;
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionCoordinator;
 import com.example.controller.ScheduleCompletionMutation;
@@ -658,7 +662,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         if (yearCell) {
             rect.getStyleClass().add("heatmap-year-cell");
         }
-        updateHeatmapCellColor(rect, getLevelForCount(count));
+        applyHeatmapCellFill(rect, count);
 
         StackPane cell = new StackPane(rect);
         cell.setPadding(new Insets(2));
@@ -680,6 +684,14 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
                 updateSelectedCellStyles();
                 updateDaySchedulePanel();
             });
+        }
+
+        if (!yearCell && count > 0 && activeInCurrentPeriod) {
+            Label countBadge = new Label(String.valueOf(count));
+            countBadge.getStyleClass().add("heatmap-cell-count");
+            countBadge.setMouseTransparent(true);
+            StackPane.setAlignment(countBadge, Pos.TOP_RIGHT);
+            cell.getChildren().add(countBadge);
         }
 
         List<Schedule> schedules = schedulesByDate.getOrDefault(date, List.of());
@@ -732,12 +744,24 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         title.getStyleClass().add("label-hint");
         legend.getChildren().add(title);
 
-        String[] labels = {"0", "1-2", "3-5", "6-8", "9+"};
+        CustomOptionsService cos = controller.getCustomOptionsService();
+        int t1 = cos != null ? cos.getHeatmapThreshold1() : CustomOptionsService.DEFAULT_HEATMAP_THRESHOLD_1;
+        int t2 = cos != null ? cos.getHeatmapThreshold2() : CustomOptionsService.DEFAULT_HEATMAP_THRESHOLD_2;
+        int t3 = cos != null ? cos.getHeatmapThreshold3() : CustomOptionsService.DEFAULT_HEATMAP_THRESHOLD_3;
+        String[] labels = {
+            "0",
+            "1-" + t1,
+            (t1 + 1) + "-" + t2,
+            (t2 + 1) + "-" + t3,
+            (t3 + 1) + "+"
+        };
 
+        HeatmapColorScheme scheme = resolveColorScheme();
+        boolean dark = isDarkMode();
         for (int i = 0; i < labels.length; i++) {
             Rectangle rect = new Rectangle(15, 15);
             rect.getStyleClass().add("heatmap-cell");
-            updateHeatmapCellColor(rect, i);
+            rect.setFill(scheme.getColor(i, dark));
 
             Label label = new Label(labels[i]);
             label.getStyleClass().add("label-hint");
@@ -1468,19 +1492,51 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     }
 
     private int getLevelForCount(int count) {
-        if (count == 0) return 0;
-        if (count <= 2) return 1;
-        if (count <= 5) return 2;
-        if (count <= 8) return 3;
+        if (count == 0) {
+            return 0;
+        }
+        CustomOptionsService cos = controller.getCustomOptionsService();
+        int t1 = cos != null ? cos.getHeatmapThreshold1() : CustomOptionsService.DEFAULT_HEATMAP_THRESHOLD_1;
+        int t2 = cos != null ? cos.getHeatmapThreshold2() : CustomOptionsService.DEFAULT_HEATMAP_THRESHOLD_2;
+        int t3 = cos != null ? cos.getHeatmapThreshold3() : CustomOptionsService.DEFAULT_HEATMAP_THRESHOLD_3;
+        if (count <= t1) return 1;
+        if (count <= t2) return 2;
+        if (count <= t3) return 3;
         return 4;
     }
 
+    private HeatmapColorScheme resolveColorScheme() {
+        CustomOptionsService cos = controller.getCustomOptionsService();
+        ThemeService ts = controller.getThemeService();
+        if (cos != null && !cos.isHeatmapColorBindingEnabled()) {
+            return cos.getHeatmapColorScheme();
+        }
+        if (ts != null && ts.getCurrentThemeFamily() != null) {
+            return ts.getCurrentThemeFamily().getDefaultHeatmapColorScheme();
+        }
+        return HeatmapColorScheme.GREEN;
+    }
+
+    private boolean isDarkMode() {
+        ThemeService ts = controller.getThemeService();
+        return ts != null && ts.getCurrentAppearance() == ThemeAppearance.DARK;
+    }
+
+    private void applyHeatmapCellFill(Rectangle rect, int count) {
+        CustomOptionsService cos = controller.getCustomOptionsService();
+        int t1 = cos != null ? cos.getHeatmapThreshold1() : CustomOptionsService.DEFAULT_HEATMAP_THRESHOLD_1;
+        int t2 = cos != null ? cos.getHeatmapThreshold2() : CustomOptionsService.DEFAULT_HEATMAP_THRESHOLD_2;
+        int t3 = cos != null ? cos.getHeatmapThreshold3() : CustomOptionsService.DEFAULT_HEATMAP_THRESHOLD_3;
+        HeatmapColorScheme scheme = resolveColorScheme();
+        boolean dark = isDarkMode();
+        Color color = scheme.interpolate(count, t1, t2, t3, dark);
+        rect.setFill(color);
+    }
+
     private void updateHeatmapCellColor(Rectangle rect, int level) {
-        rect.getStyleClass().removeAll(
-            "level-0", "level-1", "level-2",
-            "level-3", "level-4"
-        );
-        rect.getStyleClass().add("level-" + Math.min(level, 4));
+        HeatmapColorScheme scheme = resolveColorScheme();
+        boolean dark = isDarkMode();
+        rect.setFill(scheme.getColor(level, dark));
     }
 
     private String getScheduleDateText(Schedule schedule) {

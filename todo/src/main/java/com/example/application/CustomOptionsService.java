@@ -22,9 +22,17 @@ public final class CustomOptionsService {
     static final String PREF_TAGS_KEY = "todo.custom.tags";
     public static final String PREF_TIME_TEXT_INPUT_ENABLED_KEY = "todo.custom.time-text-input.enabled";
     public static final String PREF_TAG_COMMA_SPLIT_ENABLED_KEY = "todo.custom.tags.comma-split.enabled";
+    public static final String PREF_HEATMAP_THRESHOLD_1_KEY = "todo.heatmap.threshold.1";
+    public static final String PREF_HEATMAP_THRESHOLD_2_KEY = "todo.heatmap.threshold.2";
+    public static final String PREF_HEATMAP_THRESHOLD_3_KEY = "todo.heatmap.threshold.3";
+    public static final String PREF_HEATMAP_COLOR_BINDING_KEY = "todo.heatmap.color.binding";
+    public static final String PREF_HEATMAP_COLOR_SCHEME_KEY = "todo.heatmap.color.scheme";
 
     public static final int MAX_TASKS = 100;
     public static final int MAX_TAGS = 100;
+    public static final int DEFAULT_HEATMAP_THRESHOLD_1 = 2;
+    public static final int DEFAULT_HEATMAP_THRESHOLD_2 = 5;
+    public static final int DEFAULT_HEATMAP_THRESHOLD_3 = 8;
 
     private static final List<String> DEFAULT_TASKS = List.of(
         "工作",
@@ -79,6 +87,61 @@ public final class CustomOptionsService {
 
     public void setTagCommaSplitEnabled(boolean enabled) {
         preferencesStore.put(PREF_TAG_COMMA_SPLIT_ENABLED_KEY, Boolean.toString(enabled));
+    }
+
+    public int getHeatmapThreshold1() {
+        return parseThreshold(preferencesStore.get(PREF_HEATMAP_THRESHOLD_1_KEY, null), DEFAULT_HEATMAP_THRESHOLD_1);
+    }
+
+    public void setHeatmapThreshold1(int value) {
+        preferencesStore.put(PREF_HEATMAP_THRESHOLD_1_KEY, String.valueOf(clampThreshold(value)));
+    }
+
+    public int getHeatmapThreshold2() {
+        return parseThreshold(preferencesStore.get(PREF_HEATMAP_THRESHOLD_2_KEY, null), DEFAULT_HEATMAP_THRESHOLD_2);
+    }
+
+    public void setHeatmapThreshold2(int value) {
+        preferencesStore.put(PREF_HEATMAP_THRESHOLD_2_KEY, String.valueOf(clampThreshold(value)));
+    }
+
+    public int getHeatmapThreshold3() {
+        return parseThreshold(preferencesStore.get(PREF_HEATMAP_THRESHOLD_3_KEY, null), DEFAULT_HEATMAP_THRESHOLD_3);
+    }
+
+    public void setHeatmapThreshold3(int value) {
+        preferencesStore.put(PREF_HEATMAP_THRESHOLD_3_KEY, String.valueOf(clampThreshold(value)));
+    }
+
+    public boolean isHeatmapColorBindingEnabled() {
+        return Boolean.parseBoolean(preferencesStore.get(PREF_HEATMAP_COLOR_BINDING_KEY, "true"));
+    }
+
+    public void setHeatmapColorBindingEnabled(boolean enabled) {
+        preferencesStore.put(PREF_HEATMAP_COLOR_BINDING_KEY, Boolean.toString(enabled));
+    }
+
+    public HeatmapColorScheme getHeatmapColorScheme() {
+        return HeatmapColorScheme.fromId(preferencesStore.get(PREF_HEATMAP_COLOR_SCHEME_KEY, null));
+    }
+
+    public void setHeatmapColorScheme(HeatmapColorScheme scheme) {
+        preferencesStore.put(PREF_HEATMAP_COLOR_SCHEME_KEY, scheme.getId());
+    }
+
+    private static int parseThreshold(String value, int defaultValue) {
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        try {
+            return clampThreshold(Integer.parseInt(value.trim()));
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
+
+    private static int clampThreshold(int value) {
+        return Math.max(1, Math.min(999, value));
     }
 
     /**

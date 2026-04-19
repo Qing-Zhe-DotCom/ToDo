@@ -142,6 +142,22 @@ class LocalizationResourceTest {
         }
     }
 
+    @Test
+    void heatmapThresholdKeysExistInAllLocales() throws IOException {
+        for (String resource : new String[] {
+            "/i18n/messages.properties",
+            "/i18n/messages_zh_CN.properties",
+            "/i18n/messages_zh_TW.properties"
+        }) {
+            String content = read(resource);
+            assertTrue(content.contains("settings.heatmap.thresholds.title="));
+            assertTrue(content.contains("settings.heatmap.thresholds.subtitle="));
+            assertTrue(content.contains("settings.heatmap.thresholds.level1.label="));
+            assertTrue(content.contains("settings.heatmap.thresholds.level2.label="));
+            assertTrue(content.contains("settings.heatmap.thresholds.level3.label="));
+        }
+    }
+
     private static String read(String resourcePath) throws IOException {
         try (InputStream input = LocalizationResourceTest.class.getResourceAsStream(resourcePath)) {
             assertNotNull(input, "Missing resource: " + resourcePath);

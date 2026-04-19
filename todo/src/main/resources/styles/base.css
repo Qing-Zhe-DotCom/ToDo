@@ -506,6 +506,15 @@
     -fx-padding: 0;
 }
 
+.schedule-group-count {
+    -fx-background-color: -color-bg-active;
+    -fx-text-fill: -color-primary-hover;
+    -fx-padding: 2 8;
+    -fx-background-radius: 999;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+
 /* 已完成日程标题样式 */
 .title-completed {
     -fx-strikethrough: true;
@@ -1682,6 +1691,62 @@
 .heatmap-cell.level-2 { -fx-fill: -color-heatmap-2; }
 .heatmap-cell.level-3 { -fx-fill: -color-heatmap-3; }
 .heatmap-cell.level-4 { -fx-fill: -color-heatmap-4; }
+
+.heatmap-cell-count {
+    -fx-text-fill: rgba(255, 255, 255, 0.65);
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+    -fx-padding: 1 2 0 0;
+    -fx-mouse-transparent: true;
+}
+
+/* Modern Number Input */
+.modern-number-input {
+    -fx-background-color: -color-bg-subtle;
+    -fx-background-radius: 8;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+    -fx-padding: 0;
+    -fx-alignment: CENTER;
+}
+
+.number-input-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: -color-fg-default;
+    -fx-font-size: 14px;
+    -fx-font-weight: 700;
+    -fx-padding: 4 10;
+    -fx-cursor: hand;
+    -fx-background-radius: 8;
+    -fx-border-width: 0;
+    -fx-min-width: 32;
+    -fx-min-height: 28;
+}
+
+.number-input-button:hover {
+    -fx-background-color: -color-bg-muted;
+}
+
+.number-input-button:pressed {
+    -fx-background-color: -color-border-default;
+}
+
+.number-input-field {
+    -fx-background-color: transparent;
+    -fx-text-fill: -color-fg-default;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+    -fx-alignment: CENTER;
+    -fx-padding: 4 2;
+    -fx-border-width: 0;
+    -fx-pref-width: 44;
+    -fx-max-width: 44;
+}
+
+.number-input-field:focused {
+    -fx-background-color: transparent;
+}
 
 /* 对话框样式 */
 .dialog-pane {
