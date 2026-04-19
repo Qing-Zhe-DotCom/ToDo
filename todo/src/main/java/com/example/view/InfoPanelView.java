@@ -1893,6 +1893,9 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         copy.setDeletedAt(source.getDeletedAt());
         copy.setStatus(source.getStatus());
         copy.setCompletedAt(source.getCompletedAt());
+        // ⚠️ 必须复制 suspended 字段：若遗漏，detail 面板中 currentSchedule.isSuspended()
+        // 永远为 false，导致 unpinButton 始终不可见，只能看到 pinButton。
+        copy.setSuspended(source.isSuspended());
         return copy;
     }
 

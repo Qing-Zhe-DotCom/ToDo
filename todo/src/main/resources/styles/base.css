@@ -718,64 +718,67 @@
     -fx-translate-y: 1;
 }
 
-/* ── 延后一天按钮（使用双类选择器 specificity=0,2,0 覆盖 .button 的强调色）── */
-.button.postpone-day-btn {
-    -fx-background-color: transparent;
-    -fx-border-color: transparent;
-    -fx-padding: 2;
-    -fx-cursor: hand;
-    -fx-opacity: 0.5;
-    -fx-min-width: 26;
-    -fx-min-height: 26;
-    -fx-effect: none;
-    -fx-background-radius: 0;
-}
-/* specificity=0,3,0 — 高于任何主题 .button:hover (0,2,0)，不添加背景色或阴影 */
-.button.postpone-day-btn:hover {
-    -fx-background-color: transparent !important;
-    -fx-effect: none !important;
-    -fx-opacity: 1.0;
-    -fx-scale-x: 1.0;
-    -fx-scale-y: 1.0;
-    -fx-translate-x: 0;
-    -fx-translate-y: 0;
-}
-.button.postpone-day-btn:pressed {
-    -fx-background-color: transparent !important;
-    -fx-effect: none !important;
-    -fx-opacity: 0.6;
-    -fx-translate-x: 0;
-    -fx-translate-y: 0;
-}
-.button.postpone-day-btn:focused {
-    -fx-background-color: transparent;
-    -fx-effect: none;
-}
+/* ══════════════════════════════════════════════════════════════════════════
+ * 日程卡片操作按钮：延后一天 / 挂起 / 取消挂起
+ *
+ * 设计说明：
+ *   - 按钮常态显示 opacity=0.55（不需要悬停才能发现操作入口）
+ *   - 按钮悬停时提升到 opacity=1.0，提供视觉反馈
+ *   - 使用双类选择器 (specificity=0,2,0) 覆盖主题 .button 背景色 (0,1,0)
+ *   - Java 侧 ScheduleCardNode.syncActionButtonsOpacity() 作为双重保险
+ *
+ * ⚠️  历史修复记录：
+ *   1. 旧方案 opacity:0 + hover 显示 → 按钮完全不可见，用户无法发现
+ *   2. SVG <line> 元素之前未被解析 → pin/unpin 图标静默为空白（已在 MainController 修复）
+ * ══════════════════════════════════════════════════════════════════════════ */
 
-/* ── 挂起 / 取消挂起 按钮（与延后一天按钮风格一致）── */
+/* 基础样式：清除 .button 的背景色、边框、阴影，保持纯图标外观
+ * 常态显示（opacity=0.55），不需要悬停才能看到，避免用户找不到操作入口。
+ * 按钮悬停时提升到 opacity=1.0，按下时降低到 0.6。
+ * 使用双类选择器 (specificity=0,2,0) 覆盖主题 .button (0,1,0) 的背景色。 */
+.button.postpone-day-btn,
 .button.pin-btn,
 .button.unpin-btn {
     -fx-background-color: transparent;
     -fx-border-color: transparent;
     -fx-padding: 2;
     -fx-cursor: hand;
-    -fx-opacity: 0.5;
+    /* 常态可见，用户无需悬停才能发现操作按钮 */
+    -fx-opacity: 0.55;
     -fx-min-width: 26;
     -fx-min-height: 26;
     -fx-effect: none;
     -fx-background-radius: 0;
 }
+
+/* ── 按钮悬停：完全不透明 (specificity=0,3,0 > 主题 .button:hover 0,2,0) ── */
+.button.postpone-day-btn:hover,
 .button.pin-btn:hover,
 .button.unpin-btn:hover {
     -fx-background-color: transparent !important;
     -fx-effect: none !important;
     -fx-opacity: 1.0;
+    -fx-translate-x: 0;
+    -fx-translate-y: 0;
 }
+
+/* ── 按钮按下 ── */
+.button.postpone-day-btn:pressed,
 .button.pin-btn:pressed,
 .button.unpin-btn:pressed {
     -fx-background-color: transparent !important;
     -fx-effect: none !important;
     -fx-opacity: 0.6;
+    -fx-translate-x: 0;
+    -fx-translate-y: 0;
+}
+
+/* ── 焦点状态：保持透明背景 ── */
+.button.postpone-day-btn:focused,
+.button.pin-btn:focused,
+.button.unpin-btn:focused {
+    -fx-background-color: transparent;
+    -fx-effect: none;
 }
 
 /* ── 挂起区卡片样式 ── */
