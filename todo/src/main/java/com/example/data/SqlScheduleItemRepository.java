@@ -614,8 +614,8 @@ public final class SqlScheduleItemRepository implements ScheduleItemRepository {
                 start_at_utc, end_at_utc, due_at_utc, completed_at_utc,
                 is_all_day, time_precision, timezone, color,
                 created_at_utc, updated_at_utc, deleted_at_utc,
-                version, sync_status, last_synced_at_utc, device_id, metadata_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                version, sync_status, last_synced_at_utc, device_id, metadata_json, is_suspended
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
         )) {
             bindScheduleItem(statement, item);
@@ -631,12 +631,13 @@ public final class SqlScheduleItemRepository implements ScheduleItemRepository {
                 start_at_utc = ?, end_at_utc = ?, due_at_utc = ?, completed_at_utc = ?,
                 is_all_day = ?, time_precision = ?, timezone = ?, color = ?,
                 created_at_utc = ?, updated_at_utc = ?, deleted_at_utc = ?,
-                version = ?, sync_status = ?, last_synced_at_utc = ?, device_id = ?, metadata_json = ?
+                version = ?, sync_status = ?, last_synced_at_utc = ?, device_id = ?, metadata_json = ?,
+                is_suspended = ?
             WHERE id = ?
             """
         )) {
             bindScheduleItemWithoutId(statement, item, 1);
-            statement.setString(23, item.getId());
+            statement.setString(24, item.getId());
             return statement.executeUpdate();
         }
     }
@@ -669,7 +670,8 @@ public final class SqlScheduleItemRepository implements ScheduleItemRepository {
         statement.setString(index++, item.getSyncStatus());
         statement.setString(index++, toDateTimeString(item.getLastSyncedAtUtc()));
         statement.setString(index++, emptyToNull(item.getDeviceId()));
-        statement.setString(index, item.getMetadataJson());
+        statement.setString(index++, item.getMetadataJson());
+        statement.setInt(index, item.isSuspended() ? 1 : 0);
     }
 
     private void replaceTags(Connection connection, ScheduleItem item) throws SQLException {
@@ -936,6 +938,7 @@ public final class SqlScheduleItemRepository implements ScheduleItemRepository {
         item.setLastSyncedAtUtc(parseDateTime(resultSet.getString("last_synced_at_utc")));
         item.setDeviceId(resultSet.getString("device_id"));
         item.setMetadataJson(resultSet.getString("metadata_json"));
+        item.setSuspended(resultSet.getInt("is_suspended") == 1);
         return item;
     }
 
