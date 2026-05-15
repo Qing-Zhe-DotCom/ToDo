@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-class MainControllerSearchHistoryTest {
+class SearchControllerSearchHistoryTest {
 
     @Test
     void persistsNormalizedHistoryEntry() {
@@ -19,9 +19,9 @@ class MainControllerSearchHistoryTest {
         MapPreferencesStore store = new MapPreferencesStore(preferences);
         List<String> buffer = new ArrayList<>();
 
-        assertNull(MainController.normalizeSearchHistoryEntry("   "));
+        assertNull(SearchController.normalizeSearchHistoryEntry("   "));
 
-        MainController.rememberSearchHistory(store, buffer, "  plan \n  A  ");
+        SearchController.rememberSearchHistory(store, buffer, "  plan \n  A  ");
 
         assertEquals(List.of("plan A"), buffer);
         assertEquals("plan A", store.get("todo.search.history", ""));
@@ -32,9 +32,9 @@ class MainControllerSearchHistoryTest {
         MapPreferencesStore store = new MapPreferencesStore(new HashMap<>());
         List<String> buffer = new ArrayList<>();
 
-        MainController.rememberSearchHistory(store, buffer, "Study plan");
-        MainController.rememberSearchHistory(store, buffer, "read");
-        MainController.rememberSearchHistory(store, buffer, "study   PLAN");
+        SearchController.rememberSearchHistory(store, buffer, "Study plan");
+        SearchController.rememberSearchHistory(store, buffer, "read");
+        SearchController.rememberSearchHistory(store, buffer, "study   PLAN");
 
         assertEquals(List.of("study PLAN", "read"), buffer);
         assertEquals("study PLAN\nread", store.get("todo.search.history", ""));
@@ -46,7 +46,7 @@ class MainControllerSearchHistoryTest {
         List<String> buffer = new ArrayList<>();
 
         for (int i = 1; i <= 25; i++) {
-            MainController.rememberSearchHistory(store, buffer, "k" + i);
+            SearchController.rememberSearchHistory(store, buffer, "k" + i);
         }
 
         assertEquals(20, buffer.size());
@@ -65,7 +65,7 @@ class MainControllerSearchHistoryTest {
         MapPreferencesStore store = new MapPreferencesStore(preferences);
         List<String> buffer = new ArrayList<>(List.of("a", "b"));
 
-        MainController.clearSearchHistory(store, buffer);
+        SearchController.clearSearchHistory(store, buffer);
 
         assertTrue(buffer.isEmpty());
         assertEquals("fallback", store.get("todo.search.history", "fallback"));

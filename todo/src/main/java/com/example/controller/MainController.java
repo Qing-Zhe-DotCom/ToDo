@@ -61,7 +61,6 @@ import javafx.animation.Animation;
 import javafx.animation.FadeTransition;
 import javafx.animation.KeyFrame;
 import javafx.animation.ParallelTransition;
-import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.animation.TranslateTransition;
 import javafx.beans.property.ReadOnlyStringProperty;
@@ -77,18 +76,15 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.Labeled;
 import javafx.scene.control.ListCell;
-import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
-import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.TextField;
@@ -100,7 +96,6 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
-import javafx.geometry.Side;
 import javafx.scene.Cursor;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
@@ -130,8 +125,6 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
 import javafx.scene.text.TextBoundsType;
 import javafx.geometry.VPos;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
 import javafx.util.Duration;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
@@ -175,9 +168,7 @@ public class MainController {
     private HBox sidebarSearchActions;
     private Button clearSearchTextButton;
     private Button clearSearchHistoryButton;
-    private ContextMenu searchSuggestionMenu;
-    private PauseTransition searchSuggestionDebounce;
-    private final List<String> searchHistory = new ArrayList<>();
+    private SearchController searchController;
     private ToggleButton scheduleNavButton;
     private ToggleButton timelineNavButton;
     private ToggleButton heatmapNavButton;
@@ -203,14 +194,6 @@ public class MainController {
     private int lastKnownPendingCount = -1;
 
     private ThemeCoordinator themeCoordinator;
-
-    private static final String SEARCH_HISTORY_PREFERENCE_KEY = "todo.search.history";
-    private static final int SEARCH_HISTORY_MAX_ENTRIES = 20;
-    private static final int SEARCH_SUGGESTION_HISTORY_WHEN_EMPTY_LIMIT = 8;
-    private static final int SEARCH_SUGGESTION_TOTAL_LIMIT = 12;
-    private static final int SEARCH_SUGGESTION_BUCKET_LIMIT = 3;
-    private static final Duration SEARCH_SUGGESTION_DEBOUNCE_DURATION = Duration.millis(120);
-    private static final Pattern SEARCH_HISTORY_WHITESPACE = Pattern.compile("\\s+");
 
     private static final String PREF_TIMELINE_ZOOM_WHEEL_MODIFIER_KEY = "todo.shortcut.timeline.zoom.wheelModifier";
     private static final String PREF_TIMELINE_ZOOM_IN_KEY = "todo.shortcut.timeline.zoom.in";
@@ -244,7 +227,6 @@ public class MainController {
             fontService,
             localizationService
         );
-        searchHistory.addAll(loadSearchHistory(applicationContext.getPreferencesStore()));
         loadTimelineShortcutPreferences();
         scheduleCompletionExecutor = Executors.newSingleThreadExecutor(createCompletionThreadFactory());
         scheduleCompletionCoordinator = new ScheduleCompletionCoordinator(
@@ -347,13 +329,30 @@ public class MainController {
         searchField.setMaxWidth(Double.MAX_VALUE);
         searchField.getStyleClass().addAll("search-field", "search-field-with-actions");
         searchField.setPromptText(text("sidebar.search.prompt"));
-        installSidebarSearchSuggestions();
+        searchController = new SearchController(
+            scheduleItemService,
+            applicationContext.getPreferencesStore(),
+            searchField,
+            keyword -> {
+                scheduleListView.searchSchedules(keyword);
+                showView(scheduleListView);
+            },
+            () -> {
+                if (scheduleListView != null) {
+                    scheduleListView.clearSearch();
+                }
+            },
+            () -> sidebarCollapsed,
+            this::updateSidebarSearchActionButtons,
+            (iconKey, title) -> themeCoordinator.createSvgIcon(iconKey, title, 16),
+            this::categoryDisplayName
+        );
 
         clearSearchTextButton = new Button();
         clearSearchTextButton.getStyleClass().add("icon-button");
         clearSearchTextButton.setFocusTraversable(false);
         clearSearchTextButton.setOnAction(event -> {
-            hideSidebarSearchSuggestions();
+            searchController.hideSidebarSearchSuggestions();
             if (searchField != null) {
                 searchField.clear();
                 searchField.requestFocus();
@@ -363,7 +362,7 @@ public class MainController {
         clearSearchHistoryButton = new Button();
         clearSearchHistoryButton.getStyleClass().add("icon-button");
         clearSearchHistoryButton.setFocusTraversable(false);
-        clearSearchHistoryButton.setOnAction(event -> clearSidebarSearchHistory());
+        clearSearchHistoryButton.setOnAction(event -> searchController.clearSidebarSearchHistory());
 
         sidebarSearchActions = new HBox(4, clearSearchTextButton, clearSearchHistoryButton);
         sidebarSearchActions.setAlignment(Pos.CENTER_RIGHT);
@@ -378,15 +377,6 @@ public class MainController {
 
         themeCoordinator.updateSidebarIcons();
         updateSidebarSearchActionButtons();
-
-        searchField.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (shouldClearSearchResults(oldValue, newValue)) {
-                clearScheduleSearch();
-            }
-            queueSidebarSearchSuggestionRefresh();
-            updateSidebarSearchActionButtons();
-        });
-        searchField.setOnAction(e -> performSearch(searchField.getText()));
 
         // 导航按钮
         ToggleGroup navGroup = new ToggleGroup();
@@ -593,7 +583,7 @@ public class MainController {
         }
 
         if (sidebarCollapsed) {
-            hideSidebarSearchSuggestions();
+            searchController.hideSidebarSearchSuggestions();
         }
 
         updateFeaturePanelState();
@@ -607,7 +597,7 @@ public class MainController {
         }
 
         if (clearSearchHistoryButton != null) {
-            boolean hasHistory = searchHistory != null && !searchHistory.isEmpty();
+            boolean hasHistory = searchController != null && searchController.hasSearchHistory();
             clearSearchHistoryButton.setVisible(hasHistory);
             clearSearchHistoryButton.setManaged(hasHistory);
         }
@@ -1038,381 +1028,10 @@ public class MainController {
         }
     }
 
-    private void installSidebarSearchSuggestions() {
-        if (searchField == null) {
-            return;
-        }
-        if (searchSuggestionMenu == null) {
-            searchSuggestionMenu = new ContextMenu();
-            searchSuggestionMenu.getStyleClass().add("search-suggestion-menu");
-            searchSuggestionMenu.setAutoHide(true);
-            searchSuggestionMenu.setHideOnEscape(true);
-        }
-        if (searchSuggestionDebounce == null) {
-            searchSuggestionDebounce = new PauseTransition(SEARCH_SUGGESTION_DEBOUNCE_DURATION);
-            searchSuggestionDebounce.setOnFinished(event -> refreshSidebarSearchSuggestions());
-        }
-
-        searchField.focusedProperty().addListener((observable, oldValue, focused) -> {
-            if (focused) {
-                refreshSidebarSearchSuggestions();
-            } else {
-                // Defer to allow context-menu clicks to register before hiding.
-                Platform.runLater(this::hideSidebarSearchSuggestions);
-            }
-        });
-        searchField.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-            if (event.getCode() == KeyCode.ESCAPE) {
-                hideSidebarSearchSuggestions();
-            }
-        });
-    }
-
-    private void queueSidebarSearchSuggestionRefresh() {
-        if (searchSuggestionDebounce == null || searchField == null) {
-            return;
-        }
-        if (!searchField.isFocused()) {
-            return;
-        }
-        searchSuggestionDebounce.playFromStart();
-    }
-
-    private void refreshSidebarSearchSuggestions() {
-        if (searchSuggestionMenu == null || searchField == null) {
-            return;
-        }
-        if (!searchField.isFocused() || !searchField.isVisible() || sidebarCollapsed) {
-            hideSidebarSearchSuggestions();
-            return;
-        }
-
-        String rawInput = searchField.getText();
-        String trimmedInput = rawInput == null ? "" : rawInput.trim();
-
-        List<SearchSuggestion> suggestions = buildSearchSuggestions(trimmedInput);
-        if (suggestions.isEmpty()) {
-            hideSidebarSearchSuggestions();
-            return;
-        }
-
-        List<MenuItem> items = new ArrayList<>();
-        for (SearchSuggestion suggestion : suggestions) {
-            MenuItem item = new MenuItem(suggestion.displayText);
-            item.setGraphic(createSvgIcon(suggestion.iconKey, suggestion.displayText, 16));
-            item.setOnAction(event -> {
-                searchField.setText(suggestion.insertText);
-                searchField.positionCaret(suggestion.insertText.length());
-                performSearch(suggestion.insertText);
-            });
-            items.add(item);
-        }
-        searchSuggestionMenu.getItems().setAll(items);
-
-        if (!searchSuggestionMenu.isShowing()) {
-            searchSuggestionMenu.show(searchField, Side.BOTTOM, 0, 4);
-        }
-    }
-
-    private List<SearchSuggestion> buildSearchSuggestions(String trimmedInput) {
-        List<SearchSuggestion> suggestions = new ArrayList<>();
-        LinkedHashSet<String> dedupeKeys = new LinkedHashSet<>();
-
-        if (trimmedInput == null || trimmedInput.isEmpty()) {
-            int count = 0;
-            for (String entry : searchHistory) {
-                if (entry == null || entry.isBlank()) {
-                    continue;
-                }
-                String insert = entry;
-                String key = insert.toLowerCase(Locale.ROOT);
-                if (!dedupeKeys.add(key)) {
-                    continue;
-                }
-                suggestions.add(new SearchSuggestion(insert, insert, IconKey.RESET));
-                if (++count >= SEARCH_SUGGESTION_HISTORY_WHEN_EMPTY_LIMIT) {
-                    break;
-                }
-            }
-            return suggestions;
-        }
-
-        String needle = trimmedInput.toLowerCase(Locale.ROOT);
-        addSuggestionsFromHistory(suggestions, dedupeKeys, needle, SEARCH_SUGGESTION_BUCKET_LIMIT);
-
-        int remaining = SEARCH_SUGGESTION_TOTAL_LIMIT - suggestions.size();
-        if (remaining <= 0) {
-            return suggestions;
-        }
-
-        try {
-            addSuggestionsFromValues(
-                suggestions,
-                dedupeKeys,
-                scheduleItemService.suggestActiveScheduleTitles(trimmedInput, SEARCH_SUGGESTION_BUCKET_LIMIT),
-                IconKey.NOTES,
-                remaining
-            );
-            remaining = SEARCH_SUGGESTION_TOTAL_LIMIT - suggestions.size();
-            if (remaining <= 0) {
-                return suggestions;
-            }
-
-            addSuggestionsFromValues(
-                suggestions,
-                dedupeKeys,
-                scheduleItemService.suggestActiveTagNames(trimmedInput, SEARCH_SUGGESTION_BUCKET_LIMIT),
-                IconKey.TAG,
-                remaining
-            );
-            remaining = SEARCH_SUGGESTION_TOTAL_LIMIT - suggestions.size();
-            if (remaining <= 0) {
-                return suggestions;
-            }
-
-            List<String> categories = scheduleItemService.suggestActiveCategories(trimmedInput, SEARCH_SUGGESTION_BUCKET_LIMIT);
-            for (String rawCategory : categories) {
-                if (rawCategory == null || rawCategory.isBlank()) {
-                    continue;
-                }
-                String insert = rawCategory;
-                String key = insert.toLowerCase(Locale.ROOT);
-                if (!dedupeKeys.add(key)) {
-                    continue;
-                }
-                suggestions.add(new SearchSuggestion(categoryDisplayName(rawCategory), insert, IconKey.FOLDER));
-                if (suggestions.size() >= SEARCH_SUGGESTION_TOTAL_LIMIT) {
-                    break;
-                }
-            }
-        } catch (SQLException ignored) {
-            // Suggestions are best-effort. The main search path should remain usable.
-        }
-
-        return suggestions;
-    }
-
-    private void addSuggestionsFromHistory(
-        List<SearchSuggestion> suggestions,
-        LinkedHashSet<String> dedupeKeys,
-        String needle,
-        int limit
-    ) {
-        int count = 0;
-        for (String entry : searchHistory) {
-            if (entry == null || entry.isBlank()) {
-                continue;
-            }
-            if (!entry.toLowerCase(Locale.ROOT).contains(needle)) {
-                continue;
-            }
-            String insert = entry;
-            String key = insert.toLowerCase(Locale.ROOT);
-            if (!dedupeKeys.add(key)) {
-                continue;
-            }
-            suggestions.add(new SearchSuggestion(insert, insert, IconKey.RESET));
-            if (++count >= limit || suggestions.size() >= SEARCH_SUGGESTION_TOTAL_LIMIT) {
-                break;
-            }
-        }
-    }
-
-    private static void addSuggestionsFromValues(
-        List<SearchSuggestion> suggestions,
-        LinkedHashSet<String> dedupeKeys,
-        List<String> values,
-        IconKey iconKey,
-        int remaining
-    ) {
-        if (values == null || values.isEmpty() || remaining <= 0) {
-            return;
-        }
-        for (String value : values) {
-            if (value == null || value.isBlank()) {
-                continue;
-            }
-            String insert = value;
-            String key = insert.toLowerCase(Locale.ROOT);
-            if (!dedupeKeys.add(key)) {
-                continue;
-            }
-            suggestions.add(new SearchSuggestion(insert, insert, iconKey));
-            if (--remaining <= 0 || suggestions.size() >= SEARCH_SUGGESTION_TOTAL_LIMIT) {
-                break;
-            }
-        }
-    }
-
-    private void hideSidebarSearchSuggestions() {
-        if (searchSuggestionDebounce != null) {
-            searchSuggestionDebounce.stop();
-        }
-        if (searchSuggestionMenu != null) {
-            searchSuggestionMenu.hide();
-        }
-    }
-
-    private void clearSidebarSearchHistory() {
-        hideSidebarSearchSuggestions();
-        clearSearchHistory(applicationContext.getPreferencesStore(), searchHistory);
-        updateSidebarSearchActionButtons();
-        refreshSidebarSearchSuggestions();
-        if (searchField != null) {
-            searchField.requestFocus();
-        }
-    }
-
-    private static final class SearchSuggestion {
-        private final String displayText;
-        private final String insertText;
-        private final IconKey iconKey;
-
-        private SearchSuggestion(String displayText, String insertText, IconKey iconKey) {
-            this.displayText = displayText;
-            this.insertText = insertText;
-            this.iconKey = iconKey;
-        }
-    }
-    
-    private void performSearch(String keyword) {
-        hideSidebarSearchSuggestions();
-        if (isBlankSearchText(keyword)) {
-            clearScheduleSearch();
-            return;
-        }
-        rememberSearchHistory(applicationContext.getPreferencesStore(), searchHistory, keyword);
-        updateSidebarSearchActionButtons();
-        scheduleListView.searchSchedules(keyword.trim());
-        showView(scheduleListView);
-    }
-
-    private void clearScheduleSearch() {
-        if (scheduleListView == null) {
-            return;
-        }
-        scheduleListView.clearSearch();
-    }
-
-    static boolean shouldClearSearchResults(String previousText, String currentText) {
-        return !isBlankSearchText(previousText) && isBlankSearchText(currentText);
-    }
-
     private static boolean isBlankSearchText(String text) {
         return text == null || text.trim().isEmpty();
     }
 
-    static List<String> loadSearchHistory(UserPreferencesStore preferencesStore) {
-        if (preferencesStore == null) {
-            return List.of();
-        }
-        return parseSearchHistory(preferencesStore.get(SEARCH_HISTORY_PREFERENCE_KEY, ""));
-    }
-
-    static void rememberSearchHistory(
-        UserPreferencesStore preferencesStore,
-        List<String> historyBuffer,
-        String rawKeyword
-    ) {
-        if (preferencesStore == null || historyBuffer == null) {
-            return;
-        }
-
-        List<String> updated = appendSearchHistory(historyBuffer, rawKeyword, SEARCH_HISTORY_MAX_ENTRIES);
-        if (updated.equals(historyBuffer)) {
-            return;
-        }
-
-        historyBuffer.clear();
-        historyBuffer.addAll(updated);
-        if (historyBuffer.isEmpty()) {
-            preferencesStore.remove(SEARCH_HISTORY_PREFERENCE_KEY);
-        } else {
-            preferencesStore.put(SEARCH_HISTORY_PREFERENCE_KEY, String.join("\n", historyBuffer));
-        }
-    }
-
-    static void clearSearchHistory(UserPreferencesStore preferencesStore, List<String> historyBuffer) {
-        if (historyBuffer != null) {
-            historyBuffer.clear();
-        }
-        if (preferencesStore != null) {
-            preferencesStore.remove(SEARCH_HISTORY_PREFERENCE_KEY);
-        }
-    }
-
-    static List<String> appendSearchHistory(List<String> existing, String rawEntry, int maxEntries) {
-        if (maxEntries <= 0) {
-            return List.of();
-        }
-
-        String normalizedEntry = normalizeSearchHistoryEntry(rawEntry);
-        if (normalizedEntry == null) {
-            return existing == null ? List.of() : List.copyOf(existing);
-        }
-
-        List<String> updated = new ArrayList<>();
-        LinkedHashSet<String> seen = new LinkedHashSet<>();
-
-        updated.add(normalizedEntry);
-        seen.add(normalizedEntry.toLowerCase(Locale.ROOT));
-
-        if (existing != null) {
-            for (String entry : existing) {
-                String normalizedExisting = normalizeSearchHistoryEntry(entry);
-                if (normalizedExisting == null) {
-                    continue;
-                }
-                String key = normalizedExisting.toLowerCase(Locale.ROOT);
-                if (!seen.add(key)) {
-                    continue;
-                }
-                updated.add(normalizedExisting);
-                if (updated.size() >= maxEntries) {
-                    break;
-                }
-            }
-        }
-
-        return updated;
-    }
-
-    static List<String> parseSearchHistory(String rawHistory) {
-        if (rawHistory == null || rawHistory.isBlank()) {
-            return List.of();
-        }
-
-        String[] lines = rawHistory.replace("\r", "").split("\n");
-        List<String> parsed = new ArrayList<>();
-        LinkedHashSet<String> seen = new LinkedHashSet<>();
-        for (String line : lines) {
-            String normalized = normalizeSearchHistoryEntry(line);
-            if (normalized == null) {
-                continue;
-            }
-            String key = normalized.toLowerCase(Locale.ROOT);
-            if (!seen.add(key)) {
-                continue;
-            }
-            parsed.add(normalized);
-            if (parsed.size() >= SEARCH_HISTORY_MAX_ENTRIES) {
-                break;
-            }
-        }
-        return parsed;
-    }
-
-    static String normalizeSearchHistoryEntry(String rawEntry) {
-        if (rawEntry == null) {
-            return null;
-        }
-        String sanitized = rawEntry.replace('\r', ' ').replace('\n', ' ').trim();
-        if (sanitized.isEmpty()) {
-            return null;
-        }
-        return SEARCH_HISTORY_WHITESPACE.matcher(sanitized).replaceAll(" ");
-    }
-    
     public void openNewScheduleDialog() {
         focusScheduleQuickAdd();
     }

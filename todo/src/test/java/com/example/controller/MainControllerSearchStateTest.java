@@ -9,21 +9,21 @@ class MainControllerSearchStateTest {
 
     @Test
     void clearsSearchWhenTextTransitionsFromKeywordToEmpty() {
-        assertTrue(MainController.shouldClearSearchResults("study", ""));
+        assertTrue(SearchController.shouldClearSearchResults("study", ""));
     }
 
     @Test
     void clearsSearchWhenTextTransitionsFromKeywordToWhitespace() {
-        assertTrue(MainController.shouldClearSearchResults("study", "   "));
+        assertTrue(SearchController.shouldClearSearchResults("study", "   "));
     }
 
     @Test
     void ignoresRepeatedBlankValues() {
-        assertFalse(MainController.shouldClearSearchResults("", "   "));
+        assertFalse(SearchController.shouldClearSearchResults("", "   "));
     }
 
     @Test
     void ignoresKeywordEditsThatRemainNonBlank() {
-        assertFalse(MainController.shouldClearSearchResults("study", "study-plan"));
+        assertFalse(SearchController.shouldClearSearchResults("study", "study-plan"));
     }
 }
