@@ -1,6 +1,5 @@
 package com.example.application;
 
-import com.example.model.Schedule;
 import com.example.model.ScheduleItem;
 
 import java.sql.SQLException;
@@ -59,7 +58,7 @@ public final class ReminderNotificationService {
 
     private void resyncNow() {
         try {
-            List<Schedule> schedules = loadSchedules();
+            List<ScheduleItem> schedules = loadSchedules();
             List<PlannedToast> planned = planner.plan(schedules, Instant.now(), ReminderToastPlanner.DEFAULT_WINDOW_DAYS, ReminderToastPlanner.DEFAULT_MAX_TOASTS);
             windowsToastScheduler.syncScheduledToasts(planned);
         } catch (Exception exception) {
@@ -71,9 +70,9 @@ public final class ReminderNotificationService {
         }
     }
 
-    private List<Schedule> loadSchedules() throws SQLException {
+    private List<ScheduleItem> loadSchedules() throws SQLException {
         List<ScheduleItem> items = scheduleItemService.getActiveScheduleItems();
-        List<Schedule> schedules = new ArrayList<>();
+        List<ScheduleItem> schedules = new ArrayList<>();
         if (items == null) {
             return schedules;
         }
@@ -81,7 +80,7 @@ public final class ReminderNotificationService {
             if (item == null) {
                 continue;
             }
-            schedules.add(item instanceof Schedule schedule ? new Schedule(schedule) : new Schedule(item));
+            schedules.add(item instanceof ScheduleItem schedule ? new ScheduleItem(schedule) : new ScheduleItem(item));
         }
         return schedules;
     }

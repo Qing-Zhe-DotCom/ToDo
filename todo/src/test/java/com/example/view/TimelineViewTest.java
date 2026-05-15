@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import com.example.application.IconKey;
 import com.example.application.WheelModifier;
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 import javafx.application.Platform;
 import javafx.embed.swing.JFXPanel;
@@ -43,7 +43,7 @@ class TimelineViewTest {
 
     @Test
     void resolveTimelineRangeHandlesMissingBoundariesAndMinutePrecision() {
-        Schedule s1 = new Schedule();
+        ScheduleItem s1 = new ScheduleItem();
         s1.setStartAt(LocalDateTime.of(2023, 10, 1, 10, 5));
         s1.setDueAt(LocalDateTime.of(2023, 10, 5, 18, 0));
 
@@ -52,12 +52,12 @@ class TimelineViewTest {
         assertEquals(LocalDate.of(2023, 10, 1), TimelineView.resolveTimelineStartDate(s1));
         assertEquals(LocalDate.of(2023, 10, 5), TimelineView.resolveTimelineEndDate(s1));
 
-        Schedule dueOnly = new Schedule();
+        ScheduleItem dueOnly = new ScheduleItem();
         dueOnly.setDueAt(LocalDateTime.of(2023, 10, 5, 12, 34));
         assertEquals(LocalDateTime.of(2023, 10, 5, 0, 0), TimelineView.resolveTimelineStartAt(dueOnly));
         assertEquals(LocalDateTime.of(2023, 10, 5, 12, 34), TimelineView.resolveTimelineEndAt(dueOnly));
 
-        Schedule startOnly = new Schedule();
+        ScheduleItem startOnly = new ScheduleItem();
         startOnly.setStartAt(LocalDateTime.of(2023, 10, 1, 9, 0));
         assertEquals(LocalDateTime.of(2023, 10, 1, 9, 0), TimelineView.resolveTimelineStartAt(startOnly));
         assertEquals(LocalDateTime.of(2023, 10, 1, 23, 59), TimelineView.resolveTimelineEndAt(startOnly));
@@ -229,9 +229,9 @@ class TimelineViewTest {
 
     @Test
     void ctrlWheelScrollEventIsConsumedAndKeepsViewportCenterStable() throws Exception {
-        Schedule schedule = new Schedule();
+        ScheduleItem schedule = new ScheduleItem();
         schedule.setName("Quarterly plan");
-        schedule.setPriority(Schedule.PRIORITY_MEDIUM);
+        schedule.setPriority(ScheduleItem.PRIORITY_MEDIUM);
         schedule.setStartAt(LocalDateTime.of(2026, 4, 1, 9, 0));
         schedule.setDueAt(LocalDateTime.of(2026, 4, 5, 18, 0));
 
@@ -404,9 +404,9 @@ class TimelineViewTest {
     }
 
     private static final class TestTimelineController implements TimelineView.TimelineController {
-        private final List<Schedule> schedules;
+        private final List<ScheduleItem> schedules;
 
-        private TestTimelineController(List<Schedule> schedules) {
+        private TestTimelineController(List<ScheduleItem> schedules) {
             this.schedules = schedules;
         }
 
@@ -434,12 +434,12 @@ class TimelineViewTest {
         }
 
         @Override
-        public List<Schedule> applyPendingCompletionMutations(List<Schedule> schedules) {
+        public List<ScheduleItem> applyPendingCompletionMutations(List<ScheduleItem> schedules) {
             return schedules;
         }
 
         @Override
-        public List<Schedule> loadAllSchedules() {
+        public List<ScheduleItem> loadAllSchedules() {
             return schedules;
         }
 

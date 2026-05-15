@@ -21,7 +21,7 @@ import com.example.application.ScheduleOccurrenceProjector;
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionCoordinator;
 import com.example.controller.ScheduleCompletionMutation;
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
@@ -66,7 +66,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     static final String FILTER_UPCOMING = "upcoming";
 
     private final MainController controller;
-    private final List<Schedule> loadedSchedules = new ArrayList<>();
+    private final List<ScheduleItem> loadedSchedules = new ArrayList<>();
     private final Map<String, ScheduleCardNode> cardNodesById = new LinkedHashMap<>();
 
     private VBox root;
@@ -153,9 +153,9 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         private final Button postponeButton;
         private final Button pinButton;
         private final Button unpinButton;
-        private Schedule schedule;
+        private ScheduleItem schedule;
 
-        private ScheduleCardNode(Schedule schedule) {
+        private ScheduleCardNode(ScheduleItem schedule) {
             this.schedule = schedule;
 
             cardInner = new HBox(12);
@@ -290,7 +290,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             return container;
         }
 
-        private Schedule getSchedule() {
+        private ScheduleItem getSchedule() {
             return schedule;
         }
 
@@ -334,7 +334,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             unpinButton.setOpacity(schedule.isSuspended() ? base : 0.0);
         }
 
-        private void bindSchedule(Schedule schedule) {
+        private void bindSchedule(ScheduleItem schedule) {
             this.schedule = schedule;
             restoreMotionSteadyState();
             statusControl.syncCompleted(schedule.isCompleted());
@@ -603,7 +603,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         }
 
         try {
-            Schedule createdSchedule = controller.quickCreateSchedule(title);
+            ScheduleItem createdSchedule = controller.quickCreateSchedule(title);
             quickAddField.clear();
             focusQuickAddInput();
             
@@ -699,7 +699,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
     private void loadSchedules() {
         try {
-            List<Schedule> schedules = controller.applyPendingCompletionMutations(controller.loadAllSchedules());
+            List<ScheduleItem> schedules = controller.applyPendingCompletionMutations(controller.loadAllSchedules());
             setLoadedSchedules(schedules);
         } catch (SQLException e) {
             controller.showError(controller.text("error.loadSchedules.title"), e.getMessage());
@@ -708,14 +708,14 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
     private void loadSearchResults(String keyword) {
         try {
-            List<Schedule> schedules = controller.applyPendingCompletionMutations(controller.searchSchedules(keyword));
+            List<ScheduleItem> schedules = controller.applyPendingCompletionMutations(controller.searchSchedules(keyword));
             setLoadedSchedules(schedules);
         } catch (SQLException e) {
             controller.showError(controller.text("error.search.title"), e.getMessage());
         }
     }
 
-    private void setLoadedSchedules(List<Schedule> schedules) {
+    private void setLoadedSchedules(List<ScheduleItem> schedules) {
         loadedSchedules.clear();
         if (schedules != null) {
             loadedSchedules.addAll(schedules);
@@ -739,7 +739,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     }
 
     private void renderSchedules() {
-        List<Schedule> displayedSchedules = buildDisplayedSchedules();
+        List<ScheduleItem> displayedSchedules = buildDisplayedSchedules();
         Set<String> loadedIds = displayedSchedules.stream()
             .map(schedule -> schedule.getViewKey() != null && !schedule.getViewKey().isBlank()
                 ? schedule.getViewKey()
@@ -750,7 +750,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         List<Node> pendingNodes = new ArrayList<>();
         List<Node> suspendedNodes = new ArrayList<>();
         List<Node> completedNodes = new ArrayList<>();
-        for (Schedule schedule : displayedSchedules) {
+        for (ScheduleItem schedule : displayedSchedules) {
             String cardKey = schedule.getViewKey() != null && !schedule.getViewKey().isBlank()
                 ? schedule.getViewKey()
                 : schedule.getId();
@@ -810,13 +810,13 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         cardsBox.setVisible(hasCards && !collapsed);
     }
 
-    private List<Schedule> buildDisplayedSchedules() {
-        Comparator<Schedule> comparator = buildDisplayComparator();
+    private List<ScheduleItem> buildDisplayedSchedules() {
+        Comparator<ScheduleItem> comparator = buildDisplayComparator();
         ProjectionWindow projectionWindow = resolveProjectionWindow(
             showingSearchResults ? FILTER_ALL : (filterComboBox != null ? filterComboBox.getValue() : FILTER_MY_DAY),
             LocalDate.now()
         );
-        List<Schedule> projectedSchedules = ScheduleOccurrenceProjector.projectForRange(
+        List<ScheduleItem> projectedSchedules = ScheduleOccurrenceProjector.projectForRange(
             loadedSchedules,
             projectionWindow.start(),
             projectionWindow.end(),
@@ -851,7 +851,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         }
     }
 
-    static boolean matchesFilter(Schedule schedule, String filter, LocalDate today) {
+    static boolean matchesFilter(ScheduleItem schedule, String filter, LocalDate today) {
         if (schedule == null) {
             return false;
         }
@@ -866,7 +866,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
             return isOverdueOn(schedule, referenceDate);
         }
         if (FILTER_HIGH_PRIORITY.equals(normalizedFilter)) {
-            return Schedule.PRIORITY_HIGH.equals(schedule.getPriority());
+            return ScheduleItem.PRIORITY_HIGH.equals(schedule.getPriority());
         }
         if (FILTER_UPCOMING.equals(normalizedFilter)) {
             return isUpcomingOn(schedule, referenceDate);
@@ -874,7 +874,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         return true;
     }
 
-    static boolean isOverdueOn(Schedule schedule, LocalDate referenceDate) {
+    static boolean isOverdueOn(ScheduleItem schedule, LocalDate referenceDate) {
         if (schedule == null || schedule.isCompleted() || schedule.getEffectiveEndAt() == null) {
             return false;
         }
@@ -884,7 +884,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         return referenceDate != null && schedule.getEffectiveEndDate() != null && schedule.getEffectiveEndDate().isBefore(referenceDate);
     }
 
-    static boolean isUpcomingOn(Schedule schedule, LocalDate referenceDate) {
+    static boolean isUpcomingOn(ScheduleItem schedule, LocalDate referenceDate) {
         if (schedule == null || referenceDate == null || schedule.isCompleted()) {
             return false;
         }
@@ -913,12 +913,12 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         return daysUntilDeadline <= 7;
     }
 
-    static Comparator<Schedule> buildDisplayComparator() {
-        Comparator<Schedule> pendingComparator = buildPendingComparator();
-        Comparator<Schedule> completedComparator = Comparator
-            .comparing(Schedule::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
-            .thenComparing(Schedule::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
-            .thenComparing(Schedule::getId, Comparator.reverseOrder());
+    static Comparator<ScheduleItem> buildDisplayComparator() {
+        Comparator<ScheduleItem> pendingComparator = buildPendingComparator();
+        Comparator<ScheduleItem> completedComparator = Comparator
+            .comparing(ScheduleItem::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+            .thenComparing(ScheduleItem::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+            .thenComparing(ScheduleItem::getId, Comparator.reverseOrder());
 
         return (left, right) -> {
             int completedGroup = Boolean.compare(left.isCompleted(), right.isCompleted());
@@ -932,29 +932,29 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         };
     }
 
-    private static Comparator<Schedule> buildPendingComparator() {
+    private static Comparator<ScheduleItem> buildPendingComparator() {
         return Comparator
-            .comparing(Schedule::getDueAt, Comparator.nullsLast(Comparator.naturalOrder()))
-            .thenComparing(Schedule::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
-            .thenComparing(Schedule::getId);
+            .comparing(ScheduleItem::getDueAt, Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparing(ScheduleItem::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+            .thenComparing(ScheduleItem::getId);
     }
 
-    public void addSchedule(Schedule schedule) throws SQLException {
+    public void addSchedule(ScheduleItem schedule) throws SQLException {
         controller.createSchedule(schedule);
         refresh();
     }
 
-    public void updateSchedule(Schedule schedule) throws SQLException {
+    public void updateSchedule(ScheduleItem schedule) throws SQLException {
         controller.saveSchedule(schedule);
         refresh();
     }
 
-    public void deleteSchedule(Schedule schedule) throws SQLException {
+    public void deleteSchedule(ScheduleItem schedule) throws SQLException {
         controller.removeSchedule(schedule.getId());
         refresh();
     }
 
-    private void handlePinSchedule(Schedule schedule) {
+    private void handlePinSchedule(ScheduleItem schedule) {
         if (schedule == null || schedule.isCompleted() || schedule.isSuspended()) {
             return;
         }
@@ -980,7 +980,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         }
     }
 
-    private void handleUnpinSchedule(Schedule schedule) {
+    private void handleUnpinSchedule(ScheduleItem schedule) {
         if (schedule == null || schedule.isCompleted() || !schedule.isSuspended()) {
             return;
         }
@@ -1006,7 +1006,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         }
     }
 
-    private void handlePostponeDay(Schedule schedule) {
+    private void handlePostponeDay(ScheduleItem schedule) {
         if (schedule == null || schedule.isCompleted()) {
             return;
         }
@@ -1029,7 +1029,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     }
 
     private boolean handleStatusToggle(ScheduleCardNode cardNode, boolean targetCompleted) {
-        Schedule schedule = cardNode.getSchedule();
+        ScheduleItem schedule = cardNode.getSchedule();
         if (schedule == null) {
             return false;
         }
@@ -1127,7 +1127,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         return targetCompleted ? completedHeader.getRoot() : pendingHeader.getRoot();
     }
 
-    private String resolveCardKey(Schedule schedule) {
+    private String resolveCardKey(ScheduleItem schedule) {
         return schedule.getViewKey() != null && !schedule.getViewKey().isBlank()
             ? schedule.getViewKey()
             : schedule.getId();
@@ -1163,7 +1163,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
 
     private boolean applyMutation(ScheduleCompletionMutation mutation, boolean optimistic) {
         boolean changed = false;
-        for (Schedule schedule : loadedSchedules) {
+        for (ScheduleItem schedule : loadedSchedules) {
             if (!mutation.matches(schedule)) {
                 continue;
             }
@@ -1199,16 +1199,16 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
     }
 
     private String getPriorityClass(String priority) {
-        if (Schedule.PRIORITY_HIGH.equals(priority)) {
+        if (ScheduleItem.PRIORITY_HIGH.equals(priority)) {
             return "high";
         }
-        if (Schedule.PRIORITY_LOW.equals(priority)) {
+        if (ScheduleItem.PRIORITY_LOW.equals(priority)) {
             return "low";
         }
         return "medium";
     }
 
-    static String buildScheduleDateText(Schedule schedule) {
+    static String buildScheduleDateText(ScheduleItem schedule) {
         if (schedule == null) {
             return "";
         }
@@ -1231,7 +1231,7 @@ public class ScheduleListView implements View, ScheduleCompletionParticipant {
         return "";
     }
 
-    static String buildScheduleDateText(Schedule schedule, MainController controller) {
+    static String buildScheduleDateText(ScheduleItem schedule, MainController controller) {
         if (controller == null) {
             return buildScheduleDateText(schedule);
         }

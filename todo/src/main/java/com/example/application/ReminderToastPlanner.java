@@ -1,7 +1,7 @@
 package com.example.application;
 
 import com.example.model.Reminder;
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -32,18 +32,18 @@ public final class ReminderToastPlanner {
         this.localizationService = Objects.requireNonNull(localizationService, "localizationService");
     }
 
-    public List<PlannedToast> plan(List<Schedule> schedules) {
+    public List<PlannedToast> plan(List<ScheduleItem> schedules) {
         return plan(schedules, Instant.now(), DEFAULT_WINDOW_DAYS, DEFAULT_MAX_TOASTS);
     }
 
-    List<PlannedToast> plan(List<Schedule> schedules, Instant now, int windowDays, int maxToasts) {
+    List<PlannedToast> plan(List<ScheduleItem> schedules, Instant now, int windowDays, int maxToasts) {
         if (schedules == null || schedules.isEmpty()) {
             return List.of();
         }
         Instant nowInstant = now != null ? now : Instant.now();
 
         Map<String, PlannedToast> unique = new HashMap<>();
-        for (Schedule schedule : schedules) {
+        for (ScheduleItem schedule : schedules) {
             planSchedule(schedule, nowInstant, windowDays, unique);
         }
 
@@ -56,7 +56,7 @@ public final class ReminderToastPlanner {
     }
 
     private void planSchedule(
-        Schedule schedule,
+        ScheduleItem schedule,
         Instant nowInstant,
         int windowDays,
         Map<String, PlannedToast> sink
@@ -97,13 +97,13 @@ public final class ReminderToastPlanner {
             occurrenceEnd = tmp;
         }
 
-        List<Schedule> projected = ScheduleOccurrenceProjector.projectForRange(
+        List<ScheduleItem> projected = ScheduleOccurrenceProjector.projectForRange(
             List.of(schedule),
             occurrenceStart,
             occurrenceEnd,
             false
         );
-        for (Schedule occurrence : projected) {
+        for (ScheduleItem occurrence : projected) {
             if (occurrence == null || occurrence.isDeleted() || occurrence.isCompleted()) {
                 continue;
             }
@@ -113,7 +113,7 @@ public final class ReminderToastPlanner {
     }
 
     private void collectToastsForOccurrence(
-        Schedule schedule,
+        ScheduleItem schedule,
         List<Reminder> reminders,
         ZoneId zone,
         Instant nowInstant,
@@ -198,7 +198,7 @@ public final class ReminderToastPlanner {
         return ZoneId.systemDefault();
     }
 
-    private LocalDateTime resolveAnchorDateTime(Schedule schedule) {
+    private LocalDateTime resolveAnchorDateTime(ScheduleItem schedule) {
         if (schedule == null) {
             return null;
         }

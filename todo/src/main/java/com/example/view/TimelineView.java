@@ -16,7 +16,6 @@ import com.example.application.ScheduleOccurrenceProjector;
 import com.example.application.WheelModifier;
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionMutation;
-import com.example.model.Schedule;
 import com.example.model.ScheduleItem;
 
 import javafx.animation.AnimationTimer;
@@ -131,11 +130,11 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         default void showError(String title, String message) {
         }
 
-        default List<Schedule> applyPendingCompletionMutations(List<Schedule> schedules) {
+        default List<ScheduleItem> applyPendingCompletionMutations(List<ScheduleItem> schedules) {
             return schedules == null ? List.of() : schedules;
         }
 
-        default List<Schedule> loadAllSchedules() throws SQLException {
+        default List<ScheduleItem> loadAllSchedules() throws SQLException {
             return List.of();
         }
 
@@ -143,18 +142,18 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             return "";
         }
 
-        default boolean isScheduleSelected(Schedule schedule) {
+        default boolean isScheduleSelected(ScheduleItem schedule) {
             return false;
         }
 
-        default boolean updateScheduleCompletion(Schedule schedule, boolean targetCompleted) {
+        default boolean updateScheduleCompletion(ScheduleItem schedule, boolean targetCompleted) {
             return false;
         }
 
-        default void showScheduleDetailsAndFocusTitle(Schedule schedule) {
+        default void showScheduleDetailsAndFocusTitle(ScheduleItem schedule) {
         }
 
-        default void showScheduleDetails(Schedule schedule) {
+        default void showScheduleDetails(ScheduleItem schedule) {
         }
 
         default String priorityDisplayName(String priority) {
@@ -210,12 +209,12 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         }
 
         @Override
-        public List<Schedule> applyPendingCompletionMutations(List<Schedule> schedules) {
+        public List<ScheduleItem> applyPendingCompletionMutations(List<ScheduleItem> schedules) {
             return delegate.applyPendingCompletionMutations(schedules);
         }
 
         @Override
-        public List<Schedule> loadAllSchedules() throws SQLException {
+        public List<ScheduleItem> loadAllSchedules() throws SQLException {
             return delegate.loadAllSchedules();
         }
 
@@ -225,22 +224,22 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         }
 
         @Override
-        public boolean isScheduleSelected(Schedule schedule) {
+        public boolean isScheduleSelected(ScheduleItem schedule) {
             return delegate.isScheduleSelected(schedule);
         }
 
         @Override
-        public boolean updateScheduleCompletion(Schedule schedule, boolean targetCompleted) {
+        public boolean updateScheduleCompletion(ScheduleItem schedule, boolean targetCompleted) {
             return delegate.updateScheduleCompletion(schedule, targetCompleted);
         }
 
         @Override
-        public void showScheduleDetailsAndFocusTitle(Schedule schedule) {
+        public void showScheduleDetailsAndFocusTitle(ScheduleItem schedule) {
             delegate.showScheduleDetailsAndFocusTitle(schedule);
         }
 
         @Override
-        public void showScheduleDetails(Schedule schedule) {
+        public void showScheduleDetails(ScheduleItem schedule) {
             delegate.showScheduleDetails(schedule);
         }
 
@@ -264,7 +263,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     private AnimationTimer autoScrollTimer;
     private long lastUpdate = 0;
     private double scrollVelocity = 0;
-    private List<Schedule> loadedSchedules = new ArrayList<>();
+    private List<ScheduleItem> loadedSchedules = new ArrayList<>();
 
     private double zoomFactor = 1.0;
     private LocalDateTime lastRangeStartAt;
@@ -815,15 +814,15 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         renderTimeline(loadedSchedules, null, true);
     }
 
-    private void renderTimeline(List<Schedule> allSchedules) {
+    private void renderTimeline(List<ScheduleItem> allSchedules) {
         renderTimeline(allSchedules, null, true);
     }
 
-    private void renderTimeline(List<Schedule> allSchedules, Long anchorMinuteOffset, boolean scrollToToday) {
+    private void renderTimeline(List<ScheduleItem> allSchedules, Long anchorMinuteOffset, boolean scrollToToday) {
         timelinePane.getChildren().clear();
         zoomUpdaters.clear();
 
-        List<Schedule> baseSchedules = new ArrayList<>(allSchedules == null ? List.of() : allSchedules);
+        List<ScheduleItem> baseSchedules = new ArrayList<>(allSchedules == null ? List.of() : allSchedules);
         if (baseSchedules.isEmpty()) {
             showTimelineState(text("view.timeline.emptyWithoutDates"));
             return;
@@ -841,7 +840,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             .max(LocalDate::compareTo)
             .orElse(LocalDate.now().plusDays(30));
 
-        boolean hasRecurring = baseSchedules.stream().anyMatch(Schedule::hasRecurrence);
+        boolean hasRecurring = baseSchedules.stream().anyMatch(ScheduleItem::hasRecurrence);
 
         LocalDate minDate = startDatePicker.getValue() != null
             ? startDatePicker.getValue()
@@ -858,21 +857,21 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
 
         allSchedules = ScheduleOccurrenceProjector.projectForRange(baseSchedules, minDate, maxDate, false);
 
-        List<Schedule> shortTasks = new ArrayList<>();
-        List<Schedule> mediumTasks = new ArrayList<>();
-        List<Schedule> longTasks = new ArrayList<>();
+        List<ScheduleItem> shortTasks = new ArrayList<>();
+        List<ScheduleItem> mediumTasks = new ArrayList<>();
+        List<ScheduleItem> longTasks = new ArrayList<>();
 
-        for (Schedule s : allSchedules) {
+        for (ScheduleItem s : allSchedules) {
             long days = ChronoUnit.DAYS.between(resolveTimelineStartDate(s), resolveTimelineEndDate(s)) + 1;
             if (days < 7) shortTasks.add(s);
             else if (days <= 35) mediumTasks.add(s);
             else longTasks.add(s);
         }
 
-        Comparator<Schedule> cmp = Comparator.comparing(TimelineView::resolveTimelineStartAt)
+        Comparator<ScheduleItem> cmp = Comparator.comparing(TimelineView::resolveTimelineStartAt)
             .thenComparing(TimelineView::resolveTimelineEndAt)
-            .thenComparing(Schedule::getPriorityValue, Comparator.reverseOrder())
-            .thenComparing(Schedule::getName, Comparator.nullsLast(String::compareToIgnoreCase));
+            .thenComparing(ScheduleItem::getPriorityValue, Comparator.reverseOrder())
+            .thenComparing(ScheduleItem::getName, Comparator.nullsLast(String::compareToIgnoreCase));
             
         shortTasks.sort(cmp);
         mediumTasks.sort(cmp);
@@ -919,7 +918,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         }
     }
 
-    private double appendGroup(List<Schedule> schedules, String title, double startY, LocalDate minDate, LocalDate maxDate, List<TimelineEntry> entries) {
+    private double appendGroup(List<ScheduleItem> schedules, String title, double startY, LocalDate minDate, LocalDate maxDate, List<TimelineEntry> entries) {
         Label headerLabel = new Label(title);
         headerLabel.getStyleClass().add("timeline-group-header");
         headerLabel.setLayoutX(LEFT_PADDING);
@@ -939,7 +938,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         LocalDateTime rangeStartAt = minDate != null ? minDate.atStartOfDay() : null;
         LocalDateTime rangeEndAtExclusive = maxDate != null ? maxDate.plusDays(1).atStartOfDay() : null;
 
-        for (Schedule schedule : schedules) {
+        for (ScheduleItem schedule : schedules) {
             LocalDateTime sAt = resolveTimelineStartAt(schedule);
             LocalDateTime eAt = resolveTimelineEndAt(schedule);
             if (sAt == null || eAt == null) {
@@ -1116,7 +1115,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         double totalWidth,
         double pixelsPerMinute
     ) {
-        Schedule schedule = entry.getSchedule();
+        ScheduleItem schedule = entry.getSchedule();
         LocalDateTime entryStartAt = entry.getStartAt();
         LocalDateTime entryEndAt = entry.getEndAt();
         if (entryStartAt == null || entryEndAt == null) {
@@ -1496,7 +1495,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             return;
         }
         boolean changed = false;
-        for (Schedule schedule : loadedSchedules) {
+        for (ScheduleItem schedule : loadedSchedules) {
             if (!mutation.matches(schedule)) {
                 continue;
             }
@@ -1522,7 +1521,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
             return;
         }
         boolean changed = false;
-        for (Schedule schedule : loadedSchedules) {
+        for (ScheduleItem schedule : loadedSchedules) {
             if (!mutation.matches(schedule)) {
                 continue;
             }
@@ -1534,12 +1533,12 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         }
     }
 
-    private List<Schedule> getFilteredSchedules(List<Schedule> schedules) {
+    private List<ScheduleItem> getFilteredSchedules(List<ScheduleItem> schedules) {
         return filterAndSortSchedules(schedules, "all");
     }
 
-    static List<Schedule> filterAndSortSchedules(List<Schedule> schedules, String level) {
-        List<Schedule> renderableSchedules = new ArrayList<>(schedules);
+    static List<ScheduleItem> filterAndSortSchedules(List<ScheduleItem> schedules, String level) {
+        List<ScheduleItem> renderableSchedules = new ArrayList<>(schedules);
         renderableSchedules.removeIf(schedule -> resolveTimelineStartAt(schedule) == null || resolveTimelineEndAt(schedule) == null);
         
         renderableSchedules.removeIf(schedule -> {
@@ -1553,16 +1552,16 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         renderableSchedules.sort(Comparator
             .comparing(TimelineView::resolveTimelineStartAt)
             .thenComparing(TimelineView::resolveTimelineEndAt)
-            .thenComparing(Schedule::getPriorityValue, Comparator.reverseOrder())
-            .thenComparing(Schedule::getName, Comparator.nullsLast(String::compareToIgnoreCase)));
+            .thenComparing(ScheduleItem::getPriorityValue, Comparator.reverseOrder())
+            .thenComparing(ScheduleItem::getName, Comparator.nullsLast(String::compareToIgnoreCase)));
         return renderableSchedules;
     }
 
-    static List<TimelineEntry> buildTimelineEntries(List<Schedule> schedules, LocalDate minDate, LocalDate maxDate, String level) {
+    static List<TimelineEntry> buildTimelineEntries(List<ScheduleItem> schedules, LocalDate minDate, LocalDate maxDate, String level) {
         List<TimelineEntry> entries = new ArrayList<>();
         java.util.Map<LocalDate, Integer> dateCount = new java.util.HashMap<>();
 
-        for (Schedule schedule : filterAndSortSchedules(schedules, level)) {
+        for (ScheduleItem schedule : filterAndSortSchedules(schedules, level)) {
             LocalDateTime startAt = resolveTimelineStartAt(schedule);
             LocalDateTime endAt = resolveTimelineEndAt(schedule);
             if (startAt == null || endAt == null) {
@@ -1592,27 +1591,27 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         return entries;
     }
 
-    static LocalDate resolveTimelineStartDate(Schedule schedule) {
+    static LocalDate resolveTimelineStartDate(ScheduleItem schedule) {
         LocalDateTime startAt = resolveTimelineStartAt(schedule);
         return startAt != null ? startAt.toLocalDate() : null;
     }
 
-    static LocalDate resolveTimelineEndDate(Schedule schedule) {
+    static LocalDate resolveTimelineEndDate(ScheduleItem schedule) {
         LocalDateTime endAt = resolveTimelineEndAt(schedule);
         return endAt != null ? endAt.toLocalDate() : null;
     }
 
-    static LocalDateTime resolveTimelineStartAt(Schedule schedule) {
+    static LocalDateTime resolveTimelineStartAt(ScheduleItem schedule) {
         TimelineRange range = resolveTimelineRange(schedule);
         return range != null ? range.startAt : null;
     }
 
-    static LocalDateTime resolveTimelineEndAt(Schedule schedule) {
+    static LocalDateTime resolveTimelineEndAt(ScheduleItem schedule) {
         TimelineRange range = resolveTimelineRange(schedule);
         return range != null ? range.endAt : null;
     }
 
-    private static TimelineRange resolveTimelineRange(Schedule schedule) {
+    private static TimelineRange resolveTimelineRange(ScheduleItem schedule) {
         if (schedule == null) {
             return null;
         }
@@ -1654,7 +1653,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         return new TimelineRange(startAt, endAt);
     }
 
-    private String buildTooltipText(Schedule schedule, LocalDateTime startAt, LocalDateTime endAt) {
+    private String buildTooltipText(ScheduleItem schedule, LocalDateTime startAt, LocalDateTime endAt) {
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         LocalDateTime rawStartAt = schedule.getStartAt();
         LocalDateTime rawDueAt = schedule.getDueAt();
@@ -1674,19 +1673,19 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
     }
 
     static final class TimelineEntry {
-        private final Schedule schedule;
+        private final ScheduleItem schedule;
         private final LocalDateTime startAt;
         private final LocalDateTime endAt;
         private final double cardY;
 
-        TimelineEntry(Schedule schedule, LocalDateTime startAt, LocalDateTime endAt, double cardY) {
+        TimelineEntry(ScheduleItem schedule, LocalDateTime startAt, LocalDateTime endAt, double cardY) {
             this.schedule = schedule;
             this.startAt = startAt;
             this.endAt = endAt;
             this.cardY = cardY;
         }
 
-        Schedule getSchedule() {
+        ScheduleItem getSchedule() {
             return schedule;
         }
 
@@ -1713,7 +1712,7 @@ public class TimelineView implements View, ScheduleCompletionParticipant {
         }
     }
 
-    private static String formatEntryRangeLabel(LocalDateTime startAt, LocalDateTime endAt, Schedule schedule) {
+    private static String formatEntryRangeLabel(LocalDateTime startAt, LocalDateTime endAt, ScheduleItem schedule) {
         if (startAt == null || endAt == null) {
             return "";
         }

@@ -10,7 +10,7 @@ import java.util.List;
 import java.io.InputStream;
 
 import com.example.controller.MainController;
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -39,11 +39,11 @@ import javafx.scene.Node;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
-public class ScheduleDialog extends Dialog<Schedule> {
+public class ScheduleDialog extends Dialog<ScheduleItem> {
     private static final String APP_ICON_RESOURCE = "/icons/macaron_todo_icon.png";
 
     private MainController controller;
-    private Schedule schedule;
+    private ScheduleItem schedule;
     private boolean isEditMode;
 
     private TextField nameField;
@@ -64,7 +64,7 @@ public class ScheduleDialog extends Dialog<Schedule> {
     private Label nameErrorLabel;
     private Label dateErrorLabel;
 
-    public ScheduleDialog(Schedule schedule, MainController controller) {
+    public ScheduleDialog(ScheduleItem schedule, MainController controller) {
         this.controller = controller;
         this.schedule = schedule;
         this.isEditMode = (schedule != null);
@@ -182,23 +182,23 @@ public class ScheduleDialog extends Dialog<Schedule> {
         segmentedControl.getStyleClass().add("segmented-control");
         priorityGroup = new ToggleGroup();
         
-        ToggleButton highBtn = new ToggleButton(controller.priorityDisplayName(Schedule.PRIORITY_HIGH));
-        highBtn.setUserData(Schedule.PRIORITY_HIGH);
+        ToggleButton highBtn = new ToggleButton(controller.priorityDisplayName(ScheduleItem.PRIORITY_HIGH));
+        highBtn.setUserData(ScheduleItem.PRIORITY_HIGH);
         highBtn.getStyleClass().addAll("segment-button", "segment-high");
         highBtn.setToggleGroup(priorityGroup);
         HBox.setHgrow(highBtn, Priority.ALWAYS);
         highBtn.setMaxWidth(Double.MAX_VALUE);
         
-        ToggleButton midBtn = new ToggleButton(controller.priorityDisplayName(Schedule.PRIORITY_MEDIUM));
-        midBtn.setUserData(Schedule.PRIORITY_MEDIUM);
+        ToggleButton midBtn = new ToggleButton(controller.priorityDisplayName(ScheduleItem.PRIORITY_MEDIUM));
+        midBtn.setUserData(ScheduleItem.PRIORITY_MEDIUM);
         midBtn.getStyleClass().addAll("segment-button", "segment-mid");
         midBtn.setToggleGroup(priorityGroup);
         midBtn.setSelected(true);
         HBox.setHgrow(midBtn, Priority.ALWAYS);
         midBtn.setMaxWidth(Double.MAX_VALUE);
         
-        ToggleButton lowBtn = new ToggleButton(controller.priorityDisplayName(Schedule.PRIORITY_LOW));
-        lowBtn.setUserData(Schedule.PRIORITY_LOW);
+        ToggleButton lowBtn = new ToggleButton(controller.priorityDisplayName(ScheduleItem.PRIORITY_LOW));
+        lowBtn.setUserData(ScheduleItem.PRIORITY_LOW);
         lowBtn.getStyleClass().addAll("segment-button", "segment-low");
         lowBtn.setToggleGroup(priorityGroup);
         HBox.setHgrow(lowBtn, Priority.ALWAYS);
@@ -441,8 +441,8 @@ public class ScheduleDialog extends Dialog<Schedule> {
         }
     }
 
-    private Schedule createScheduleFromForm() {
-        Schedule result = isEditMode ? schedule : new Schedule();
+    private ScheduleItem createScheduleFromForm() {
+        ScheduleItem result = isEditMode ? schedule : new ScheduleItem();
 
         result.setName(nameField.getText().trim());
         result.setDescription(descriptionArea.getText());
@@ -458,7 +458,7 @@ public class ScheduleDialog extends Dialog<Schedule> {
         if (priorityGroup.getSelectedToggle() != null) {
             result.setPriority(priorityGroup.getSelectedToggle().getUserData().toString());
         } else {
-            result.setPriority(Schedule.PRIORITY_MEDIUM);
+            result.setPriority(ScheduleItem.PRIORITY_MEDIUM);
         }
 
         result.setCategory(resolveCategoryInput(categoryField.getText()));
@@ -488,7 +488,7 @@ public class ScheduleDialog extends Dialog<Schedule> {
     }
 
     static String resolveCategoryValue(String input, boolean isEditMode) {
-        return resolveCategoryValue(input, isEditMode, Schedule.DEFAULT_CATEGORY);
+        return resolveCategoryValue(input, isEditMode, ScheduleItem.DEFAULT_CATEGORY);
     }
 
     static String resolveCategoryValue(String input, boolean isEditMode, String localizedDefaultLabel) {
@@ -497,15 +497,15 @@ public class ScheduleDialog extends Dialog<Schedule> {
             normalized = "";
         }
         if (!normalized.isEmpty()) {
-            return Schedule.normalizeCategory(normalized);
+            return ScheduleItem.normalizeCategory(normalized);
         }
-        return isEditMode ? "" : Schedule.DEFAULT_CATEGORY;
+        return isEditMode ? "" : ScheduleItem.DEFAULT_CATEGORY;
     }
 
     static String resolveTagsValue(String input, boolean isEditMode) {
         String normalized = input != null ? input.trim() : "";
         if (!normalized.isEmpty()) {
-            return Schedule.normalizeTags(normalized);
+            return ScheduleItem.normalizeTags(normalized);
         }
         return isEditMode ? "" : "";
     }

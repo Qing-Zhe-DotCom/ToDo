@@ -2,7 +2,7 @@ package com.example.application;
 
 import com.example.model.RecurrenceRule;
 import com.example.model.Reminder;
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -20,18 +20,18 @@ public final class ScheduleOccurrenceProjector {
     private ScheduleOccurrenceProjector() {
     }
 
-    public static List<Schedule> projectForRange(
-        List<Schedule> schedules,
+    public static List<ScheduleItem> projectForRange(
+        List<ScheduleItem> schedules,
         LocalDate rangeStart,
         LocalDate rangeEnd,
         boolean keepNonRecurringOutsideRange
     ) {
-        List<Schedule> projected = new ArrayList<>();
+        List<ScheduleItem> projected = new ArrayList<>();
         if (schedules == null || schedules.isEmpty()) {
             return projected;
         }
 
-        for (Schedule schedule : schedules) {
+        for (ScheduleItem schedule : schedules) {
             if (schedule == null || schedule.isDeleted()) {
                 continue;
             }
@@ -46,8 +46,8 @@ public final class ScheduleOccurrenceProjector {
         return projected;
     }
 
-    private static List<Schedule> projectRecurring(Schedule schedule, LocalDate rangeStart, LocalDate rangeEnd) {
-        List<Schedule> projected = new ArrayList<>();
+    private static List<ScheduleItem> projectRecurring(ScheduleItem schedule, LocalDate rangeStart, LocalDate rangeEnd) {
+        List<ScheduleItem> projected = new ArrayList<>();
         RecurrenceRule rule = schedule.getRecurrenceRule();
         LocalDateTime anchorDateTime = resolveAnchorDateTime(schedule);
         if (rule == null || !rule.isActive() || anchorDateTime == null || rangeStart == null || rangeEnd == null) {
@@ -147,8 +147,8 @@ public final class ScheduleOccurrenceProjector {
             && candidateDate.getDayOfMonth() == targetDay;
     }
 
-    private static Schedule projectSingle(Schedule schedule, LocalDate occurrenceDate) {
-        Schedule projected = new Schedule(schedule);
+    private static ScheduleItem projectSingle(ScheduleItem schedule, LocalDate occurrenceDate) {
+        ScheduleItem projected = new ScheduleItem(schedule);
         LocalDateTime anchorDateTime = resolveAnchorDateTime(schedule);
         LocalDate anchorDate = anchorDateTime != null ? anchorDateTime.toLocalDate() : null;
         long shiftDays = occurrenceDate == null || anchorDate == null
@@ -184,7 +184,7 @@ public final class ScheduleOccurrenceProjector {
         return projected;
     }
 
-    private static boolean intersects(Schedule schedule, LocalDate rangeStart, LocalDate rangeEnd) {
+    private static boolean intersects(ScheduleItem schedule, LocalDate rangeStart, LocalDate rangeEnd) {
         if (rangeStart == null || rangeEnd == null) {
             return true;
         }
@@ -201,7 +201,7 @@ public final class ScheduleOccurrenceProjector {
         return !end.isBefore(rangeStart) && !start.isAfter(rangeEnd);
     }
 
-    private static LocalDateTime resolveAnchorDateTime(Schedule schedule) {
+    private static LocalDateTime resolveAnchorDateTime(ScheduleItem schedule) {
         if (schedule == null) {
             return null;
         }

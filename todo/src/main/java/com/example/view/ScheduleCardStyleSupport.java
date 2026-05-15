@@ -6,7 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
@@ -82,7 +82,7 @@ public final class ScheduleCardStyleSupport {
         return DEFAULT_STYLE_ID;
     }
 
-    public static void applyCardPresentation(Node node, Schedule schedule, String styleId, String... roleClasses) {
+    public static void applyCardPresentation(Node node, ScheduleItem schedule, String styleId, String... roleClasses) {
         applyCardStyle(node, styleId, roleClasses);
         applyScheduleState(node, schedule);
     }
@@ -106,7 +106,7 @@ public final class ScheduleCardStyleSupport {
         }
     }
 
-    public static void applyScheduleState(Node node, Schedule schedule) {
+    public static void applyScheduleState(Node node, ScheduleItem schedule) {
         ObservableList<String> styleClasses = node.getStyleClass();
         styleClasses.removeAll(STATE_CLASSES);
 
@@ -114,9 +114,9 @@ public final class ScheduleCardStyleSupport {
             return;
         }
 
-        if (Schedule.PRIORITY_HIGH.equals(schedule.getPriority())) {
+        if (ScheduleItem.PRIORITY_HIGH.equals(schedule.getPriority())) {
             styleClasses.add(STATE_PRIORITY_HIGH);
-        } else if (Schedule.PRIORITY_LOW.equals(schedule.getPriority())) {
+        } else if (ScheduleItem.PRIORITY_LOW.equals(schedule.getPriority())) {
             styleClasses.add(STATE_PRIORITY_LOW);
         } else {
             styleClasses.add(STATE_PRIORITY_MEDIUM);

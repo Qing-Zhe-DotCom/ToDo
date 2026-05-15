@@ -20,7 +20,7 @@ import com.example.application.ThemeService;
 import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionCoordinator;
 import com.example.controller.ScheduleCompletionMutation;
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
@@ -84,8 +84,8 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     private Label dayScheduleRailCountLabel;
     private VBox dayScheduleCardsBox;
     private HBox completedDropZone;
-    private final List<Schedule> loadedSchedules = new ArrayList<>();
-    private Map<LocalDate, List<Schedule>> schedulesByDate = new LinkedHashMap<>();
+    private final List<ScheduleItem> loadedSchedules = new ArrayList<>();
+    private Map<LocalDate, List<ScheduleItem>> schedulesByDate = new LinkedHashMap<>();
     private final Map<LocalDate, StackPane> renderedHeatmapCells = new LinkedHashMap<>();
     private boolean redrawQueued;
     private boolean layoutRefreshQueued;
@@ -695,7 +695,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             cell.getChildren().add(countBadge);
         }
 
-        List<Schedule> schedules = schedulesByDate.getOrDefault(date, List.of());
+        List<ScheduleItem> schedules = schedulesByDate.getOrDefault(date, List.of());
         String tooltipText = buildTooltipText(date, count, schedules);
         Tooltip tooltip = new Tooltip(tooltipText);
         Tooltip.install(cell, tooltip);
@@ -706,7 +706,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         return cell;
     }
 
-    private String buildTooltipText(LocalDate date, int completedCount, List<Schedule> schedules) {
+    private String buildTooltipText(LocalDate date, int completedCount, List<ScheduleItem> schedules) {
         StringBuilder builder = new StringBuilder();
         builder.append(controller.format("format.heatmap.tooltipDate", date));
         builder.append("\n").append(text("view.heatmap.tooltip.completed", completedCount));
@@ -804,7 +804,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         removeCompletedDropProxy();
         dayScheduleCardsBox.getChildren().clear();
 
-        List<Schedule> schedules = schedulesByDate.getOrDefault(selectedDate, List.of());
+        List<ScheduleItem> schedules = schedulesByDate.getOrDefault(selectedDate, List.of());
         if (dayScheduleCountLabel != null) {
             dayScheduleCountLabel.setText(buildScheduleCountText(schedules.size()));
         }
@@ -815,12 +815,12 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             return;
         }
 
-        for (Schedule schedule : schedules) {
+        for (ScheduleItem schedule : schedules) {
             dayScheduleCardsBox.getChildren().add(createDayScheduleCard(schedule));
         }
     }
 
-    private StackPane createDayScheduleCard(Schedule schedule) {
+    private StackPane createDayScheduleCard(ScheduleItem schedule) {
         VBox card = new VBox(8);
         card.getStyleClass().addAll("heatmap-day-card", "heatmap-day-card-compact");
         card.setMaxWidth(Double.MAX_VALUE);
@@ -963,7 +963,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
 
     private boolean handleStatusToggle(
         Node cardNode,
-        Schedule schedule,
+        ScheduleItem schedule,
         ScheduleStatusControl control,
         boolean targetCompleted
     ) {
@@ -1417,16 +1417,16 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         return Math.max(min, Math.min(max, value));
     }
 
-    static Map<LocalDate, List<Schedule>> buildSchedulesByDate(List<Schedule> schedules, LocalDate startDate, LocalDate endDate) {
-        Map<LocalDate, List<Schedule>> groupedSchedules = new LinkedHashMap<>();
-        List<Schedule> sortedSchedules = new ArrayList<>(schedules);
+    static Map<LocalDate, List<ScheduleItem>> buildSchedulesByDate(List<ScheduleItem> schedules, LocalDate startDate, LocalDate endDate) {
+        Map<LocalDate, List<ScheduleItem>> groupedSchedules = new LinkedHashMap<>();
+        List<ScheduleItem> sortedSchedules = new ArrayList<>(schedules);
         sortedSchedules.sort(Comparator
             .comparing(HeatmapView::getComparableStartDate)
             .thenComparing(HeatmapView::getComparableEndDate)
-            .thenComparing(Schedule::getPriorityValue, Comparator.reverseOrder())
-            .thenComparing(Schedule::getName, Comparator.nullsLast(String::compareToIgnoreCase)));
+            .thenComparing(ScheduleItem::getPriorityValue, Comparator.reverseOrder())
+            .thenComparing(ScheduleItem::getName, Comparator.nullsLast(String::compareToIgnoreCase)));
 
-        for (Schedule schedule : sortedSchedules) {
+        for (ScheduleItem schedule : sortedSchedules) {
             LocalDate scheduleStart = resolveScheduleStart(schedule);
             LocalDate scheduleEnd = resolveScheduleEnd(schedule);
             if (scheduleStart == null || scheduleEnd == null) {
@@ -1457,7 +1457,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     }
 
     static Map<LocalDate, Integer> buildDailyCompletionStats(
-        List<Schedule> schedules,
+        List<ScheduleItem> schedules,
         LocalDate startDate,
         LocalDate endDate
     ) {
@@ -1465,7 +1465,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         if (schedules == null || startDate == null || endDate == null) {
             return stats;
         }
-        for (Schedule schedule : schedules) {
+        for (ScheduleItem schedule : schedules) {
             if (!schedule.isCompleted() || schedule.getUpdatedAt() == null) {
                 continue;
             }
@@ -1478,7 +1478,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         return stats;
     }
 
-    static boolean scheduleOccursOnDate(Schedule schedule, LocalDate date) {
+    static boolean scheduleOccursOnDate(ScheduleItem schedule, LocalDate date) {
         LocalDate startDate = resolveScheduleStart(schedule);
         LocalDate endDate = resolveScheduleEnd(schedule);
         if (startDate == null || endDate == null || date == null) {
@@ -1540,7 +1540,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         rect.setFill(scheme.getColor(level, dark));
     }
 
-    private String getScheduleDateText(Schedule schedule) {
+    private String getScheduleDateText(ScheduleItem schedule) {
         LocalDateTime startAt = schedule.getStartAt();
         LocalDateTime endAt = schedule.getDueAt();
 
@@ -1559,14 +1559,14 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
         return text("time.unset");
     }
 
-    private String getScheduleDescriptionText(Schedule schedule) {
+    private String getScheduleDescriptionText(ScheduleItem schedule) {
         if (schedule.getDescription() == null || schedule.getDescription().isBlank()) {
             return text("common.noDescription");
         }
         return schedule.getDescription();
     }
 
-    private String getScheduleStatusText(Schedule schedule) {
+    private String getScheduleStatusText(ScheduleItem schedule) {
         if (schedule.isCompleted()) {
             return text("view.heatmap.status", text("status.completed"));
         }
@@ -1593,7 +1593,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             return;
         }
         boolean changed = false;
-        for (Schedule schedule : loadedSchedules) {
+        for (ScheduleItem schedule : loadedSchedules) {
             if (!mutation.matches(schedule)) {
                 continue;
             }
@@ -1621,7 +1621,7 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
             return;
         }
         boolean changed = false;
-        for (Schedule schedule : loadedSchedules) {
+        for (ScheduleItem schedule : loadedSchedules) {
             if (!mutation.matches(schedule)) {
                 continue;
             }
@@ -1634,35 +1634,35 @@ public class HeatmapView implements View, ScheduleCompletionParticipant {
     }
 
     private String getPriorityClass(String priority) {
-        if (Schedule.PRIORITY_HIGH.equals(priority)) {
+        if (ScheduleItem.PRIORITY_HIGH.equals(priority)) {
             return "high";
         }
-        if (Schedule.PRIORITY_LOW.equals(priority)) {
+        if (ScheduleItem.PRIORITY_LOW.equals(priority)) {
             return "low";
         }
         return "medium";
     }
 
-    private static LocalDate resolveScheduleStart(Schedule schedule) {
+    private static LocalDate resolveScheduleStart(ScheduleItem schedule) {
         if (schedule.getStartDate() != null) {
             return schedule.getStartDate();
         }
         return schedule.getDueDate();
     }
 
-    private static LocalDate resolveScheduleEnd(Schedule schedule) {
+    private static LocalDate resolveScheduleEnd(ScheduleItem schedule) {
         if (schedule.getDueDate() != null) {
             return schedule.getDueDate();
         }
         return schedule.getStartDate();
     }
 
-    private static LocalDate getComparableStartDate(Schedule schedule) {
+    private static LocalDate getComparableStartDate(ScheduleItem schedule) {
         LocalDate startDate = resolveScheduleStart(schedule);
         return startDate != null ? startDate : LocalDate.MAX;
     }
 
-    private static LocalDate getComparableEndDate(Schedule schedule) {
+    private static LocalDate getComparableEndDate(ScheduleItem schedule) {
         LocalDate endDate = resolveScheduleEnd(schedule);
         return endDate != null ? endDate : LocalDate.MAX;
     }

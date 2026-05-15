@@ -6,7 +6,7 @@ import com.example.controller.MainController;
 import com.example.controller.ScheduleCompletionMutation;
 import com.example.model.RecurrenceRule;
 import com.example.model.Reminder;
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 import javafx.animation.FadeTransition;
 import javafx.animation.ParallelTransition;
 import javafx.animation.PauseTransition;
@@ -82,8 +82,8 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
 
     private VBox root;
     private ScrollPane scrollPane;
-    private Schedule currentSchedule;
-    private Schedule persistedSchedule;
+    private ScheduleItem currentSchedule;
+    private ScheduleItem persistedSchedule;
     private ParallelTransition panelTransition;
     private boolean panelVisible;
     private boolean suspend;
@@ -193,7 +193,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         return panelVisible;
     }
 
-    public void setSchedule(Schedule schedule) {
+    public void setSchedule(ScheduleItem schedule) {
         closeWheelPopup();
         if (schedule == null) {
             currentSchedule = null;
@@ -212,7 +212,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
             return;
         }
         try {
-            Schedule updated = controller.findScheduleById(currentSchedule.getId());
+            ScheduleItem updated = controller.findScheduleById(currentSchedule.getId());
             if (updated == null) {
                 currentSchedule = null;
                 persistedSchedule = null;
@@ -451,11 +451,11 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         if (rawTags == null || rawTags.isBlank()) {
             return Collections.emptyList();
         }
-        return Schedule.splitTags(rawTags);
+        return ScheduleItem.splitTags(rawTags);
     }
 
     static boolean shouldShowCategoryChip(String category) {
-        return category != null && !category.isBlank() && !Schedule.isDefaultCategory(category);
+        return category != null && !category.isBlank() && !ScheduleItem.isDefaultCategory(category);
     }
 
     private void buildUi() {
@@ -546,7 +546,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         reminderToggle = rowToggle(text("info.reminder"));
 
         priorityBox = new ComboBox<>();
-        priorityBox.getItems().setAll(Schedule.PRIORITY_HIGH, Schedule.PRIORITY_MEDIUM, Schedule.PRIORITY_LOW);
+        priorityBox.getItems().setAll(ScheduleItem.PRIORITY_HIGH, ScheduleItem.PRIORITY_MEDIUM, ScheduleItem.PRIORITY_LOW);
         priorityBox.getStyleClass().addAll("info-panel-combo", "info-panel-borderless-combo");
         priorityBox.setMaxWidth(Double.MAX_VALUE);
         priorityBox.setButtonCell(createPriorityCell());
@@ -726,7 +726,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         if (persistedSchedule != null && Objects.equals(value, persistedSchedule.getCategory())) {
             return;
         }
-        if (!Schedule.isDefaultCategory(value)) {
+        if (!ScheduleItem.isDefaultCategory(value)) {
             CustomOptionsService options = controller.getCustomOptionsService();
             if (options != null && !options.ensureTaskExists(value)) {
                 controller.showError(
@@ -745,7 +745,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
             return;
         }
 
-        List<String> inputTags = Schedule.splitTags(rawInput);
+        List<String> inputTags = ScheduleItem.splitTags(rawInput);
         if (inputTags.isEmpty()) {
             return;
         }
@@ -1049,7 +1049,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         if (currentSchedule == null || persistedSchedule == null) {
             return;
         }
-        Schedule draft = copyOf(currentSchedule);
+        ScheduleItem draft = copyOf(currentSchedule);
         try {
             change.apply(draft);
             if (!controller.saveSchedule(draft)) {
@@ -1110,7 +1110,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         hideOptionSuggestionMenus();
         suspend = true;
         titleField.setText("");
-        priorityBox.setValue(Schedule.DEFAULT_PRIORITY);
+        priorityBox.setValue(ScheduleItem.DEFAULT_PRIORITY);
         categoryField.setText(text("category.default"));
         tagsField.setText("");
         notesArea.setText("");
@@ -1193,7 +1193,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
             chipPane.getChildren().add(statusLabel);
         }
         if (shouldShowCategoryChip(category)) {
-            chipPane.getChildren().add(chip(controller.categoryDisplayName(Schedule.normalizeCategory(category)), "info-panel-chip-category"));
+            chipPane.getChildren().add(chip(controller.categoryDisplayName(ScheduleItem.normalizeCategory(category)), "info-panel-chip-category"));
         }
         for (String tag : splitTagChips(tags)) {
             chipPane.getChildren().add(chip(tag, "info-panel-chip-tag"));
@@ -1556,7 +1556,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
                 }
             }
         }
-        for (String selected : Schedule.splitTags(rawInput)) {
+        for (String selected : ScheduleItem.splitTags(rawInput)) {
             if (selected != null && !selected.isBlank()) {
                 selectedKeys.add(selected.toLowerCase(Locale.ROOT));
             }
@@ -1634,9 +1634,9 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
     private String normalizeCategoryInput(String rawCategory) {
         String normalized = rawCategory == null ? "" : rawCategory.trim();
         if (normalized.isEmpty() || normalized.equals(text("category.default"))) {
-            return Schedule.DEFAULT_CATEGORY;
+            return ScheduleItem.DEFAULT_CATEGORY;
         }
-        return Schedule.normalizeCategory(normalized);
+        return ScheduleItem.normalizeCategory(normalized);
     }
 
     public void refreshIcons() {
@@ -1866,8 +1866,8 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
         return chip;
     }
 
-    private Schedule copyOf(Schedule source) {
-        Schedule copy = new Schedule();
+    private ScheduleItem copyOf(ScheduleItem source) {
+        ScheduleItem copy = new ScheduleItem();
         copy.setId(source.getId());
         copy.setViewKey(source.getViewKey());
         copy.setName(source.getName());
@@ -1908,7 +1908,7 @@ public class InfoPanelView implements ScheduleCompletionParticipant {
 
     @FunctionalInterface
     private interface Change {
-        void apply(Schedule schedule);
+        void apply(ScheduleItem schedule);
     }
 
     static final class DatePresentation {

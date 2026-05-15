@@ -11,22 +11,22 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 class HeatmapViewTest {
 
     @Test
     void buildSchedulesByDateIncludesEachCoveredDay() {
-        Schedule spanningSchedule = new Schedule();
+        ScheduleItem spanningSchedule = new ScheduleItem();
         spanningSchedule.setName("阶段任务");
         spanningSchedule.setStartDate(LocalDate.of(2026, 4, 1));
         spanningSchedule.setDueDate(LocalDate.of(2026, 4, 3));
 
-        Schedule singleDaySchedule = new Schedule();
+        ScheduleItem singleDaySchedule = new ScheduleItem();
         singleDaySchedule.setName("单日任务");
         singleDaySchedule.setDueDate(LocalDate.of(2026, 4, 2));
 
-        Map<LocalDate, List<Schedule>> grouped = HeatmapView.buildSchedulesByDate(
+        Map<LocalDate, List<ScheduleItem>> grouped = HeatmapView.buildSchedulesByDate(
             List.of(spanningSchedule, singleDaySchedule),
             LocalDate.of(2026, 4, 1),
             LocalDate.of(2026, 4, 5)
@@ -40,11 +40,11 @@ class HeatmapViewTest {
 
     @Test
     void scheduleOccursOnDateSupportsReversedAndSingleDates() {
-        Schedule reversedRangeSchedule = new Schedule();
+        ScheduleItem reversedRangeSchedule = new ScheduleItem();
         reversedRangeSchedule.setStartDate(LocalDate.of(2026, 4, 5));
         reversedRangeSchedule.setDueDate(LocalDate.of(2026, 4, 3));
 
-        Schedule singleDateSchedule = new Schedule();
+        ScheduleItem singleDateSchedule = new ScheduleItem();
         singleDateSchedule.setDueDate(LocalDate.of(2026, 4, 8));
 
         assertTrue(HeatmapView.scheduleOccursOnDate(reversedRangeSchedule, LocalDate.of(2026, 4, 4)));
@@ -54,15 +54,15 @@ class HeatmapViewTest {
 
     @Test
     void dailyCompletionStatsUseUpdatedAtForCompletedSchedules() {
-        Schedule completedToday = new Schedule();
+        ScheduleItem completedToday = new ScheduleItem();
         completedToday.setCompleted(true);
         completedToday.setUpdatedAt(LocalDateTime.of(2026, 4, 3, 9, 30));
 
-        Schedule completedTomorrow = new Schedule();
+        ScheduleItem completedTomorrow = new ScheduleItem();
         completedTomorrow.setCompleted(true);
         completedTomorrow.setUpdatedAt(LocalDateTime.of(2026, 4, 4, 11, 15));
 
-        Schedule pending = new Schedule();
+        ScheduleItem pending = new ScheduleItem();
         pending.setCompleted(false);
         pending.setUpdatedAt(LocalDateTime.of(2026, 4, 3, 14, 0));
 
