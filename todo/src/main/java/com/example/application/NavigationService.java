@@ -1,6 +1,6 @@
 package com.example.application;
 
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 public final class NavigationService {
     public enum Screen {
@@ -10,7 +10,7 @@ public final class NavigationService {
     }
 
     private Screen currentScreen = Screen.LIST;
-    private Schedule selectedSchedule;
+    private ScheduleItem selectedScheduleItem;
 
     public Screen getCurrentScreen() {
         return currentScreen;
@@ -20,19 +20,26 @@ public final class NavigationService {
         this.currentScreen = currentScreen;
     }
 
-    public Schedule getSelectedSchedule() {
-        return selectedSchedule;
+    public ScheduleItem getSelectedScheduleItem() {
+        return selectedScheduleItem;
     }
 
-    public void setSelectedSchedule(Schedule selectedSchedule) {
-        this.selectedSchedule = selectedSchedule;
+    public void setSelectedScheduleItem(ScheduleItem item) {
+        this.selectedScheduleItem = item;
     }
 
-    public void clearSelectedSchedule() {
-        selectedSchedule = null;
+    public void clearSelectedScheduleItem() {
+        selectedScheduleItem = null;
     }
 
-    public boolean isSelected(Schedule schedule) {
-        return selectedSchedule == schedule;
+    public boolean isSelected(ScheduleItem item) {
+        if (selectedScheduleItem == null || item == null) {
+            return false;
+        }
+        if (selectedScheduleItem.getId() != null && !selectedScheduleItem.getId().isBlank()
+            && item.getId() != null && !item.getId().isBlank()) {
+            return selectedScheduleItem.getId().equals(item.getId());
+        }
+        return selectedScheduleItem == item;
     }
 }
