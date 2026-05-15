@@ -14,6 +14,12 @@
     -color-primary-pressed: #dbe1ea;
     -color-primary-soft: rgba(243, 245, 247, 0.10);
     -color-primary-glow: rgba(243, 245, 247, 0.16);
+    -color-success: #34d399;
+    -color-success-soft: rgba(52,211,153,0.15);
+    -color-danger: #f87171;
+    -color-danger-soft: rgba(248,113,113,0.15);
+    -color-warning: #fbbf24;
+    -color-warning-soft: rgba(251,191,36,0.15);
     -color-shadow-soft: rgba(0, 0, 0, 0.30);
     -color-shadow-medium: rgba(0, 0, 0, 0.44);
     -color-shadow-strong: rgba(0, 0, 0, 0.60);

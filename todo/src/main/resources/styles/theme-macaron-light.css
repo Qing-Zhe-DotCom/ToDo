@@ -3,9 +3,9 @@
     -color-bg-panel: rgba(255, 255, 255, 0.30);
     -color-bg-active: rgba(255, 255, 255, 0.54);
     -color-bg-hover: rgba(255, 255, 255, 0.38);
-    -color-text-main: #435066;
-    -color-text-sub: #6e7b91;
-    -color-text-hint: #98a4b8;
+    -color-text-main: #2d3a4f;
+    -color-text-sub: #4a5568;
+    -color-text-hint: #7a8698;
     -color-text-muted: #b7c1d4;
     -color-border: rgba(255, 255, 255, 0.58);
     -color-border-dark: rgba(203, 211, 232, 0.94);
@@ -47,27 +47,27 @@
 }
 
 .macaron-blob-blue {
-    -fx-background-color: radial-gradient(center 30% 30%, radius 76%, rgba(191, 217, 246, 0.92), rgba(191, 217, 246, 0.18) 74%, transparent 100%);
+    -fx-background-color: radial-gradient(center 30% 30%, radius 76%, rgba(191, 217, 246, 0.46), rgba(191, 217, 246, 0.10) 74%, transparent 100%);
     -fx-rotate: -14;
 }
 
 .macaron-blob-pink {
-    -fx-background-color: radial-gradient(center 42% 34%, radius 78%, rgba(246, 199, 214, 0.88), rgba(246, 199, 214, 0.14) 74%, transparent 100%);
+    -fx-background-color: radial-gradient(center 42% 34%, radius 78%, rgba(246, 199, 214, 0.44), rgba(246, 199, 214, 0.08) 74%, transparent 100%);
     -fx-rotate: 12;
 }
 
 .macaron-blob-mint {
-    -fx-background-color: radial-gradient(center 28% 30%, radius 78%, rgba(201, 232, 210, 0.88), rgba(201, 232, 210, 0.16) 75%, transparent 100%);
+    -fx-background-color: radial-gradient(center 28% 30%, radius 78%, rgba(201, 232, 210, 0.44), rgba(201, 232, 210, 0.09) 75%, transparent 100%);
     -fx-rotate: -18;
 }
 
 .macaron-blob-purple {
-    -fx-background-color: radial-gradient(center 32% 28%, radius 78%, rgba(217, 200, 240, 0.84), rgba(217, 200, 240, 0.14) 75%, transparent 100%);
+    -fx-background-color: radial-gradient(center 32% 28%, radius 78%, rgba(217, 200, 240, 0.42), rgba(217, 200, 240, 0.08) 75%, transparent 100%);
     -fx-rotate: 18;
 }
 
 .macaron-blob-cream {
-    -fx-background-color: radial-gradient(center 42% 38%, radius 78%, rgba(246, 231, 178, 0.82), rgba(246, 231, 178, 0.10) 76%, transparent 100%);
+    -fx-background-color: radial-gradient(center 42% 38%, radius 78%, rgba(246, 231, 178, 0.41), rgba(246, 231, 178, 0.06) 76%, transparent 100%);
     -fx-rotate: -10;
 }
 
@@ -275,7 +275,7 @@
 .heatmap-year-title,
 .quick-add-title,
 .schedule-card-title-text {
-    -fx-text-fill: #44526a;
+    -fx-text-fill: #2d3a4f;
     -fx-font-weight: 700;
 }
 
@@ -287,7 +287,7 @@
 .timeline-range-label,
 .heatmap-completed-zone-label,
 .schedule-card-subtitle-text {
-    -fx-text-fill: #7e8aa0;
+    -fx-text-fill: #4a5568;
 }
 
 .timeline-track-bg {
