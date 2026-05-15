@@ -15,20 +15,12 @@ public final class ScheduleCardStyleSupport {
     public static final String BASE_CARD_CLASS = "schedule-card-surface";
 
     public static final String STYLE_ID_CLASSIC = "classic";
-    public static final String STYLE_ID_FRESH = "fresh";
     public static final String STYLE_ID_COZY = "cozy";
     public static final String STYLE_ID_MODERN_MINIMAL = "modern-minimal";
-    public static final String STYLE_ID_NEO_BRUTALISM = "neo-brutalism";
-    public static final String STYLE_ID_MATERIAL_YOU = "material-you";
-    public static final String STYLE_ID_NEUMORPHISM = "neumorphism";
 
     private static final String STYLE_CLASSIC = "schedule-card-style-classic";
-    private static final String STYLE_FRESH = "schedule-card-style-fresh";
     private static final String STYLE_COZY = "schedule-card-style-cozy";
     private static final String STYLE_MODERN_MINIMAL = "schedule-card-style-modern-minimal";
-    private static final String STYLE_NEO_BRUTALISM = "schedule-card-style-neo-brutalism";
-    private static final String STYLE_MATERIAL_YOU = "schedule-card-style-material-you";
-    private static final String STYLE_NEUMORPHISM = "schedule-card-style-neumorphism";
 
     private static final String STATE_COMPLETED = "schedule-card-state-completed";
     private static final String STATE_OVERDUE = "schedule-card-state-overdue";
@@ -134,12 +126,8 @@ public final class ScheduleCardStyleSupport {
     private static Map<String, StyleMetadata> createStyleMap() {
         Map<String, StyleMetadata> styles = new LinkedHashMap<>();
         styles.put(STYLE_ID_CLASSIC, new StyleMetadata(STYLE_CLASSIC, "style.classic"));
-        styles.put(STYLE_ID_FRESH, new StyleMetadata(STYLE_FRESH, "style.fresh"));
         styles.put(STYLE_ID_COZY, new StyleMetadata(STYLE_COZY, "style.cozy"));
         styles.put(STYLE_ID_MODERN_MINIMAL, new StyleMetadata(STYLE_MODERN_MINIMAL, "style.modernMinimal"));
-        styles.put(STYLE_ID_NEO_BRUTALISM, new StyleMetadata(STYLE_NEO_BRUTALISM, "style.neoBrutalism"));
-        styles.put(STYLE_ID_MATERIAL_YOU, new StyleMetadata(STYLE_MATERIAL_YOU, "style.materialYou"));
-        styles.put(STYLE_ID_NEUMORPHISM, new StyleMetadata(STYLE_NEUMORPHISM, "style.neumorphism"));
         return styles;
     }
 
@@ -148,21 +136,12 @@ public final class ScheduleCardStyleSupport {
         labels.put("经典实体卡片", STYLE_ID_CLASSIC);
         labels.put("經典實體卡片", STYLE_ID_CLASSIC);
         labels.put("Classic card", STYLE_ID_CLASSIC);
-        labels.put("清新扁平", STYLE_ID_FRESH);
-        labels.put("Fresh flat", STYLE_ID_FRESH);
         labels.put("温馨治愈风", STYLE_ID_COZY);
         labels.put("溫馨治癒風", STYLE_ID_COZY);
         labels.put("Cozy", STYLE_ID_COZY);
         labels.put("现代高级极简风", STYLE_ID_MODERN_MINIMAL);
         labels.put("現代高級極簡風", STYLE_ID_MODERN_MINIMAL);
         labels.put("Modern minimal", STYLE_ID_MODERN_MINIMAL);
-        labels.put("新粗野主义", STYLE_ID_NEO_BRUTALISM);
-        labels.put("新粗野主義", STYLE_ID_NEO_BRUTALISM);
-        labels.put("Neo brutalism", STYLE_ID_NEO_BRUTALISM);
-        labels.put("Material You", STYLE_ID_MATERIAL_YOU);
-        labels.put("拟物浮雕风", STYLE_ID_NEUMORPHISM);
-        labels.put("擬物浮雕風", STYLE_ID_NEUMORPHISM);
-        labels.put("Neumorphism", STYLE_ID_NEUMORPHISM);
         return labels;
     }
 

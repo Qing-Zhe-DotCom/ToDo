@@ -172,12 +172,6 @@ public final class ThemeService {
     }
 
     private void enforceThemeAvailability() {
-        if (currentThemeFamily.isLabsOnly() && !experimentalFeaturesService.isLabsEnabled()) {
-            currentThemeFamily = ThemeFamily.CLASSIC;
-            currentAppearance = defaultAppearance;
-            currentClassicPalette = defaultClassicPalette;
-            return;
-        }
         if (!currentThemeFamily.supportsClassicPalette() && currentClassicPalette == null) {
             currentClassicPalette = defaultClassicPalette;
         }

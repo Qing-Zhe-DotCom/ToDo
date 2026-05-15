@@ -1,0 +1,126 @@
+<h2>ViewModel 层设计</h2>
+<p class="subtitle">每个视图一个 ViewModel，包装 ScheduleItem，暴露 JavaFX Property 用于 UI 绑定</p>
+
+<div class="section">
+  <h3>模式示意：以 InfoPanel 为例</h3>
+</div>
+
+<div style="display:flex;gap:16px">
+  <div style="flex:1;border:1px solid #374151;border-radius:8px;padding:12px">
+    <div class="label">之前（MainController 直接操作）</div>
+    <div style="font-size:12px;line-height:1.8;color:#9ca3af;margin-top:8px">
+      <span style="color:#f87171">MainController.java</span><br>
+      &nbsp;&nbsp;Schedule s = toLegacySchedule(item);<br>
+      &nbsp;&nbsp;infoPanel.setTitle(s.getTitle());<br>
+      &nbsp;&nbsp;infoPanel.setTime(s.getScheduledTime());<br>
+      &nbsp;&nbsp;infoPanel.setTags(s.getTags());<br>
+      &nbsp;&nbsp;<span style="color:#6b7280">// 格式化逻辑混在 Controller 里</span><br>
+      &nbsp;&nbsp;<span style="color:#6b7280">// Schedule 是多余的中间层</span>
+    </div>
+  </div>
+  <div style="font-size:24px;display:flex;align-items:center;color:#34d399">→</div>
+  <div style="flex:1;border:1px solid #34d399;border-radius:8px;padding:12px">
+    <div class="label">之后（ViewModel + 独立 Controller）</div>
+    <div style="font-size:12px;line-height:1.8;color:#9ca3af;margin-top:8px">
+      <span style="color:#34d399">InfoPanelController.java</span><br>
+      &nbsp;&nbsp;vm = new InfoPanelViewModel(item);<br>
+      &nbsp;&nbsp;titleLabel.textProperty()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;.bind(vm.titleProperty());<br>
+      &nbsp;&nbsp;timeLabel.textProperty()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;.bind(vm.formattedTimeProperty());<br>
+      <span style="color:#34d399">InfoPanelViewModel.java</span><br>
+      &nbsp;&nbsp;<span style="color:#6b7280">// 格式化逻辑在 ViewModel 内</span><br>
+      &nbsp;&nbsp;<span style="color:#6b7280">// 直接基于 ScheduleItem</span>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px">
+  <h3>ViewModel 基类（所有视图复用）</h3>
+</div>
+
+<div style="background:#1f2937;border-radius:8px;padding:12px;font-family:monospace;font-size:12px;line-height:1.6">
+<span style="color:#60a5fa">public class</span> <span style="color:#fbbf24">ScheduleItemViewModel</span> {<br>
+&nbsp;&nbsp;<span style="color:#6b7280">// 核心字段 — 从 ScheduleItem 提取</span><br>
+&nbsp;&nbsp;<span style="color:#60a5fa">private final</span> StringProperty <span style="color:#fbbf24">id</span>;<br>
+&nbsp;&nbsp;<span style="color:#60a5fa">private final</span> StringProperty <span style="color:#fbbf24">title</span>;<br>
+&nbsp;&nbsp;<span style="color:#60a5fa">private final</span> ObjectProperty&lt;LocalDateTime&gt; <span style="color:#fbbf24">scheduledTime</span>;<br>
+&nbsp;&nbsp;<span style="color:#60a5fa">private final</span> BooleanProperty <span style="color:#fbbf24">completed</span>;<br>
+&nbsp;&nbsp;<span style="color:#60a5fa">private final</span> ObjectProperty&lt;ScheduleStatus&gt; <span style="color:#fbbf24">status</span>;<br>
+&nbsp;&nbsp;<span style="color:#60a5fa">private final</span> ListProperty&lt;Tag&gt; <span style="color:#fbbf24">tags</span>;<br>
+&nbsp;&nbsp;<br>
+&nbsp;&nbsp;<span style="color:#6b7280">// 格式化字段 — 视图可直接绑定</span><br>
+&nbsp;&nbsp;<span style="color:#60a5fa">private final</span> StringProperty <span style="color:#fbbf24">formattedDate</span>;<br>
+&nbsp;&nbsp;<span style="color:#60a5fa">private final</span> StringProperty <span style="color:#fbbf24">formattedTime</span>;<br>
+&nbsp;&nbsp;<span style="color:#60a5fa">private final</span> StringProperty <span style="color:#fbbf24">recurrenceSummary</span>;<br>
+&nbsp;&nbsp;<br>
+&nbsp;&nbsp;<span style="color:#6b7280">// 工厂方法</span><br>
+&nbsp;&nbsp;<span style="color:#60a5fa">public static</span> ScheduleItemViewModel <span style="color:#fbbf24">from</span>(ScheduleItem item) { ... }<br>
+}
+</div>
+
+<div class="section" style="margin-top:24px">
+  <h3>各视图专用 ViewModel</h3>
+</div>
+
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+  <div style="flex:1;min-width:180px;border:1px solid #374151;border-radius:8px;padding:10px">
+    <div class="label">InfoPanelViewModel</div>
+    <div style="font-size:11px;color:#9ca3af;margin-top:4px">
+      继承/组合 ScheduleItemViewModel<br>
+      + fullDescription<br>
+      + allTags<br>
+      + reminderInfo<br>
+      + notes
+    </div>
+  </div>
+  <div style="flex:1;min-width:180px;border:1px solid #374151;border-radius:8px;padding:10px">
+    <div class="label">HeatmapViewModel</div>
+    <div style="font-size:11px;color:#9ca3af;margin-top:4px">
+      包装 List&lt;ScheduleItemViewModel&gt;<br>
+      + gridData (按日期聚合)<br>
+      + colorIntensity<br>
+      + dateRange
+    </div>
+  </div>
+  <div style="flex:1;min-width:180px;border:1px solid #374151;border-radius:8px;padding:10px">
+    <div class="label">TimelineViewModel</div>
+    <div style="font-size:11px;color:#9ca3af;margin-top:4px">
+      包装 List&lt;ScheduleItemViewModel&gt;<br>
+      + sortedByTime<br>
+      + groupedByDate<br>
+      + currentPosition
+    </div>
+  </div>
+  <div style="flex:1;min-width:180px;border:1px solid #374151;border-radius:8px;padding:10px">
+    <div class="label">ScheduleListViewModel</div>
+    <div style="font-size:11px;color:#9ca3af;margin-top:4px">
+      包装 List&lt;ScheduleItemViewModel&gt;<br>
+      + filteredItems<br>
+      + searchQuery<br>
+      + sortOrder<br>
+      + selectedItem
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px">
+  <h3>Controller 模式（每个视图统一）</h3>
+</div>
+
+<div style="background:#1f2937;border-radius:8px;padding:12px;font-family:monospace;font-size:12px;line-height:1.6">
+<span style="color:#60a5fa">public class</span> <span style="color:#fbbf24">InfoPanelController</span> {<br>
+&nbsp;&nbsp;<span style="color:#60a5fa">private final</span> InfoPanelView <span style="color:#fbbf24">view</span>;<br>
+&nbsp;&nbsp;<span style="color:#60a5fa">private final</span> ScheduleItemService <span style="color:#fbbf24">service</span>;<br>
+&nbsp;&nbsp;<br>
+&nbsp;&nbsp;<span style="color:#6b7280">// 职责：参数收集 → 调用 service → 更新 view</span><br>
+&nbsp;&nbsp;<span style="color:#6b7280">// 禁止：直接写 SQL、长时间阻塞 UI</span><br>
+&nbsp;&nbsp;<span style="color:#60a5fa">public void</span> <span style="color:#fbbf24">showItem</span>(String itemId) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;service.findById(itemId).ifPresent(item -&gt; {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#60a5fa">var</span> vm = InfoPanelViewModel.from(item);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;view.bind(vm);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;});<br>
+&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;<span style="color:#60a5fa">public void</span> <span style="color:#fbbf24">dispose</span>() { <span style="color:#6b7280">// 解绑、释放资源</span> }<br>
+}
+</div>

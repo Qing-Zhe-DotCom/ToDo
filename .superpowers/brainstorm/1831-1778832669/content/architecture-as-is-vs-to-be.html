@@ -1,0 +1,116 @@
+<h2>架构：现在 vs 目标</h2>
+<p class="subtitle">激进清理后的架构变化</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">当前架构（过渡态）</div>
+    <div class="mockup-body" style="font-size:13px;line-height:1.8">
+      <div style="border:1px solid #f87171;padding:8px;margin:4px 0;border-radius:4px">
+        <strong>MainController</strong><br>
+        <span style="color:#999">4063 行</span><br>
+        <span style="color:#f87171">toLegacySchedule()</span><br>
+        <span style="color:#f87171">toLegacySchedules()</span>
+      </div>
+      <div style="margin:8px 0;text-align:center">↓</div>
+      <div style="display:flex;gap:4px">
+        <div style="border:1px solid #fbbf24;padding:4px;flex:1;border-radius:4px;font-size:11px">
+          ScheduleListView<br><span style="color:#999">消费 Schedule</span>
+        </div>
+        <div style="border:1px solid #fbbf24;padding:4px;flex:1;border-radius:4px;font-size:11px">
+          TimelineView<br><span style="color:#999">消费 Schedule</span>
+        </div>
+        <div style="border:1px solid #fbbf24;padding:4px;flex:1;border-radius:4px;font-size:11px">
+          HeatmapView<br><span style="color:#999">消费 Schedule</span>
+        </div>
+      </div>
+      <div style="margin:8px 0;text-align:center">↑</div>
+      <div style="border:1px solid #f87171;padding:8px;margin:4px 0;border-radius:4px">
+        <strong>Schedule.java</strong><br>
+        <span style="color:#999">兼容桥接模型</span>
+      </div>
+      <div style="margin:8px 0;text-align:center">↑</div>
+      <div style="border:1px solid #34d399;padding:8px;margin:4px 0;border-radius:4px">
+        <strong>ScheduleItemService</strong><br>
+        <span style="color:#999">ScheduleItem 体系</span>
+      </div>
+      <div style="margin:12px 0;border-top:1px dashed #666;padding-top:8px">
+        <span style="color:#f87171">旧 SQL 脚本 V001-V003</span><br>
+        <span style="color:#f87171">MySQL 兼容链路</span><br>
+        <span style="color:#fbbf24">FlowchartView 占位</span><br>
+        <span style="color:#fbbf24">登录占位</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">目标架构（清理后）</div>
+    <div class="mockup-body" style="font-size:13px;line-height:1.8">
+      <div style="border:1px solid #34d399;padding:8px;margin:4px 0;border-radius:4px">
+        <strong>MainController</strong><br>
+        <span style="color:#999">~500 行，纯调度编排</span>
+      </div>
+      <div style="margin:8px 0;text-align:center">↓</div>
+      <div style="display:flex;gap:4px">
+        <div style="border:1px solid #34d399;padding:4px;flex:1;border-radius:4px;font-size:11px">
+          <strong>ScheduleListController</strong><br>
+          <span style="color:#999">+ ViewModel</span>
+        </div>
+        <div style="border:1px solid #34d399;padding:4px;flex:1;border-radius:4px;font-size:11px">
+          <strong>TimelineController</strong><br>
+          <span style="color:#999">+ ViewModel</span>
+        </div>
+        <div style="border:1px solid #34d399;padding:4px;flex:1;border-radius:4px;font-size:11px">
+          <strong>HeatmapController</strong><br>
+          <span style="color:#999">+ ViewModel</span>
+        </div>
+      </div>
+      <div style="margin:8px 0;text-align:center">↑</div>
+      <div style="border:1px solid #34d399;padding:8px;margin:4px 0;border-radius:4px">
+        <strong>ScheduleItem</strong><br>
+        <span style="color:#999">唯一数据模型，视图直接消费</span>
+      </div>
+      <div style="margin:12px 0;border-top:1px dashed #34d399;padding-top:8px">
+        <span style="color:#999;text-decoration:line-through">旧 SQL 脚本 — 已删除</span><br>
+        <span style="color:#999;text-decoration:line-through">MySQL 链路 — 已删除</span><br>
+        <span style="color:#999;text-decoration:line-through">占位页面 — 已删除</span><br>
+        <span style="color:#999;text-decoration:line-through">Schedule.java — 已删除</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px">
+  <h3>清理清单（激进方案）</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px">
+    <tr style="border-bottom:1px solid #374151">
+      <th style="text-align:left;padding:8px">类别</th>
+      <th style="text-align:left;padding:8px">删除内容</th>
+      <th style="text-align:left;padding:8px">影响</th>
+    </tr>
+    <tr style="border-bottom:1px solid #374151">
+      <td style="padding:8px;color:#f87171">死代码</td>
+      <td style="padding:8px">V001-V003 旧 SQL 脚本</td>
+      <td style="padding:8px">🟢 零风险</td>
+    </tr>
+    <tr style="border-bottom:1px solid #374151">
+      <td style="padding:8px;color:#f87171">死代码</td>
+      <td style="padding:8px">JdbcConnectionFactory<br>MysqlStageBSchemaManager<br>SqlDialect.MYSQL 分支</td>
+      <td style="padding:8px">🟢 零风险</td>
+    </tr>
+    <tr style="border-bottom:1px solid #374151">
+      <td style="padding:8px;color:#f87171">占位页</td>
+      <td style="padding:8px">FlowchartView 占位逻辑<br>登录占位提示</td>
+      <td style="padding:8px">🟢 零风险</td>
+    </tr>
+    <tr style="border-bottom:1px solid #374151">
+      <td style="padding:8px;color:#fbbf24">架构债</td>
+      <td style="padding:8px">Schedule.java 整个文件<br>toLegacySchedule / toLegacySchedules</td>
+      <td style="padding:8px">🟡 需改造所有视图</td>
+    </tr>
+    <tr style="border-bottom:1px solid #374151">
+      <td style="padding:8px;color:#fbbf24">架构债</td>
+      <td style="padding:8px">MainController 4063→~500行<br>拆分为独立 Controller+ViewModel</td>
+      <td style="padding:8px">🟡 需逐视图迁移</td>
+    </tr>
+  </table>
+</div>

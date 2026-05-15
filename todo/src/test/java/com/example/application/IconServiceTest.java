@@ -16,10 +16,10 @@ class IconServiceTest {
 
     @Test
     void defaultsToThemeBindingAndUsesThemeMappedPack() {
-        IconService service = serviceFor(Map.of(), ThemeFamily.FRESH);
+        IconService service = serviceFor(Map.of(), ThemeFamily.MODERN_MINIMAL);
 
         assertTrue(service.isThemeBindingEnabled());
-        assertEquals(IconPack.FRESH, service.getCurrentIconPack());
+        assertEquals(IconPack.MODERN, service.getCurrentIconPack());
     }
 
     @Test
@@ -27,44 +27,44 @@ class IconServiceTest {
         IconService service = serviceFor(
             Map.of(
                 IconService.PREF_ICON_THEME_BOUND_KEY, Boolean.FALSE.toString(),
-                IconService.PREF_ICON_PACK_KEY, IconPack.COOKIE.getId()
+                IconService.PREF_ICON_PACK_KEY, IconPack.MACARON.getId()
             ),
             ThemeFamily.CLASSIC
         );
 
         assertFalse(service.isThemeBindingEnabled());
-        assertEquals(IconPack.COOKIE, service.getCurrentIconPack());
+        assertEquals(IconPack.MACARON, service.getCurrentIconPack());
 
-        service.selectIconPack(IconPack.MATERIAL);
-        assertEquals(IconPack.MATERIAL, service.getCurrentIconPack());
+        service.selectIconPack(IconPack.MODERN);
+        assertEquals(IconPack.MODERN, service.getCurrentIconPack());
     }
 
     @Test
     void manualSelectionIsIgnoredWhileThemeBindingIsEnabled() {
-        IconService service = serviceFor(Map.of(), ThemeFamily.COZY);
+        IconService service = serviceFor(Map.of(), ThemeFamily.MACARON);
 
-        service.selectIconPack(IconPack.COOKIE);
+        service.selectIconPack(IconPack.CLASSIC);
 
-        assertEquals(IconPack.COZY, service.getCurrentIconPack());
+        assertEquals(IconPack.MACARON, service.getCurrentIconPack());
     }
 
     @Test
     void syncingThemeFamilyRemapsPackWhenBindingIsEnabled() {
         IconService service = serviceFor(Map.of(), ThemeFamily.CLASSIC);
 
-        service.syncThemeFamily(ThemeFamily.MATERIAL_YOU);
+        service.syncThemeFamily(ThemeFamily.MACARON);
 
-        assertEquals(IconPack.MATERIAL, service.getCurrentIconPack());
+        assertEquals(IconPack.MACARON, service.getCurrentIconPack());
     }
 
     @Test
-    void cookiePackCanBeChosenWhenBindingIsDisabled() {
-        IconService service = serviceFor(Map.of(), ThemeFamily.NEUMORPHISM);
+    void nonMatchingPackCanBeChosenWhenBindingIsDisabled() {
+        IconService service = serviceFor(Map.of(), ThemeFamily.CLASSIC);
 
-        service.commitSelection(ThemeFamily.NEUMORPHISM, false, IconPack.COOKIE);
+        service.commitSelection(ThemeFamily.CLASSIC, false, IconPack.MACARON);
 
         assertFalse(service.isThemeBindingEnabled());
-        assertEquals(IconPack.COOKIE, service.getCurrentIconPack());
+        assertEquals(IconPack.MACARON, service.getCurrentIconPack());
     }
 
     @Test
@@ -85,7 +85,7 @@ class IconServiceTest {
 
     @Test
     void syncingThemeAppearanceNotifiesListenersOnlyWhenChanged() {
-        IconService service = serviceFor(Map.of(), ThemeFamily.FRESH);
+        IconService service = serviceFor(Map.of(), ThemeFamily.MODERN_MINIMAL);
         AtomicInteger calls = new AtomicInteger();
         service.addChangeListener(calls::incrementAndGet);
 

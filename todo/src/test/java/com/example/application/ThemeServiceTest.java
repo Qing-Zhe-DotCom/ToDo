@@ -31,12 +31,12 @@ class ThemeServiceTest {
     void legacyNonClassicStyleMigrationIgnoresLegacyPalette() {
         ThemeService service = serviceFor(Map.of(
             ThemeService.LEGACY_PREF_THEME_KEY, "forest",
-            ThemeService.LEGACY_PREF_SCHEDULE_CARD_STYLE_KEY, "material-you"
+            ThemeService.LEGACY_PREF_SCHEDULE_CARD_STYLE_KEY, "modern-minimal"
         ));
 
-        assertEquals(ThemeFamily.MATERIAL_YOU, service.getCurrentThemeFamily());
+        assertEquals(ThemeFamily.MODERN_MINIMAL, service.getCurrentThemeFamily());
         assertEquals(ClassicThemePalette.LIGHT, service.getCurrentClassicPalette());
-        assertEquals("material-you", service.getCurrentScheduleCardStyle());
+        assertEquals("modern-minimal", service.getCurrentScheduleCardStyle());
     }
 
     @Test
@@ -73,45 +73,24 @@ class ThemeServiceTest {
     }
 
     @Test
-    void macaronPreferenceFallsBackToClassicWhenLabsAreDisabled() {
+    void macaronPreferenceIsAlwaysAvailable() {
         ThemeService service = serviceFor(
             Map.of(ThemeService.PREF_THEME_FAMILY_KEY, "macaron"),
             false
-        );
-
-        assertEquals(ThemeFamily.CLASSIC, service.getCurrentThemeFamily());
-        assertEquals(ClassicThemePalette.LIGHT, service.getCurrentClassicPalette());
-    }
-
-    @Test
-    void neoBrutalismPreferenceFallsBackToClassicWhenLabsAreDisabled() {
-        ThemeService service = serviceFor(
-            Map.of(ThemeService.PREF_THEME_FAMILY_KEY, "neo-brutalism"),
-            false
-        );
-
-        assertEquals(ThemeFamily.CLASSIC, service.getCurrentThemeFamily());
-        assertEquals(ClassicThemePalette.LIGHT, service.getCurrentClassicPalette());
-    }
-
-    @Test
-    void macaronPreferenceIsKeptWhenLabsAreEnabled() {
-        ThemeService service = serviceFor(
-            Map.of(ThemeService.PREF_THEME_FAMILY_KEY, "macaron"),
-            true
         );
 
         assertEquals(ThemeFamily.MACARON, service.getCurrentThemeFamily());
     }
 
     @Test
-    void neoBrutalismPreferenceIsKeptWhenLabsAreEnabled() {
+    void unknownThemeFamilyPreferenceFallsBackToClassic() {
         ThemeService service = serviceFor(
             Map.of(ThemeService.PREF_THEME_FAMILY_KEY, "neo-brutalism"),
-            true
+            false
         );
 
-        assertEquals(ThemeFamily.NEO_BRUTALISM, service.getCurrentThemeFamily());
+        assertEquals(ThemeFamily.CLASSIC, service.getCurrentThemeFamily());
+        assertEquals(ClassicThemePalette.LIGHT, service.getCurrentClassicPalette());
     }
 
     @Test
@@ -133,18 +112,18 @@ class ThemeServiceTest {
         assertContains(classicDarkStylesheets, "mint-theme-dark.css");
         assertTrue(classicDarkStylesheets.stream().noneMatch(path -> path.contains("mint-theme.css")));
 
-        ThemeService fresh = serviceFor(Map.of(
-            ThemeService.PREF_THEME_FAMILY_KEY, "fresh",
+        ThemeService modernMinimal = serviceFor(Map.of(
+            ThemeService.PREF_THEME_FAMILY_KEY, "modern-minimal",
             ThemeService.PREF_THEME_APPEARANCE_KEY, "dark",
             ThemeService.PREF_THEME_CLASSIC_PALETTE_KEY, "mint"
         ));
 
-        List<String> freshStylesheets = fresh.resolveStylesheets(getClass());
-        assertContains(freshStylesheets, "dark-theme.css");
-        assertContains(freshStylesheets, "theme-fresh-dark.css");
-        assertTrue(freshStylesheets.stream().noneMatch(path -> path.contains("light-theme.css")));
-        assertTrue(freshStylesheets.stream().noneMatch(path -> path.contains("mint-theme.css")));
-        assertTrue(freshStylesheets.stream().noneMatch(path -> path.contains("mint-theme-dark.css")));
+        List<String> modernMinimalStylesheets = modernMinimal.resolveStylesheets(getClass());
+        assertContains(modernMinimalStylesheets, "dark-theme.css");
+        assertContains(modernMinimalStylesheets, "theme-modern-minimal-dark.css");
+        assertTrue(modernMinimalStylesheets.stream().noneMatch(path -> path.contains("light-theme.css")));
+        assertTrue(modernMinimalStylesheets.stream().noneMatch(path -> path.contains("mint-theme.css")));
+        assertTrue(modernMinimalStylesheets.stream().noneMatch(path -> path.contains("mint-theme-dark.css")));
 
         ThemeService macaron = serviceFor(
             Map.of(

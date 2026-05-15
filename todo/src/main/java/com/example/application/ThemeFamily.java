@@ -6,13 +6,8 @@ import com.example.view.ScheduleCardStyleSupport;
 
 public enum ThemeFamily {
     CLASSIC("classic", "theme.family.classic", ScheduleCardStyleSupport.STYLE_ID_CLASSIC, true, false, HeatmapColorScheme.GREEN),
-    FRESH("fresh", "theme.family.fresh", ScheduleCardStyleSupport.STYLE_ID_FRESH, false, false, HeatmapColorScheme.TEAL),
-    COZY("cozy", "theme.family.cozy", ScheduleCardStyleSupport.STYLE_ID_COZY, false, false, HeatmapColorScheme.PINK),
-    MACARON("macaron", "theme.family.macaron", ScheduleCardStyleSupport.STYLE_ID_COZY, false, true, HeatmapColorScheme.PURPLE),
     MODERN_MINIMAL("modern-minimal", "theme.family.modernMinimal", ScheduleCardStyleSupport.STYLE_ID_MODERN_MINIMAL, false, false, HeatmapColorScheme.BLUE),
-    NEO_BRUTALISM("neo-brutalism", "theme.family.neoBrutalism", ScheduleCardStyleSupport.STYLE_ID_NEO_BRUTALISM, false, true, HeatmapColorScheme.ORANGE),
-    MATERIAL_YOU("material-you", "theme.family.materialYou", ScheduleCardStyleSupport.STYLE_ID_MATERIAL_YOU, false, false, HeatmapColorScheme.PURPLE),
-    NEUMORPHISM("neumorphism", "theme.family.neumorphism", ScheduleCardStyleSupport.STYLE_ID_NEUMORPHISM, false, false, HeatmapColorScheme.BLUE);
+    MACARON("macaron", "theme.family.macaron", ScheduleCardStyleSupport.STYLE_ID_COZY, false, false, HeatmapColorScheme.PURPLE);
 
     private final String id;
     private final String labelKey;

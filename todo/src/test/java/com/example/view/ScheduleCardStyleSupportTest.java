@@ -17,7 +17,7 @@ class ScheduleCardStyleSupportTest {
     void normalizeStyleIdFallsBackToClassicAndMigratesLegacyLabels() {
         assertEquals(ScheduleCardStyleSupport.getDefaultStyleId(), ScheduleCardStyleSupport.normalizeStyleId("missing-style"));
         assertEquals(ScheduleCardStyleSupport.getDefaultStyleId(), ScheduleCardStyleSupport.normalizeStyleId(null));
-        assertEquals(ScheduleCardStyleSupport.STYLE_ID_MATERIAL_YOU, ScheduleCardStyleSupport.normalizeStyleId("Material You"));
+        assertEquals(ScheduleCardStyleSupport.STYLE_ID_COZY, ScheduleCardStyleSupport.normalizeStyleId("Cozy"));
         assertEquals(ScheduleCardStyleSupport.STYLE_ID_CLASSIC, ScheduleCardStyleSupport.normalizeStyleId("经典实体卡片"));
     }
 

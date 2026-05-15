@@ -4,14 +4,8 @@ import java.util.List;
 
 public enum IconPack {
     CLASSIC("classic", "icon.pack.classic"),
-    FRESH("fresh", "icon.pack.fresh"),
-    COZY("cozy", "icon.pack.cozy"),
-    MACARON("macaron", "icon.pack.macaron"),
     MODERN("modern", "icon.pack.modern"),
-    BRUTALISM("brutalism", "icon.pack.brutalism"),
-    MATERIAL("material", "icon.pack.material"),
-    NEUMORPHISM("neumorphism", "icon.pack.neumorphism"),
-    COOKIE("cookie", "icon.pack.cookie");
+    MACARON("macaron", "icon.pack.macaron");
 
     private final String id;
     private final String labelKey;
@@ -54,13 +48,8 @@ public enum IconPack {
         ThemeFamily resolvedFamily = family != null ? family : ThemeFamily.CLASSIC;
         return switch (resolvedFamily) {
             case CLASSIC -> CLASSIC;
-            case FRESH -> FRESH;
-            case COZY -> COZY;
-            case MACARON -> MACARON;
             case MODERN_MINIMAL -> MODERN;
-            case NEO_BRUTALISM -> BRUTALISM;
-            case MATERIAL_YOU -> MATERIAL;
-            case NEUMORPHISM -> NEUMORPHISM;
+            case MACARON -> MACARON;
         };
     }
 }
