@@ -37,7 +37,6 @@ import com.example.application.IconService;
 import com.example.application.LocalizationService;
 import com.example.application.MainViewModel;
 import com.example.application.NavigationService;
-import com.example.application.RecurrenceSummaryFormatter;
 import com.example.application.ReminderNotificationService;
 import com.example.application.ScheduleItemService;
 import com.example.application.ShortcutSpec;
@@ -149,6 +148,7 @@ public class MainController {
     private final IconService iconService;
     private final ExperimentalFeaturesService experimentalFeaturesService;
     private final LocalizationService localizationService;
+    private final LocalizationFacade loc;
     private final FontService fontService;
 
     @FXML
@@ -245,6 +245,7 @@ public class MainController {
         this.iconService = mainViewModel.getIconService();
         this.experimentalFeaturesService = applicationContext.getExperimentalFeaturesService();
         this.localizationService = mainViewModel.getLocalizationService();
+        this.loc = new LocalizationFacade(localizationService);
         this.fontService = mainViewModel.getFontService();
         this.availableThemeFamilies = List.copyOf(themeService.getThemeFamilies());
         this.classicThemePalettes = List.copyOf(themeService.getClassicPalettes());
@@ -3652,66 +3653,55 @@ public class MainController {
     }
 
     public String text(String key, Object... args) {
-        return localizationService.text(key, args);
+        return loc.text(key, args);
     }
 
     public String format(String patternKey, TemporalAccessor value) {
-        return localizationService.format(patternKey, value);
+        return loc.format(patternKey, value);
     }
 
     public String themeFamilyDisplayName(ThemeFamily family) {
-        return localizationService.themeFamilyLabel(family);
+        return loc.themeFamilyDisplayName(family);
     }
 
     public String classicPaletteDisplayName(ClassicThemePalette palette) {
-        return localizationService.classicPaletteLabel(palette);
+        return loc.classicPaletteDisplayName(palette);
     }
 
     public String iconPackDisplayName(IconPack iconPack) {
-        return localizationService.iconPackLabel(iconPack);
+        return loc.iconPackDisplayName(iconPack);
     }
 
     public String currentThemeDisplayName(ThemeFamily family, ClassicThemePalette palette) {
-        ThemeFamily resolvedFamily = family != null ? family : ThemeFamily.CLASSIC;
-        if (resolvedFamily.supportsClassicPalette()) {
-            return text(
-                "settings.current.theme.classicValue",
-                themeFamilyDisplayName(resolvedFamily),
-                classicPaletteDisplayName(palette)
-            );
-        }
-        return themeFamilyDisplayName(resolvedFamily);
+        return loc.currentThemeDisplayName(family, palette);
     }
 
     public String currentIconDisplayName(IconPack iconPack, boolean bindingEnabled) {
-        IconPack resolvedPack = iconPack != null ? iconPack : IconPack.CLASSIC;
-        return bindingEnabled
-            ? text("settings.current.icon.boundValue", iconPackDisplayName(resolvedPack))
-            : text("settings.current.icon.unboundValue", iconPackDisplayName(resolvedPack));
+        return loc.currentIconDisplayName(iconPack, bindingEnabled);
     }
 
     public String scheduleCardStyleDisplayName(String styleId) {
-        return localizationService.scheduleCardStyleLabel(styleId);
+        return loc.scheduleCardStyleDisplayName(styleId);
     }
 
     public String priorityDisplayName(String priority) {
-        return localizationService.priorityLabel(priority);
+        return loc.priorityDisplayName(priority);
     }
 
     public String categoryDisplayName(String category) {
-        return localizationService.categoryLabel(category);
+        return loc.categoryDisplayName(category);
     }
 
     public String recurrenceSummary(RecurrenceRule rule) {
-        return RecurrenceSummaryFormatter.describe(rule, localizationService);
+        return loc.recurrenceSummary(rule);
     }
 
     public String weekdayShort(DayOfWeek dayOfWeek) {
-        return localizationService.weekdayShort(dayOfWeek);
+        return loc.weekdayShort(dayOfWeek);
     }
 
     public String weekdayNarrow(DayOfWeek dayOfWeek) {
-        return localizationService.weekdayNarrow(dayOfWeek);
+        return loc.weekdayNarrow(dayOfWeek);
     }
 
     public AppLanguage getActiveLanguage() {
