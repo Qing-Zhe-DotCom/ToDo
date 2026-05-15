@@ -21,7 +21,7 @@ class MainControllerSettingsPageTest {
         pages.put("general", "general-scroll");
         pages.put("personalization", "personalization-scroll");
 
-        String resolvedPage = MainController.resolveSettingsPage(null, pages, "general-scroll");
+        String resolvedPage = SettingsDialog.resolveSettingsPage(null, pages, "general-scroll");
 
         assertEquals("general-scroll", resolvedPage);
         assertNotEquals("general-page", resolvedPage);
@@ -33,7 +33,7 @@ class MainControllerSettingsPageTest {
         pages.put("general", "general-scroll");
         pages.put("personalization", "personalization-scroll");
 
-        assertEquals("personalization-scroll", MainController.resolveSettingsPage("personalization", pages, "general-scroll"));
+        assertEquals("personalization-scroll", SettingsDialog.resolveSettingsPage("personalization", pages, "general-scroll"));
     }
 
     @Test
@@ -46,10 +46,10 @@ class MainControllerSettingsPageTest {
         pages.put("labs", "labs-scroll");
         pages.put("data", "data-scroll");
 
-        assertEquals("custom-scroll", MainController.resolveSettingsPage("custom", pages, "general-scroll"));
-        assertEquals("shortcuts-scroll", MainController.resolveSettingsPage("shortcuts", pages, "general-scroll"));
-        assertEquals("labs-scroll", MainController.resolveSettingsPage("labs", pages, "general-scroll"));
-        assertEquals("data-scroll", MainController.resolveSettingsPage("data", pages, "general-scroll"));
+        assertEquals("custom-scroll", SettingsDialog.resolveSettingsPage("custom", pages, "general-scroll"));
+        assertEquals("shortcuts-scroll", SettingsDialog.resolveSettingsPage("shortcuts", pages, "general-scroll"));
+        assertEquals("labs-scroll", SettingsDialog.resolveSettingsPage("labs", pages, "general-scroll"));
+        assertEquals("data-scroll", SettingsDialog.resolveSettingsPage("data", pages, "general-scroll"));
     }
 
     @Test
