@@ -54,7 +54,7 @@ class MainControllerSettingsPageTest {
 
     @Test
     void labsThemesAreHiddenFromThemeSelectionWhenLabsAreDisabled() {
-        List<ThemeFamily> filtered = MainController.filterThemeFamilies(ThemeFamily.supportedValues(), false);
+        List<ThemeFamily> filtered = ThemeCoordinator.filterThemeFamilies(ThemeFamily.supportedValues(), false);
 
         assertTrue(filtered.contains(ThemeFamily.MACARON));
         assertTrue(filtered.contains(ThemeFamily.CLASSIC));
@@ -62,7 +62,7 @@ class MainControllerSettingsPageTest {
 
     @Test
     void labsThemesAreVisibleInThemeSelectionWhenLabsAreEnabled() {
-        List<ThemeFamily> filtered = MainController.filterThemeFamilies(ThemeFamily.supportedValues(), true);
+        List<ThemeFamily> filtered = ThemeCoordinator.filterThemeFamilies(ThemeFamily.supportedValues(), true);
 
         assertTrue(filtered.contains(ThemeFamily.MACARON));
     }

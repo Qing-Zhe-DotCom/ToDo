@@ -187,8 +187,6 @@ public class MainController {
     private ToggleButton collapseToggle;
     private ToggleButton featurePanelToggle;
     private Button themeButton;
-    private Pane collapseToggleIcon;
-    private Pane featureToggleIcon;
     private Pane themeIcon;
     private boolean sidebarCollapsed = false;
     private boolean featurePanelExpanded = false;
@@ -197,24 +195,14 @@ public class MainController {
     private final StringProperty headerClockText = new SimpleStringProperty("");
     private Timeline headerClockTimeline;
     private final Map<Labeled, String[]> collapsibleLabels = new LinkedHashMap<>();
-    private final List<ThemeFamily> availableThemeFamilies;
-    private final List<ClassicThemePalette> classicThemePalettes;
-    private final List<IconPack> availableIconPacks;
-    private static final String DEFAULT_SCHEDULE_CARD_STYLE = ScheduleCardStyleSupport.getDefaultStyleId();
     private final ExecutorService scheduleCompletionExecutor;
     private final ScheduleCompletionCoordinator scheduleCompletionCoordinator;
     private ScheduleHandler scheduleHandler;
     private ReminderNotificationService reminderNotificationService;
     private IntConsumer pendingCountListener;
     private int lastKnownPendingCount = -1;
-    
-    // 主题管理
-    private ThemeFamily currentThemeFamily = ThemeFamily.CLASSIC;
-    private ThemeAppearance currentThemeAppearance = ThemeAppearance.LIGHT;
-    private ClassicThemePalette currentClassicPalette = ClassicThemePalette.LIGHT;
-    private String currentScheduleCardStyle = DEFAULT_SCHEDULE_CARD_STYLE;
-    private IconPack currentIconPack = IconPack.CLASSIC;
-    private boolean currentThemeIconBinding = true;
+
+    private ThemeCoordinator themeCoordinator;
 
     private static final String SEARCH_HISTORY_PREFERENCE_KEY = "todo.search.history";
     private static final int SEARCH_HISTORY_MAX_ENTRIES = 20;
@@ -248,12 +236,14 @@ public class MainController {
         this.localizationService = mainViewModel.getLocalizationService();
         this.loc = new LocalizationFacade(localizationService);
         this.fontService = mainViewModel.getFontService();
-        this.availableThemeFamilies = List.copyOf(themeService.getThemeFamilies());
-        this.classicThemePalettes = List.copyOf(themeService.getClassicPalettes());
-        this.availableIconPacks = List.copyOf(iconService.getAvailableIconPacks());
-        syncThemeState();
-        syncIconState();
-        iconService.addChangeListener(this::refreshIconography);
+        this.themeCoordinator = new ThemeCoordinator(
+            themeService,
+            iconService,
+            experimentalFeaturesService,
+            applicationContext.getPreferencesStore(),
+            fontService,
+            localizationService
+        );
         searchHistory.addAll(loadSearchHistory(applicationContext.getPreferencesStore()));
         loadTimelineShortcutPreferences();
         scheduleCompletionExecutor = Executors.newSingleThreadExecutor(createCompletionThreadFactory());
@@ -307,7 +297,9 @@ public class MainController {
             appShell.getStyleClass().add("app-shell");
         }
         if (macaronBackgroundLayer == null) {
-            macaronBackgroundLayer = createMacaronBackgroundLayer();
+            themeCoordinator.setRoot(root);
+            macaronBackgroundLayer = themeCoordinator.createMacaronBackgroundLayer();
+            themeCoordinator.setMacaronBackgroundLayer(macaronBackgroundLayer);
         }
         if (root.getChildren().isEmpty()) {
             root.getChildren().setAll(macaronBackgroundLayer, appShell);
@@ -328,76 +320,8 @@ public class MainController {
         
         // 默认显示日程列表视图
         showView(scheduleListView);
-        updateMacaronPresentation();
+        themeCoordinator.updateMacaronPresentation();
         uiInitialized = true;
-    }
-
-    private Pane createMacaronBackgroundLayer() {
-        Pane backgroundLayer = new Pane();
-        backgroundLayer.getStyleClass().add("macaron-background-layer");
-        backgroundLayer.setManaged(false);
-        backgroundLayer.setMouseTransparent(true);
-        backgroundLayer.prefWidthProperty().bind(root.widthProperty());
-        backgroundLayer.prefHeightProperty().bind(root.heightProperty());
-
-        Region wash = createMacaronBackdropRegion("macaron-background-wash");
-        wash.prefWidthProperty().bind(root.widthProperty());
-        wash.prefHeightProperty().bind(root.heightProperty());
-
-        Region blueOrb = createMacaronBackdropRegion("macaron-blob", "macaron-blob-blue");
-        blueOrb.setPrefSize(520, 360);
-        blueOrb.layoutXProperty().bind(root.widthProperty().multiply(-0.06));
-        blueOrb.layoutYProperty().bind(root.heightProperty().multiply(-0.08));
-
-        Region pinkOrb = createMacaronBackdropRegion("macaron-blob", "macaron-blob-pink");
-        pinkOrb.setPrefSize(430, 320);
-        pinkOrb.layoutXProperty().bind(root.widthProperty().multiply(0.56));
-        pinkOrb.layoutYProperty().bind(root.heightProperty().multiply(0.05));
-
-        Region mintOrb = createMacaronBackdropRegion("macaron-blob", "macaron-blob-mint");
-        mintOrb.setPrefSize(360, 280);
-        mintOrb.layoutXProperty().bind(root.widthProperty().multiply(0.18));
-        mintOrb.layoutYProperty().bind(root.heightProperty().multiply(0.52));
-
-        Region purpleOrb = createMacaronBackdropRegion("macaron-blob", "macaron-blob-purple");
-        purpleOrb.setPrefSize(300, 240);
-        purpleOrb.layoutXProperty().bind(root.widthProperty().multiply(0.72));
-        purpleOrb.layoutYProperty().bind(root.heightProperty().multiply(0.48));
-
-        Region creamOrb = createMacaronBackdropRegion("macaron-blob", "macaron-blob-cream");
-        creamOrb.setPrefSize(260, 220);
-        creamOrb.layoutXProperty().bind(root.widthProperty().multiply(0.42));
-        creamOrb.layoutYProperty().bind(root.heightProperty().multiply(-0.04));
-
-        Region ribbonLeft = createMacaronBackdropRegion("macaron-ribbon", "macaron-ribbon-left");
-        ribbonLeft.setPrefSize(760, 220);
-        ribbonLeft.layoutXProperty().bind(root.widthProperty().multiply(-0.18));
-        ribbonLeft.layoutYProperty().bind(root.heightProperty().multiply(0.34));
-
-        Region ribbonRight = createMacaronBackdropRegion("macaron-ribbon", "macaron-ribbon-right");
-        ribbonRight.setPrefSize(620, 200);
-        ribbonRight.layoutXProperty().bind(root.widthProperty().multiply(0.44));
-        ribbonRight.layoutYProperty().bind(root.heightProperty().multiply(0.68));
-
-        backgroundLayer.getChildren().addAll(
-            wash,
-            blueOrb,
-            pinkOrb,
-            mintOrb,
-            purpleOrb,
-            creamOrb,
-            ribbonLeft,
-            ribbonRight
-        );
-        return backgroundLayer;
-    }
-
-    private Region createMacaronBackdropRegion(String... styleClasses) {
-        Region region = new Region();
-        region.setManaged(false);
-        region.setMouseTransparent(true);
-        region.getStyleClass().addAll(styleClasses);
-        return region;
     }
 
     private void createSidebar() {
@@ -409,7 +333,7 @@ public class MainController {
         collapseToggle.getStyleClass().addAll("nav-button", "sidebar-collapse-button");
         collapseToggle.setMaxWidth(Double.MAX_VALUE);
         String collapseTooltip = text("sidebar.collapse.toggle");
-        collapseToggleIcon = createSvgIcon(IconKey.ARROW_RIGHT, collapseTooltip, 24);
+        Pane collapseToggleIcon = createSvgIcon(IconKey.ARROW_RIGHT, collapseTooltip, 24);
         collapseToggle.setGraphic(collapseToggleIcon);
         collapseToggle.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         collapseToggle.setAccessibleText(collapseTooltip);
@@ -452,7 +376,7 @@ public class MainController {
         sidebarSearchBox.setMaxWidth(Double.MAX_VALUE);
         sidebarSearchBox.setAlignment(Pos.CENTER_LEFT);
 
-        updateSidebarIcons();
+        themeCoordinator.updateSidebarIcons();
         updateSidebarSearchActionButtons();
 
         searchField.textProperty().addListener((observable, oldValue, newValue) -> {
@@ -492,9 +416,9 @@ public class MainController {
         appearanceToggle.setContentDisplay(ContentDisplay.LEFT);
         appearanceToggle.setTextOverrun(OverrunStyle.CLIP);
         appearanceToggle.setWrapText(false);
-        appearanceToggle.setOnAction(e -> toggleThemeAppearance());
+        appearanceToggle.setOnAction(e -> themeCoordinator.toggleThemeAppearance());
         registerCollapsibleControl(appearanceToggle, text("sidebar.appearance.darkMode"), "", text("sidebar.appearance.darkMode"));
-        updateAppearanceTogglePresentation();
+        themeCoordinator.updateAppearanceTogglePresentation();
 
         exitActionButton = createActionButton(IconKey.LOGOUT, text("sidebar.exit"), Platform::exit);
 
@@ -511,7 +435,7 @@ public class MainController {
         featurePanelToggle.getStyleClass().addAll("nav-button", "sidebar-feature-toggle");
         featurePanelToggle.setMaxWidth(Double.MAX_VALUE);
         String featureTooltip = text("sidebar.feature.toggle");
-        featureToggleIcon = createSvgIcon(IconKey.ARROW_RIGHT, featureTooltip, 24);
+        Pane featureToggleIcon = createSvgIcon(IconKey.ARROW_RIGHT, featureTooltip, 24);
         featurePanelToggle.setGraphic(featureToggleIcon);
         featurePanelToggle.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         featurePanelToggle.setAccessibleText(featureTooltip);
@@ -535,6 +459,20 @@ public class MainController {
             bottomActions,
             featurePanelToggle
         );
+
+        // 设置主题协调器的侧边栏组件引用
+        themeCoordinator.setCollapseToggle(collapseToggle);
+        themeCoordinator.setFeaturePanelToggle(featurePanelToggle);
+        themeCoordinator.setScheduleNavButton(scheduleNavButton);
+        themeCoordinator.setTimelineNavButton(timelineNavButton);
+        themeCoordinator.setHeatmapNavButton(heatmapNavButton);
+        themeCoordinator.setSettingsActionButton(settingsActionButton);
+        themeCoordinator.setAppearanceToggle(appearanceToggle);
+        themeCoordinator.setExitActionButton(exitActionButton);
+        themeCoordinator.setClearSearchTextButton(clearSearchTextButton);
+        themeCoordinator.setClearSearchHistoryButton(clearSearchHistoryButton);
+        themeCoordinator.setThemeIcon(themeIcon);
+        themeCoordinator.setOnSidebarIconsChanged(this::refreshViewIcons);
 
         updateSidebarCollapseState();
         appShell.setLeft(sidebar);
@@ -604,8 +542,9 @@ public class MainController {
                 collapseToggle.setAlignment(Pos.CENTER_LEFT);
                 collapseToggle.setPadding(new Insets(10, 12, 10, 12));
             }
-            if (collapseToggleIcon != null) {
-                collapseToggleIcon.setRotate(sidebarCollapsed ? 0 : 90);
+            Node collapseGraphic = collapseToggle.getGraphic();
+            if (collapseGraphic != null) {
+                collapseGraphic.setRotate(sidebarCollapsed ? 0 : 90);
             }
         }
         
@@ -675,28 +614,11 @@ public class MainController {
     }
 
     public Pane createSvgIcon(String resourcePath, String title, double size) {
-        Group iconGroup = loadSvgGraphic(resourcePath, size);
-        Pane container = new Pane(iconGroup);
-        container.getStyleClass().add("sidebar-svg-icon");
-        container.setMinSize(size, size);
-        container.setPrefSize(size, size);
-        container.setMaxSize(size, size);
-        
-        // 使用圆角矩形作为裁剪区域，如果不设置圆角则默认为直角
-        Rectangle clip = new Rectangle(size, size);
-        clip.setArcWidth(size);
-        clip.setArcHeight(size);
-        container.setClip(clip);
-        
-        if (title != null && !title.isEmpty()) {
-            container.setAccessibleText(title);
-            Tooltip.install(container, new Tooltip(title));
-        }
-        return container;
+        return themeCoordinator.createSvgIcon(resourcePath, title, size);
     }
 
     public Pane createSvgIcon(IconKey iconKey, String title, double size) {
-        return createSvgIcon(iconService.resolveResourcePath(iconKey), title, size);
+        return themeCoordinator.createSvgIcon(iconKey, title, size);
     }
 
     public Label createHeaderClockLabel() {
@@ -738,257 +660,13 @@ public class MainController {
         }
     }
 
-    private Group loadSvgGraphic(String resourcePath, double targetSize) {
-        try (InputStream stream = getClass().getResourceAsStream(resourcePath)) {
-            if (stream == null) {
-                return new Group();
-            }
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            factory.setNamespaceAware(false);
-            Document document = factory.newDocumentBuilder().parse(stream);
-            Element svg = document.getDocumentElement();
-            Group group = new Group();
-            double[] viewBox = parseViewBox(svg.getAttribute("viewBox"));
-            parseSvgChildren(svg, group);
-            double scale = targetSize / Math.max(viewBox[2], viewBox[3]);
-            group.getTransforms().add(new Scale(scale, scale));
-            group.getTransforms().add(new Translate(-viewBox[0], -viewBox[1]));
-            return group;
-        } catch (Exception e) {
-            return new Group();
-        }
-    }
-
-    private void parseSvgChildren(Element parent, Group target) {
-        NodeList children = parent.getChildNodes();
-        for (int i = 0; i < children.getLength(); i++) {
-            org.w3c.dom.Node child = children.item(i);
-            if (!(child instanceof Element)) {
-                continue;
-            }
-            Element element = (Element) child;
-            String tag = element.getTagName();
-            if ("g".equals(tag)) {
-                Group group = new Group();
-                applyTransform(group, element.getAttribute("transform"));
-                target.getChildren().add(group);
-                parseSvgChildren(element, group);
-                continue;
-            }
-            Shape shape = createShapeFromElement(element);
-            if (shape == null) {
-                continue;
-            }
-            applyTransform(shape, element.getAttribute("transform"));
-            target.getChildren().add(shape);
-        }
-    }
-
-    private void applyTransform(Node node, String transformStr) {
-        if (transformStr == null || transformStr.isEmpty()) return;
-        
-        Matcher matcher = Pattern.compile("(\\w+)\\s*\\(([^)]+)\\)").matcher(transformStr);
-        while (matcher.find()) {
-            String type = matcher.group(1);
-            String[] args = matcher.group(2).split("[,\\s]+");
-            try {
-                if ("translate".equals(type)) {
-                    double tx = parseDouble(args[0]);
-                    double ty = args.length > 1 ? parseDouble(args[1]) : 0;
-                    node.getTransforms().add(new Translate(tx, ty));
-                } else if ("rotate".equals(type)) {
-                    double angle = parseDouble(args[0]);
-                    if (args.length >= 3) {
-                        double cx = parseDouble(args[1]);
-                        double cy = parseDouble(args[2]);
-                        node.getTransforms().add(new Rotate(angle, cx, cy));
-                    } else {
-                        node.getTransforms().add(new Rotate(angle));
-                    }
-                } else if ("scale".equals(type)) {
-                    double sx = parseDouble(args[0]);
-                    double sy = args.length > 1 ? parseDouble(args[1]) : sx;
-                    node.getTransforms().add(new Scale(sx, sy));
-                }
-            } catch (Exception e) {
-                // ignore parsing errors for a single transform
-            }
-        }
-    }
-
-    private Shape createShapeFromElement(Element element) {
-        String tag = element.getTagName();
-        if ("circle".equals(tag)) {
-            Circle circle = new Circle(
-                parseDouble(element.getAttribute("cx")),
-                parseDouble(element.getAttribute("cy")),
-                parseDouble(element.getAttribute("r"))
-            );
-            applyShapeStyle(circle, element);
-            return circle;
-        }
-        if ("rect".equals(tag)) {
-            Rectangle rectangle = new Rectangle(
-                parseDouble(element.getAttribute("x")),
-                parseDouble(element.getAttribute("y")),
-                parseDouble(element.getAttribute("width")),
-                parseDouble(element.getAttribute("height"))
-            );
-            double rx = parseDouble(element.getAttribute("rx"));
-            if (rx > 0) {
-                rectangle.setArcWidth(rx * 2);
-                rectangle.setArcHeight(rx * 2);
-            }
-            applyShapeStyle(rectangle, element);
-            return rectangle;
-        }
-        if ("path".equals(tag)) {
-            SVGPath path = new SVGPath();
-            path.setContent(element.getAttribute("d"));
-            applyShapeStyle(path, element);
-            return path;
-        }
-        // SVG <line> — straight segment between two points.
-        // Previously missing; caused pin/unpin icons (which use <line> for needle and cap) to render empty.
-        if ("line".equals(tag)) {
-            Line line = new Line(
-                parseDouble(element.getAttribute("x1")),
-                parseDouble(element.getAttribute("y1")),
-                parseDouble(element.getAttribute("x2")),
-                parseDouble(element.getAttribute("y2"))
-            );
-            applyShapeStyle(line, element);
-            return line;
-        }
-        // SVG <polyline> — open polygon through a sequence of points.
-        if ("polyline".equals(tag)) {
-            String[] coords = element.getAttribute("points").trim().split("[,\\s]+");
-            Polyline polyline = new Polyline();
-            for (int i = 0; i + 1 < coords.length; i += 2) {
-                polyline.getPoints().addAll(parseDouble(coords[i]), parseDouble(coords[i + 1]));
-            }
-            applyShapeStyle(polyline, element);
-            return polyline;
-        }
-        if ("text".equals(tag)) {
-            Text text = new Text(element.getTextContent());
-            text.setX(parseDouble(element.getAttribute("x")));
-            text.setY(parseDouble(element.getAttribute("y")));
-            
-            String fontFamily = element.getAttribute("font-family");
-            if (fontFamily.isEmpty()) fontFamily = "System";
-            else fontFamily = fontFamily.replaceAll("['\"]", "");
-            
-            double fontSize = parseDoubleOrDefault(element.getAttribute("font-size"), 12);
-            String fontWeight = element.getAttribute("font-weight");
-            FontWeight fw = "bold".equalsIgnoreCase(fontWeight) ? FontWeight.BOLD : FontWeight.NORMAL;
-            text.setFont(Font.font(fontFamily, fw, fontSize));
-            
-            String textAnchor = element.getAttribute("text-anchor");
-            if ("middle".equals(textAnchor)) {
-                text.setTextAlignment(TextAlignment.CENTER);
-                text.setBoundsType(TextBoundsType.VISUAL);
-                double initWidth = text.getLayoutBounds().getWidth();
-                if (initWidth > 0) {
-                    text.setTranslateX(-initWidth / 2);
-                }
-                text.layoutBoundsProperty().addListener((obs, oldB, newB) -> {
-                    text.setTranslateX(-newB.getWidth() / 2);
-                });
-            }
-            applyShapeStyle(text, element);
-            return text;
-        }
-        return null;
-    }
-
-    private void applyShapeStyle(Shape shape, Element element) {
-        Color fill = parsePaint(element.getAttribute("fill"));
-        Color stroke = parsePaint(element.getAttribute("stroke"));
-        if (fill != null) {
-            shape.setFill(fill);
-        } else {
-            shape.setFill(Color.TRANSPARENT);
-        }
-        if (stroke != null) {
-            shape.setStroke(stroke);
-            shape.setStrokeWidth(parseDoubleOrDefault(element.getAttribute("stroke-width"), 1));
-        }
-        String lineCap = element.getAttribute("stroke-linecap");
-        if ("round".equalsIgnoreCase(lineCap)) {
-            shape.setStrokeLineCap(StrokeLineCap.ROUND);
-        }
-        String lineJoin = element.getAttribute("stroke-linejoin");
-        if ("round".equalsIgnoreCase(lineJoin)) {
-            shape.setStrokeLineJoin(StrokeLineJoin.ROUND);
-        }
-    }
-
-    private Color parsePaint(String value) {
-        if (value == null || value.isEmpty() || "none".equalsIgnoreCase(value)) {
-            return null;
-        }
-        try {
-            return Color.web(value);
-        } catch (IllegalArgumentException ex) {
-            return null;
-        }
-    }
-
-    private double[] parseViewBox(String viewBox) {
-        if (viewBox == null || viewBox.isEmpty()) {
-            return new double[] {0, 0, 100, 100};
-        }
-        String[] values = viewBox.trim().split("\\s+");
-        if (values.length != 4) {
-            return new double[] {0, 0, 100, 100};
-        }
-        return new double[] {
-            parseDouble(values[0]),
-            parseDouble(values[1]),
-            parseDouble(values[2]),
-            parseDouble(values[3])
-        };
-    }
-
-    private double[] parseTranslate(String transform) {
-        if (transform == null || !transform.startsWith("translate")) {
-            return new double[] {0, 0};
-        }
-        int start = transform.indexOf('(');
-        int end = transform.indexOf(')');
-        if (start < 0 || end <= start) {
-            return new double[] {0, 0};
-        }
-        String[] values = transform.substring(start + 1, end).trim().split("[,\\s]+");
-        if (values.length == 1) {
-            return new double[] {parseDouble(values[0]), 0};
-        }
-        return new double[] {parseDouble(values[0]), parseDouble(values[1])};
-    }
-
-    private double parseDouble(String value) {
-        return parseDoubleOrDefault(value, 0);
-    }
-
-    private double parseDoubleOrDefault(String value, double defaultValue) {
-        if (value == null || value.isEmpty()) {
-            return defaultValue;
-        }
-        try {
-            return Double.parseDouble(value.trim());
-        } catch (NumberFormatException ex) {
-            return defaultValue;
-        }
-    }
-
     public double parseDoublePreference(String key, double fallback) {
         if (key == null || key.isBlank()) {
             return fallback;
         }
         UserPreferencesStore preferencesStore = applicationContext.getPreferencesStore();
         String raw = preferencesStore.get(key, null);
-        return parseDoubleOrDefault(raw, fallback);
+        return themeCoordinator.parseDoubleOrDefault(raw, fallback);
     }
 
     public void putPreference(String key, String value) {
@@ -1057,8 +735,9 @@ public class MainController {
                 featurePanelToggle.setPrefSize(Region.USE_COMPUTED_SIZE, 40);
                 featurePanelToggle.setMaxSize(Double.MAX_VALUE, 40);
             }
-            if (featureToggleIcon != null) {
-                featureToggleIcon.setRotate(featurePanelExpanded ? 90 : 0);
+            Node featureGraphic = featurePanelToggle.getGraphic();
+            if (featureGraphic != null) {
+                featureGraphic.setRotate(featurePanelExpanded ? 90 : 0);
             }
         }
         if (bottomActions != null) {
@@ -1069,7 +748,7 @@ public class MainController {
             bottomActionsSeparator.setVisible(featurePanelExpanded);
             bottomActionsSeparator.setManaged(featurePanelExpanded);
         }
-        updateThemeIconState();
+        themeCoordinator.updateThemeIconState();
     }
 
     private void createInfoPanel() {
@@ -1083,7 +762,7 @@ public class MainController {
         navigationService.setCurrentScreen(resolveScreen(view));
         appShell.setCenter(view.getView());
         view.refresh();
-        requestGlassRefresh();
+        themeCoordinator.requestGlassRefresh();
     }
     
     public void showScheduleDetails(ScheduleItem item) {
@@ -1106,7 +785,7 @@ public class MainController {
         navigationService.setSelectedScheduleItem(detailsItem);
         infoPanelView.setSchedule(detailsItem);
         infoPanelView.showWithAnimation();
-        requestGlassRefresh();
+        themeCoordinator.requestGlassRefresh();
     }
 
     public void showScheduleDetailsAndFocusTitle(ScheduleItem item) {
@@ -1116,7 +795,7 @@ public class MainController {
 
     public void closeScheduleDetails() {
         infoPanelView.hideWithAnimation();
-        requestGlassRefresh();
+        themeCoordinator.requestGlassRefresh();
     }
 
     public boolean isScheduleSelected(ScheduleItem item) {
@@ -1152,7 +831,7 @@ public class MainController {
         }
         infoPanelView.refresh();
         updatePendingCountBadge();
-        requestGlassRefresh();
+        themeCoordinator.requestGlassRefresh();
     }
 
     public void refreshCurrentViewAndPendingCount() {
@@ -1160,7 +839,7 @@ public class MainController {
             currentView.refresh();
         }
         updatePendingCountBadge();
-        requestGlassRefresh();
+        themeCoordinator.requestGlassRefresh();
     }
 
     public void refreshDataViews() {
@@ -1177,7 +856,7 @@ public class MainController {
             currentView.refresh();
         }
         updatePendingCountBadge();
-        requestGlassRefresh();
+        themeCoordinator.requestGlassRefresh();
     }
 
     public String createSchedule(ScheduleItem item) throws SQLException {
@@ -1344,235 +1023,7 @@ public class MainController {
         };
     }
 
-    private void syncThemeState() {
-        currentThemeFamily = themeService.getCurrentThemeFamily();
-        currentThemeAppearance = themeService.getCurrentAppearance();
-        currentClassicPalette = themeService.getCurrentClassicPalette();
-        currentScheduleCardStyle = themeService.getCurrentScheduleCardStyle();
-        iconService.syncThemeAppearance(currentThemeAppearance);
-    }
-
-    private void syncIconState() {
-        currentIconPack = iconService.getCurrentIconPack();
-        currentThemeIconBinding = iconService.isThemeBindingEnabled();
-    }
-    
-    private void switchTheme(ThemeFamily family) {
-        previewThemeSelection(family, currentThemeAppearance, currentClassicPalette, null);
-        saveThemePreference();
-        updateThemeIconState();
-    }
-
-    private void applyThemeStylesheets(List<String> stylesheets) {
-        if (scene == null || stylesheets.isEmpty()) {
-            return;
-        }
-        scene.getStylesheets().clear();
-        scene.getStylesheets().addAll(stylesheets);
-        refreshAllViews();
-        updateThemeIconState();
-        updateMacaronPresentation();
-        updateAppearanceTogglePresentation();
-    }
-
-    private void previewThemeSelection(
-        ThemeFamily family,
-        ThemeAppearance appearance,
-        ClassicThemePalette classicPalette,
-        DialogPane dialogPane
-    ) {
-        currentThemeFamily = family != null ? family : ThemeFamily.CLASSIC;
-        currentThemeAppearance = appearance != null ? appearance : ThemeAppearance.LIGHT;
-        currentClassicPalette = classicPalette != null ? classicPalette : ClassicThemePalette.LIGHT;
-        currentScheduleCardStyle = currentThemeFamily.getBoundScheduleCardStyle();
-        iconService.syncThemeAppearance(currentThemeAppearance);
-
-        List<String> stylesheets = themeService.resolveStylesheets(
-            getClass(),
-            currentThemeFamily,
-            currentThemeAppearance,
-            currentClassicPalette
-        );
-        applyThemeStylesheets(stylesheets);
-        if (dialogPane != null) {
-            dialogPane.getStylesheets().setAll(stylesheets);
-            fontService.applyTo(dialogPane, localizationService.getActiveLanguage());
-            updateDialogGlass(dialogPane);
-        }
-    }
-
-    private void showThemeMenu(Button anchor) {
-        ContextMenu menu = new ContextMenu();
-
-        for (ThemeFamily family : getSelectableThemeFamilies()) {
-            String prefix = family == currentThemeFamily ? text("common.selected.prefix") : "";
-            MenuItem item = new MenuItem(prefix + text("theme.menu.use", themeFamilyDisplayName(family)));
-            item.setOnAction(e -> switchTheme(family));
-            menu.getItems().add(item);
-        }
-
-        menu.show(anchor, Side.RIGHT, 0, 0);
-    }
-
-    private void togglePrimaryTheme() {
-        List<ThemeFamily> selectableThemeFamilies = getSelectableThemeFamilies();
-        int currentIndex = selectableThemeFamilies.indexOf(currentThemeFamily);
-        int nextIndex = (currentIndex + 1) % selectableThemeFamilies.size();
-        if (currentIndex < 0) {
-            nextIndex = 0;
-        }
-        switchTheme(selectableThemeFamilies.get(nextIndex));
-    }
-
-    private void toggleThemeAppearance() {
-        ThemeAppearance next = currentThemeAppearance == ThemeAppearance.DARK ? ThemeAppearance.LIGHT : ThemeAppearance.DARK;
-        previewThemeSelection(currentThemeFamily, next, currentClassicPalette, null);
-        saveThemePreference();
-        updateAppearanceTogglePresentation();
-    }
-
-    private void updateAppearanceTogglePresentation() {
-        if (appearanceToggle == null) {
-            return;
-        }
-
-        boolean dark = currentThemeAppearance == ThemeAppearance.DARK;
-        if (appearanceToggle.isSelected() != dark) {
-            appearanceToggle.setSelected(dark);
-        }
-
-        String label = text("sidebar.appearance.darkMode");
-        String tooltipText = dark ? text("sidebar.appearance.switchToLight") : text("sidebar.appearance.switchToDark");
-        IconKey iconKey = dark ? IconKey.THEME_DARK : IconKey.THEME_LIGHT;
-
-        appearanceToggle.setText(sidebarCollapsed ? "" : label);
-        appearanceToggle.setContentDisplay(sidebarCollapsed ? ContentDisplay.GRAPHIC_ONLY : ContentDisplay.LEFT);
-        appearanceToggle.setGraphic(createSvgIcon(iconKey, label, 24));
-        appearanceToggle.setAccessibleText(label);
-        appearanceToggle.setTooltip(new Tooltip(tooltipText));
-    }
-
-    private void loadThemePreference() {
-        syncThemeState();
-    }
-
-    private void saveThemePreference() {
-        themeService.selectTheme(currentThemeFamily, currentThemeAppearance, currentClassicPalette);
-        syncThemeState();
-        iconService.syncThemeFamily(currentThemeFamily);
-        syncIconState();
-    }
-
-    private void applySavedThemeIfNeeded() {
-        if (scene == null) {
-            return;
-        }
-        syncThemeState();
-        applyThemeStylesheets(getCurrentThemeStylesheets());
-    }
-
-    private void updateMacaronPresentation() {
-        boolean macaronActive = currentThemeFamily == ThemeFamily.MACARON;
-        if (macaronBackgroundLayer != null) {
-            macaronBackgroundLayer.setVisible(macaronActive);
-            macaronBackgroundLayer.setOpacity(macaronActive ? 1.0 : 0.0);
-            macaronBackgroundLayer.setMouseTransparent(true);
-        }
-        
-        // 关键：切换 CSS 类名以激活玻璃透视规则
-        if (root != null) {
-            if (macaronActive) {
-                if (!root.getStyleClass().contains("theme-family-macaron")) {
-                    root.getStyleClass().add("theme-family-macaron");
-                }
-            } else {
-                root.getStyleClass().remove("theme-family-macaron");
-            }
-        }
-        
-        // 关键：强制刷新玻璃调度器
-        if (scene != null) {
-            GlassBackdropCoordinator coordinator = GlassBackdropCoordinator.install(scene);
-            coordinator.setActive(macaronActive);
-            coordinator.setAppearance(currentThemeAppearance);
-            if (macaronActive) {
-                // 给予一个短暂的 Burst 刷新，确保所有组件在切换瞬间对齐
-                coordinator.requestBurstRefresh(Duration.millis(500));
-            }
-        }
-    }
-
-    private List<ThemeFamily> getSelectableThemeFamilies() {
-        return filterThemeFamilies(availableThemeFamilies, experimentalFeaturesService.isLabsEnabled());
-    }
-
-    static List<ThemeFamily> filterThemeFamilies(List<ThemeFamily> families, boolean labsEnabled) {
-        List<ThemeFamily> filtered = new ArrayList<>();
-        for (ThemeFamily family : families) {
-            if (labsEnabled || !family.isLabsOnly()) {
-                filtered.add(family);
-            }
-        }
-        return filtered;
-    }
-
-    private void updateSceneGlass(Scene targetScene) {
-        if (targetScene == null) {
-            return;
-        }
-        GlassBackdropCoordinator coordinator = GlassBackdropCoordinator.install(targetScene);
-        coordinator.setAppearance(currentThemeAppearance);
-        coordinator.setActive(currentThemeFamily == ThemeFamily.MACARON);
-        if (currentThemeFamily == ThemeFamily.MACARON) {
-            coordinator.requestBurstRefresh(Duration.millis(420));
-        }
-    }
-
-    private void requestGlassRefresh() {
-        requestGlassRefresh(scene);
-    }
-
-    private void requestGlassRefresh(Scene targetScene) {
-        if (targetScene == null || currentThemeFamily != ThemeFamily.MACARON) {
-            return;
-        }
-        GlassBackdropCoordinator coordinator = GlassBackdropCoordinator.install(targetScene);
-        coordinator.setAppearance(currentThemeAppearance);
-        coordinator.requestBurstRefresh(Duration.millis(260));
-    }
-
-    private void updateDialogGlass(DialogPane pane) {
-        if (pane == null) {
-            return;
-        }
-        Object marker = pane.getProperties().putIfAbsent("todo.macaron.glass.bound", Boolean.TRUE);
-        if (marker != null) {
-            updateSceneGlass(pane.getScene());
-            return;
-        }
-        pane.sceneProperty().addListener((obs, oldScene, newScene) -> {
-            if (newScene != null) {
-                updateSceneGlass(newScene);
-            }
-        });
-        if (pane.getScene() != null) {
-            updateSceneGlass(pane.getScene());
-        }
-    }
-
-    private void updateThemeIconState() {
-        if (themeIcon == null) {
-            return;
-        }
-        themeIcon.getStyleClass().removeAll("theme-icon-light", "theme-icon-dark");
-        themeIcon.getStyleClass().add("theme-icon-light");
-        themeIcon.setRotate(0);
-        themeIcon.setOpacity(1.0);
-    }
-
-    private void refreshIconography() {
-        syncIconState();
-        updateSidebarIcons();
+    private void refreshViewIcons() {
         if (scheduleListView != null) {
             scheduleListView.refreshIcons();
         }
@@ -1584,49 +1035,6 @@ public class MainController {
         }
         if (infoPanelView != null) {
             infoPanelView.refreshIcons();
-        }
-    }
-
-    private void updateSidebarIcons() {
-        if (collapseToggle != null) {
-            collapseToggle.setGraphic(createSvgIcon(IconKey.ARROW_RIGHT, text("sidebar.collapse.toggle"), 24));
-            collapseToggleIcon = (Pane) collapseToggle.getGraphic();
-            collapseToggleIcon.setRotate(sidebarCollapsed ? 0 : 90);
-        }
-        if (featurePanelToggle != null) {
-            featurePanelToggle.setGraphic(createSvgIcon(IconKey.ARROW_RIGHT, text("sidebar.feature.toggle"), 24));
-            featureToggleIcon = (Pane) featurePanelToggle.getGraphic();
-            featureToggleIcon.setRotate(featurePanelExpanded ? 90 : 0);
-        }
-        if (scheduleNavButton != null) {
-            scheduleNavButton.setGraphic(createSvgIcon(IconKey.CALENDAR, text("nav.schedule"), 24));
-        }
-        if (timelineNavButton != null) {
-            timelineNavButton.setGraphic(createSvgIcon(IconKey.TIMELINE, text("nav.timeline"), 24));
-        }
-        if (heatmapNavButton != null) {
-            heatmapNavButton.setGraphic(createSvgIcon(IconKey.GRID_HEATMAP, text("nav.heatmap"), 24));
-        }
-        if (settingsActionButton != null) {
-            settingsActionButton.setGraphic(createSvgIcon(IconKey.SETTINGS, text("sidebar.settings"), 24));
-        }
-        if (appearanceToggle != null) {
-            updateAppearanceTogglePresentation();
-        }
-        if (exitActionButton != null) {
-            exitActionButton.setGraphic(createSvgIcon(IconKey.LOGOUT, text("sidebar.exit"), 24));
-        }
-        if (clearSearchTextButton != null) {
-            String clearText = text("sidebar.search.clearText");
-            clearSearchTextButton.setGraphic(createSvgIcon(IconKey.CLOSE, clearText, 16));
-            clearSearchTextButton.setAccessibleText(clearText);
-            clearSearchTextButton.setTooltip(new Tooltip(clearText));
-        }
-        if (clearSearchHistoryButton != null) {
-            String clearHistory = text("sidebar.search.clearHistory");
-            clearSearchHistoryButton.setGraphic(createSvgIcon(IconKey.DELETE, clearHistory, 16));
-            clearSearchHistoryButton.setAccessibleText(clearHistory);
-            clearSearchHistoryButton.setTooltip(new Tooltip(clearHistory));
         }
     }
 
@@ -2097,11 +1505,11 @@ public class MainController {
 
         String appVersion = applicationContext.getAppProperties().getAppVersion();
         String displayAppVersion = "v" + appVersion;
-        ThemeFamily originalThemeFamily = currentThemeFamily;
-        ThemeAppearance originalThemeAppearance = currentThemeAppearance;
-        ClassicThemePalette originalClassicPalette = currentClassicPalette;
-        IconPack originalIconPack = currentIconPack;
-        boolean originalThemeIconBinding = currentThemeIconBinding;
+        ThemeFamily originalThemeFamily = themeCoordinator.getCurrentThemeFamily();
+        ThemeAppearance originalThemeAppearance = themeCoordinator.getCurrentThemeAppearance();
+        ClassicThemePalette originalClassicPalette = themeCoordinator.getCurrentClassicPalette();
+        IconPack originalIconPack = themeCoordinator.getCurrentIconPack();
+        boolean originalThemeIconBinding = themeCoordinator.isCurrentThemeIconBinding();
         boolean originalLabsEnabled = experimentalFeaturesService.isLabsEnabled();
         WheelModifier originalTimelineZoomWheelModifier = timelineZoomWheelModifier;
         ShortcutSpec originalTimelineZoomInShortcut = timelineZoomInShortcut;
@@ -2131,13 +1539,13 @@ public class MainController {
         aboutText.setWrapText(true);
         aboutCard.getChildren().add(aboutText);
         VBox currentCard = createSettingsCard(text("settings.current.title"), text("settings.current.subtitle"));
-        Label themeValue = new Label(currentThemeDisplayName(currentThemeFamily, currentClassicPalette));
+        Label themeValue = new Label(currentThemeDisplayName(themeCoordinator.getCurrentThemeFamily(), themeCoordinator.getCurrentClassicPalette()));
         themeValue.getStyleClass().add("settings-inline-value");
         Label languageValue = new Label(localizationService.languageLabel(localizationService.getPreferredLanguage()));
         languageValue.getStyleClass().add("settings-inline-value");
         Label fontValue = new Label(localizationService.fontWeightLabel(fontService.getCurrentFontWeight()));
         fontValue.getStyleClass().add("settings-inline-value");
-        Label iconValue = new Label(currentIconDisplayName(currentIconPack, currentThemeIconBinding));
+        Label iconValue = new Label(currentIconDisplayName(themeCoordinator.getCurrentIconPack(), themeCoordinator.isCurrentThemeIconBinding()));
         iconValue.getStyleClass().add("settings-inline-value");
         currentCard.getChildren().addAll(
             createSettingRow(text("settings.current.theme.label"), text("settings.current.theme.description"), themeValue),
@@ -2307,7 +1715,7 @@ public class MainController {
         familyChipFlow.setAlignment(Pos.CENTER_LEFT);
         familyChipFlow.setMaxWidth(Double.MAX_VALUE);
         Map<ThemeFamily, ToggleButton> familyChips = new LinkedHashMap<>();
-        for (ThemeFamily family : availableThemeFamilies) {
+        for (ThemeFamily family : themeCoordinator.getAvailableThemeFamilies()) {
             ToggleButton familyChip = new ToggleButton(themeFamilyDisplayName(family));
             familyChip.getStyleClass().add("settings-style-chip");
             familyChip.setToggleGroup(themeFamilyGroup);
@@ -2327,7 +1735,7 @@ public class MainController {
         paletteFlow.setVgap(10);
         paletteFlow.setAlignment(Pos.CENTER_LEFT);
         ToggleGroup paletteGroup = new ToggleGroup();
-        for (ClassicThemePalette palette : classicThemePalettes) {
+        for (ClassicThemePalette palette : themeCoordinator.getClassicThemePalettes()) {
             ToggleButton swatch = new ToggleButton();
             swatch.setToggleGroup(paletteGroup);
             swatch.getStyleClass().add("settings-theme-swatch");
@@ -2364,7 +1772,7 @@ public class MainController {
         iconPackFlow.setAlignment(Pos.CENTER_LEFT);
         iconPackFlow.setMaxWidth(Double.MAX_VALUE);
         Map<IconPack, ToggleButton> iconPackChips = new LinkedHashMap<>();
-        for (IconPack iconPack : availableIconPacks) {
+        for (IconPack iconPack : themeCoordinator.getAvailableIconPacks()) {
             ToggleButton chip = new ToggleButton(iconPackDisplayName(iconPack));
             chip.getStyleClass().add("settings-style-chip");
             chip.setToggleGroup(iconPackGroup);
@@ -2412,10 +1820,10 @@ public class MainController {
             }
         };
         Runnable previewThemeAndIcons = () -> {
-            previewThemeSelection(selectedThemeFamily[0], originalThemeAppearance, selectedClassicPalette[0], dialog.getDialogPane());
+            themeCoordinator.previewThemeSelection(selectedThemeFamily[0], originalThemeAppearance, selectedClassicPalette[0], dialog.getDialogPane());
             iconService.previewSelection(selectedThemeFamily[0], selectedThemeIconBinding[0], selectedIconPack[0]);
-            syncIconState();
-            selectedIconPack[0] = currentIconPack;
+            themeCoordinator.syncIconState();
+            selectedIconPack[0] = themeCoordinator.getCurrentIconPack();
             ToggleButton selectedPackChip = iconPackChips.get(selectedIconPack[0]);
             if (selectedPackChip != null) {
                 selectedPackChip.setSelected(true);
@@ -2910,14 +2318,14 @@ public class MainController {
                 cancelButton.toFront();
                 cancelButton.setMouseTransparent(false);
             }
-            requestGlassRefresh(dialog.getDialogPane().getScene());
+            themeCoordinator.requestGlassRefresh(dialog.getDialogPane().getScene());
         });
 
         Optional<ButtonType> result = dialog.showAndWait();
         if (result.isEmpty() || result.get() != saveButtonType) {
-            previewThemeSelection(originalThemeFamily, originalThemeAppearance, originalClassicPalette, null);
+            themeCoordinator.previewThemeSelection(originalThemeFamily, originalThemeAppearance, originalClassicPalette, null);
             iconService.previewSelection(originalThemeFamily, originalThemeIconBinding, originalIconPack);
-            syncIconState();
+            themeCoordinator.syncIconState();
             return;
         }
 
@@ -2925,13 +2333,13 @@ public class MainController {
             experimentalFeaturesService.setLabsEnabled(selectedLabsEnabled[0]);
         }
         if (selectedThemeFamily[0] != originalThemeFamily || selectedClassicPalette[0] != originalClassicPalette) {
-            saveThemePreference();
+            themeCoordinator.saveThemePreference();
         }
         if (selectedThemeFamily[0] != originalThemeFamily
             || selectedIconPack[0] != originalIconPack
             || selectedThemeIconBinding[0] != originalThemeIconBinding) {
             iconService.commitSelection(selectedThemeFamily[0], selectedThemeIconBinding[0], selectedIconPack[0]);
-            syncIconState();
+            themeCoordinator.syncIconState();
         }
         if (selectedLanguage[0] != null && selectedLanguage[0] != originalPreferredLanguage) {
             localizationService.saveLanguagePreference(selectedLanguage[0]);
@@ -3690,7 +3098,7 @@ public class MainController {
         }
         pane.getStylesheets().setAll(getCurrentThemeStylesheets());
         fontService.applyTo(pane, localizationService.getActiveLanguage());
-        updateDialogGlass(pane);
+        themeCoordinator.updateDialogGlass(pane);
     }
 
     private void applyCurrentFont() {
@@ -3719,7 +3127,7 @@ public class MainController {
             moveIn.setFromX(8);
             moveIn.setToX(0);
             new ParallelTransition(fadeIn, moveIn).play();
-            requestGlassRefresh(host.getScene());
+            themeCoordinator.requestGlassRefresh(host.getScene());
             return;
         }
         Node current = host.getChildren().get(0);
@@ -3744,11 +3152,11 @@ public class MainController {
             moveIn.setFromX(8);
             moveIn.setToX(0);
             ParallelTransition in = new ParallelTransition(fadeIn, moveIn);
-            in.setOnFinished(event -> requestGlassRefresh(host.getScene()));
+            in.setOnFinished(event -> themeCoordinator.requestGlassRefresh(host.getScene()));
             in.play();
         });
         out.play();
-        requestGlassRefresh(host.getScene());
+        themeCoordinator.requestGlassRefresh(host.getScene());
     }
 
     public void showError(String title, String message) {
@@ -3774,31 +3182,32 @@ public class MainController {
     }
 
     public String getCurrentTheme() {
-        return currentThemeFamily.getId();
+        return themeCoordinator.getCurrentTheme();
     }
 
     public String getCurrentScheduleCardStyle() {
-        return currentScheduleCardStyle;
+        return themeCoordinator.getCurrentScheduleCardStyle();
     }
 
     public String getCurrentTimelineCardStyle() {
-        return currentScheduleCardStyle;
+        return themeCoordinator.getCurrentTimelineCardStyle();
     }
 
     public List<String> getCurrentThemeStylesheets() {
-        return themeService.resolveStylesheets(getClass(), currentThemeFamily, currentThemeAppearance, currentClassicPalette);
+        return themeCoordinator.getCurrentThemeStylesheets();
     }
 
     public void setPendingCountListener(IntConsumer listener) {
         pendingCountListener = listener;
         updatePendingCountBadge();
     }
-    
+
     public void setScene(Scene scene) {
         this.scene = scene;
-        applySavedThemeIfNeeded();
+        themeCoordinator.setScene(scene);
+        themeCoordinator.applySavedThemeIfNeeded();
         applyCurrentFont();
-        updateMacaronPresentation();
+        themeCoordinator.updateMacaronPresentation();
         setupGlobalInfoPanelInteractions();
     }
 
