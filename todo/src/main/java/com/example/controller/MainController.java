@@ -203,6 +203,7 @@ public class MainController {
     private static final String DEFAULT_SCHEDULE_CARD_STYLE = ScheduleCardStyleSupport.getDefaultStyleId();
     private final ExecutorService scheduleCompletionExecutor;
     private final ScheduleCompletionCoordinator scheduleCompletionCoordinator;
+    private ScheduleHandler scheduleHandler;
     private ReminderNotificationService reminderNotificationService;
     private IntConsumer pendingCountListener;
     private int lastKnownPendingCount = -1;
@@ -277,6 +278,12 @@ public class MainController {
             this::reportCompletionPersistenceFailure,
             scheduleCompletionExecutor,
             Platform::runLater
+        );
+        this.scheduleHandler = new ScheduleHandler(
+            scheduleItemService,
+            scheduleCompletionCoordinator,
+            this::refreshAllViews,
+            this::requestReminderResync
         );
     }
 
@@ -1132,31 +1139,11 @@ public class MainController {
         ScheduleItem item,
         boolean targetCompleted
     ) {
-        return scheduleCompletionCoordinator.prepare(item, targetCompleted);
+        return scheduleHandler.prepareCompletion(item, targetCompleted);
     }
 
     public boolean updateScheduleCompletion(ScheduleItem item, boolean targetCompleted) {
-        if (item == null) {
-            return false;
-        }
-        return scheduleCompletionCoordinator.submitImmediate(item, targetCompleted);
-        /*    boolean updated = scheduleDAO.updateScheduleStatus(item.getId(), targetCompleted);
-            if (!updated) {
-                showError("更新状态失败", "未能保存日程状态变更。");
-                return false;
-            }
-
-            item.setCompleted(targetCompleted);
-            if (selectedSchedule != null && isScheduleSelected(item)) {
-                selectedSchedule.setCompleted(targetCompleted);
-            }
-
-            refreshAllViews();
-            return true;
-        } catch (SQLException e) {
-            showError("更新状态失败", e.getMessage());
-            return false;
-        }*/
+        return scheduleHandler.updateCompletion(item, targetCompleted);
     }
     
     public void refreshAllViews() {
@@ -1194,78 +1181,43 @@ public class MainController {
     }
 
     public String createSchedule(ScheduleItem item) throws SQLException {
-        String createdId = scheduleItemService.addScheduleItem(item);
-        requestReminderResync();
-        return createdId;
+        return scheduleHandler.createSchedule(item);
     }
 
     public ScheduleItem quickCreateSchedule(String rawTitle) throws SQLException {
-        String title = rawTitle == null ? "" : rawTitle.strip();
-        if (title.isEmpty()) {
-            return null;
-        }
-
-        ScheduleItem item = new ScheduleItem();
-        item.setTitle(title);
-        item.setDescription("");
-        item.setStartAt(item.getCreatedAt().truncatedTo(ChronoUnit.MINUTES));
-        item.setDueAt(LocalDate.now().atTime(23, 59));
-        item.setCompleted(false);
-        item.setPriority(ScheduleItem.DEFAULT_PRIORITY);
-        item.setCategory(ScheduleItem.DEFAULT_CATEGORY);
-        item.setTags("");
-        item.setReminderTime(null);
-        createSchedule(item);
-        refreshAllViews();
-        return item;
+        return scheduleHandler.quickCreateSchedule(rawTitle);
     }
 
     public boolean saveSchedule(ScheduleItem item) throws SQLException {
-        boolean updated = scheduleItemService.updateScheduleItem(item);
-        if (updated) {
-            requestReminderResync();
-        }
-        return updated;
+        return scheduleHandler.saveSchedule(item);
     }
 
     public boolean removeSchedule(String scheduleId) throws SQLException {
-        boolean removed = scheduleItemService.softDeleteScheduleItem(scheduleId);
-        if (removed) {
-            requestReminderResync();
-        }
-        return removed;
+        return scheduleHandler.removeSchedule(scheduleId);
     }
 
     public ScheduleItem findScheduleById(String scheduleId) throws SQLException {
-        return scheduleItemService.getScheduleItemById(scheduleId);
+        return scheduleHandler.findScheduleById(scheduleId);
     }
 
     public List<ScheduleItem> loadAllSchedules() throws SQLException {
-        return scheduleItemService.getActiveScheduleItems();
+        return scheduleHandler.loadAllSchedules();
     }
 
     public List<ScheduleItem> searchSchedules(String keyword) throws SQLException {
-        return scheduleItemService.searchActiveScheduleItems(keyword);
+        return scheduleHandler.searchSchedules(keyword);
     }
 
     public List<ScheduleItem> loadDeletedSchedules() throws SQLException {
-        return scheduleItemService.getDeletedScheduleItems();
+        return scheduleHandler.loadDeletedSchedules();
     }
 
     public boolean restoreDeletedSchedule(String scheduleId) throws SQLException {
-        boolean restored = scheduleItemService.restoreScheduleItem(scheduleId);
-        if (restored) {
-            requestReminderResync();
-        }
-        return restored;
+        return scheduleHandler.restoreDeletedSchedule(scheduleId);
     }
 
     public boolean permanentlyDeleteSchedule(String scheduleId) throws SQLException {
-        boolean deleted = scheduleItemService.permanentlyDeleteScheduleItem(scheduleId);
-        if (deleted) {
-            requestReminderResync();
-        }
-        return deleted;
+        return scheduleHandler.permanentlyDeleteSchedule(scheduleId);
     }
 
     private void ensureReminderNotificationService() {
