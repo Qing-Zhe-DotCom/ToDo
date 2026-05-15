@@ -11,17 +11,17 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 class ScheduleListViewSortTest {
 
     @Test
     void completedSchedulesUseLastInFirstOutOrder() {
-        Schedule pending = schedule(1, "pending", false, null, LocalDateTime.of(2026, 4, 10, 23, 59), 2);
-        Schedule completedOlder = schedule(2, "completedOlder", true, LocalDateTime.of(2026, 4, 3, 10, 0), null, 2);
-        Schedule completedNewest = schedule(3, "completedNewest", true, LocalDateTime.of(2026, 4, 3, 12, 0), null, 2);
+        ScheduleItem pending = schedule(1, "pending", false, null, LocalDateTime.of(2026, 4, 10, 23, 59), 2);
+        ScheduleItem completedOlder = schedule(2, "completedOlder", true, LocalDateTime.of(2026, 4, 3, 10, 0), null, 2);
+        ScheduleItem completedNewest = schedule(3, "completedNewest", true, LocalDateTime.of(2026, 4, 3, 12, 0), null, 2);
 
-        List<Schedule> schedules = new ArrayList<>(List.of(completedOlder, completedNewest, pending));
+        List<ScheduleItem> schedules = new ArrayList<>(List.of(completedOlder, completedNewest, pending));
         schedules.sort(ScheduleListView.buildDisplayComparator());
 
         assertEquals(List.of(pending, completedNewest, completedOlder), schedules);
@@ -29,11 +29,11 @@ class ScheduleListViewSortTest {
 
     @Test
     void pendingSchedulesStayDueAtSorted() {
-        Schedule laterDue = schedule(11, "laterDue", false, LocalDateTime.of(2026, 4, 2, 10, 0), LocalDateTime.of(2026, 4, 12, 23, 59), 3);
-        Schedule earlierDue = schedule(12, "earlierDue", false, LocalDateTime.of(2026, 4, 3, 9, 0), LocalDateTime.of(2026, 4, 8, 23, 59), 1);
-        Schedule completed = schedule(13, "completed", true, LocalDateTime.of(2026, 4, 3, 13, 0), LocalDateTime.of(2026, 4, 9, 23, 59), 2);
+        ScheduleItem laterDue = schedule(11, "laterDue", false, LocalDateTime.of(2026, 4, 2, 10, 0), LocalDateTime.of(2026, 4, 12, 23, 59), 3);
+        ScheduleItem earlierDue = schedule(12, "earlierDue", false, LocalDateTime.of(2026, 4, 3, 9, 0), LocalDateTime.of(2026, 4, 8, 23, 59), 1);
+        ScheduleItem completed = schedule(13, "completed", true, LocalDateTime.of(2026, 4, 3, 13, 0), LocalDateTime.of(2026, 4, 9, 23, 59), 2);
 
-        List<Schedule> schedules = new ArrayList<>(List.of(laterDue, completed, earlierDue));
+        List<ScheduleItem> schedules = new ArrayList<>(List.of(laterDue, completed, earlierDue));
         schedules.sort(ScheduleListView.buildDisplayComparator());
 
         assertEquals(List.of(earlierDue, laterDue, completed), schedules);
@@ -43,11 +43,11 @@ class ScheduleListViewSortTest {
     void myDayFilterOnlyIncludesSchedulesCoveringToday() {
         LocalDate today = LocalDate.of(2026, 4, 4);
 
-        Schedule spanningToday = datedSchedule(LocalDateTime.of(2026, 4, 3, 8, 0), LocalDateTime.of(2026, 4, 5, 18, 0));
-        Schedule dueToday = datedSchedule(null, LocalDateTime.of(2026, 4, 4, 23, 59));
-        Schedule startOnlyToday = datedSchedule(LocalDateTime.of(2026, 4, 4, 8, 0), null);
-        Schedule outsideToday = datedSchedule(LocalDateTime.of(2026, 4, 6, 8, 0), LocalDateTime.of(2026, 4, 8, 18, 0));
-        Schedule noDates = datedSchedule(null, null);
+        ScheduleItem spanningToday = datedSchedule(LocalDateTime.of(2026, 4, 3, 8, 0), LocalDateTime.of(2026, 4, 5, 18, 0));
+        ScheduleItem dueToday = datedSchedule(null, LocalDateTime.of(2026, 4, 4, 23, 59));
+        ScheduleItem startOnlyToday = datedSchedule(LocalDateTime.of(2026, 4, 4, 8, 0), null);
+        ScheduleItem outsideToday = datedSchedule(LocalDateTime.of(2026, 4, 6, 8, 0), LocalDateTime.of(2026, 4, 8, 18, 0));
+        ScheduleItem noDates = datedSchedule(null, null);
 
         assertTrue(ScheduleListView.matchesFilter(spanningToday, ScheduleListView.FILTER_MY_DAY, today));
         assertTrue(ScheduleListView.matchesFilter(dueToday, ScheduleListView.FILTER_MY_DAY, today));
@@ -58,7 +58,7 @@ class ScheduleListViewSortTest {
 
     @Test
     void listDateTextUsesMinutePrecision() {
-        Schedule schedule = datedSchedule(LocalDateTime.of(2026, 4, 4, 9, 0), LocalDateTime.of(2026, 4, 4, 23, 59));
+        ScheduleItem schedule = datedSchedule(LocalDateTime.of(2026, 4, 4, 9, 0), LocalDateTime.of(2026, 4, 4, 23, 59));
 
         assertEquals("04-04 09:00 - 23:59", ScheduleListView.buildScheduleDateText(schedule));
     }
@@ -109,7 +109,7 @@ class ScheduleListViewSortTest {
         assertEquals("", ScheduleListView.buildStartRelativeText(now, null, null));
     }
 
-    private Schedule schedule(
+    private ScheduleItem schedule(
         int id,
         String name,
         boolean completed,
@@ -117,8 +117,8 @@ class ScheduleListViewSortTest {
         LocalDateTime dueAt,
         int priorityValue
     ) {
-        Schedule schedule = new Schedule();
-        schedule.setId(id);
+        ScheduleItem schedule = new ScheduleItem();
+        schedule.setId(String.valueOf(id));
         schedule.setName(name);
         schedule.setCompleted(completed);
         schedule.setUpdatedAt(updatedAt);
@@ -128,8 +128,8 @@ class ScheduleListViewSortTest {
         return schedule;
     }
 
-    private Schedule datedSchedule(LocalDateTime startAt, LocalDateTime dueAt) {
-        Schedule schedule = new Schedule();
+    private ScheduleItem datedSchedule(LocalDateTime startAt, LocalDateTime dueAt) {
+        ScheduleItem schedule = new ScheduleItem();
         schedule.setStartAt(startAt);
         schedule.setDueAt(dueAt);
         schedule.setPriority("中");

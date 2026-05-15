@@ -25,7 +25,7 @@ import com.example.config.AppDataPaths;
 import com.example.config.DatabaseProperties;
 import com.example.model.RecurrenceRule;
 import com.example.model.Reminder;
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 class SqliteScheduleRepositoryTest {
 
@@ -48,10 +48,10 @@ class SqliteScheduleRepositoryTest {
 
     @Test
     void addAndLoadSchedulePersistsStageBAggregateFields() throws SQLException {
-        Schedule created = buildSchedule("Write plan", "Phase B full switch");
+        ScheduleItem created = buildSchedule("Write plan", "Phase B full switch");
 
         repository.addScheduleItem(created);
-        Schedule reloaded = new Schedule(repository.getScheduleItemById(created.getId()));
+        ScheduleItem reloaded = new ScheduleItem(repository.getScheduleItemById(created.getId()));
 
         assertNotNull(reloaded);
         assertFalse(reloaded.getId().isBlank());
@@ -67,7 +67,7 @@ class SqliteScheduleRepositoryTest {
 
     @Test
     void searchStatusOutboxAndStatsFollowNewRepositoryContract() throws SQLException {
-        Schedule schedule = buildSchedule("Migrate database", "Replace single table");
+        ScheduleItem schedule = buildSchedule("Migrate database", "Replace single table");
         schedule.setCategory("基础设施");
         schedule.setTags("SQLite, 本地优先");
         repository.addScheduleItem(schedule);
@@ -93,7 +93,7 @@ class SqliteScheduleRepositoryTest {
 
     @Test
     void softDeleteRestoreAndPermanentDeleteRespectSyncBoundary() throws SQLException {
-        Schedule schedule = buildSchedule("Temporary", "Delete me");
+        ScheduleItem schedule = buildSchedule("Temporary", "Delete me");
         repository.addScheduleItem(schedule);
 
         assertEquals(1, repository.getActiveScheduleItems().size());
@@ -111,17 +111,17 @@ class SqliteScheduleRepositoryTest {
 
     @Test
     void suggestQueriesReturnDistinctActiveTitlesTagsAndCategories() throws SQLException {
-        Schedule first = buildSchedule("Migrate database", "Replace single table");
+        ScheduleItem first = buildSchedule("Migrate database", "Replace single table");
         first.setCategory("Infrastructure");
         first.setTags("SQLite, Local");
         repository.addScheduleItem(first);
 
-        Schedule second = buildSchedule("Migrate UI", "Polish UI");
+        ScheduleItem second = buildSchedule("Migrate UI", "Polish UI");
         second.setCategory("Infrastructure");
         second.setTags("SQLite, Other");
         repository.addScheduleItem(second);
 
-        Schedule deleted = buildSchedule("Old plan", "Archived");
+        ScheduleItem deleted = buildSchedule("Old plan", "Archived");
         deleted.setCategory("Archived");
         deleted.setTags("DeprecatedTag");
         repository.addScheduleItem(deleted);
@@ -158,8 +158,8 @@ class SqliteScheduleRepositoryTest {
         return new DatabaseProperties("sqlite", "org.sqlite.JDBC", "", "", "", null);
     }
 
-    private Schedule buildSchedule(String name, String description) {
-        Schedule schedule = new Schedule();
+    private ScheduleItem buildSchedule(String name, String description) {
+        ScheduleItem schedule = new ScheduleItem();
         schedule.setName(name);
         schedule.setDescription(description);
         schedule.setNotes(description);

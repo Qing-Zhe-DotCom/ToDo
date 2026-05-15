@@ -24,7 +24,7 @@ import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 
 import com.example.config.UserPreferencesStore;
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 import com.example.view.ScheduleCardStyleSupport;
 
 public final class LocalizationService {
@@ -151,17 +151,17 @@ public final class LocalizationService {
     }
 
     public String priorityLabel(String priority) {
-        if (Schedule.PRIORITY_HIGH.equals(priority)) {
+        if (ScheduleItem.PRIORITY_HIGH.equals(priority)) {
             return text("priority.high");
         }
-        if (Schedule.PRIORITY_LOW.equals(priority)) {
+        if (ScheduleItem.PRIORITY_LOW.equals(priority)) {
             return text("priority.low");
         }
         return text("priority.medium");
     }
 
     public String categoryLabel(String category) {
-        return Schedule.isDefaultCategory(category) ? text("category.default") : (category == null ? "" : category);
+        return ScheduleItem.isDefaultCategory(category) ? text("category.default") : (category == null ? "" : category);
     }
 
     private String resolveFallbackLanguageId(String configuredDefaultLanguage) {

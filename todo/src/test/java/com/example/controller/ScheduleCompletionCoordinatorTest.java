@@ -16,7 +16,7 @@ import java.util.concurrent.Executor;
 
 import org.junit.jupiter.api.Test;
 
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 class ScheduleCompletionCoordinatorTest {
 
@@ -32,7 +32,7 @@ class ScheduleCompletionCoordinatorTest {
             Runnable::run
         );
 
-        Schedule schedule = schedule(7, false);
+        ScheduleItem schedule = schedule(7, false);
 
         assertTrue(coordinator.submitImmediate(schedule, true));
         assertEquals(List.of("apply:7:true", "confirm:7:true"), applier.events);
@@ -54,7 +54,7 @@ class ScheduleCompletionCoordinatorTest {
             Runnable::run
         );
 
-        Schedule schedule = schedule(9, false);
+        ScheduleItem schedule = schedule(9, false);
 
         assertTrue(coordinator.submitImmediate(schedule, true));
         assertEquals(List.of("apply:9:true", "revert:9:true"), applier.events);
@@ -74,7 +74,7 @@ class ScheduleCompletionCoordinatorTest {
             Runnable::run
         );
 
-        Schedule schedule = schedule(11, false);
+        ScheduleItem schedule = schedule(11, false);
         ScheduleCompletionCoordinator.PendingCompletion pending = coordinator.prepare(schedule, true);
 
         assertNotNull(pending);
@@ -89,9 +89,9 @@ class ScheduleCompletionCoordinatorTest {
         assertNotNull(coordinator.prepare(schedule, false));
     }
 
-    private Schedule schedule(int id, boolean completed) {
-        Schedule schedule = new Schedule();
-        schedule.setId(id);
+    private ScheduleItem schedule(int id, boolean completed) {
+        ScheduleItem schedule = new ScheduleItem();
+        schedule.setId(String.valueOf(id));
         schedule.setCompleted(completed);
         schedule.setUpdatedAt(LocalDateTime.of(2026, 4, 3, 10, 0));
         return schedule;

@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 import org.junit.jupiter.api.Test;
 
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -20,11 +20,11 @@ class ScheduleReflowAnimatorTest {
         StackPane completed = createCardNode();
         container.getChildren().addAll(pending, completed);
 
-        Schedule pendingSchedule = new Schedule();
-        pendingSchedule.setId(42);
+        ScheduleItem pendingSchedule = new ScheduleItem();
+        pendingSchedule.setId("42");
         pendingSchedule.setCompleted(false);
-        Schedule completedSchedule = new Schedule();
-        completedSchedule.setId(42);
+        ScheduleItem completedSchedule = new ScheduleItem();
+        completedSchedule.setId("42");
         completedSchedule.setCompleted(true);
 
         ScheduleReflowAnimator.bindCard(pending, pendingSchedule);
@@ -48,11 +48,11 @@ class ScheduleReflowAnimatorTest {
         StackPane completed = createCardNode();
         container.getChildren().addAll(pending, completed);
 
-        Schedule pendingSchedule = new Schedule();
-        pendingSchedule.setId(77);
+        ScheduleItem pendingSchedule = new ScheduleItem();
+        pendingSchedule.setId("77");
         pendingSchedule.setCompleted(false);
-        Schedule completedSchedule = new Schedule();
-        completedSchedule.setId(77);
+        ScheduleItem completedSchedule = new ScheduleItem();
+        completedSchedule.setId("77");
         completedSchedule.setCompleted(true);
 
         ScheduleReflowAnimator.bindCard(pending, pendingSchedule);

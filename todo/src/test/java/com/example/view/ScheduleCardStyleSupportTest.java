@@ -7,7 +7,7 @@ import java.time.LocalDate;
 
 import org.junit.jupiter.api.Test;
 
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 import javafx.scene.layout.StackPane;
 
@@ -23,8 +23,8 @@ class ScheduleCardStyleSupportTest {
 
     @Test
     void applyCardPresentationAddsSharedClassesAndScheduleState() {
-        Schedule schedule = new Schedule();
-        schedule.setPriority(Schedule.PRIORITY_HIGH);
+        ScheduleItem schedule = new ScheduleItem();
+        schedule.setPriority(ScheduleItem.PRIORITY_HIGH);
         schedule.setDueDate(LocalDate.now().minusDays(1));
 
         StackPane card = new StackPane();

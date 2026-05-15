@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import com.example.config.UserPreferencesStore;
 import com.example.model.RecurrenceRule;
 import com.example.model.Reminder;
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 class ReminderToastPlannerTest {
 
@@ -26,7 +26,7 @@ class ReminderToastPlannerTest {
         ReminderToastPlanner planner = new ReminderToastPlanner(localizationService);
         ZoneId zone = ZoneId.of("Asia/Shanghai");
 
-        Schedule schedule = new Schedule();
+        ScheduleItem schedule = new ScheduleItem();
         schedule.setId("s1");
         schedule.setTitle("My Task");
         schedule.setTimezone(zone.getId());
@@ -51,7 +51,7 @@ class ReminderToastPlannerTest {
         ReminderToastPlanner planner = new ReminderToastPlanner(localizationService);
         ZoneId zone = ZoneId.of("Asia/Shanghai");
 
-        Schedule schedule = new Schedule();
+        ScheduleItem schedule = new ScheduleItem();
         schedule.setId("s2");
         schedule.setTitle("Daily");
         schedule.setTimezone(zone.getId());
@@ -81,7 +81,7 @@ class ReminderToastPlannerTest {
         ReminderToastPlanner planner = new ReminderToastPlanner(localizationService);
         ZoneId zone = ZoneId.of("Asia/Shanghai");
 
-        Schedule schedule = new Schedule();
+        ScheduleItem schedule = new ScheduleItem();
         schedule.setId("s3");
         schedule.setTitle("Offset");
         schedule.setTimezone(zone.getId());

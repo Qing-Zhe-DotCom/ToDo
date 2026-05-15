@@ -11,11 +11,13 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.example.model.ScheduleItem;
+
 class ScheduleTest {
 
     @Test
     void legacyDateSettersProjectToMinutePrecisionBoundaries() {
-        Schedule schedule = new Schedule();
+        ScheduleItem schedule = new ScheduleItem();
 
         schedule.setStartDate(LocalDate.of(2026, 4, 5));
         schedule.setDueDate(LocalDate.of(2026, 4, 7));
@@ -28,14 +30,14 @@ class ScheduleTest {
 
     @Test
     void effectiveDateRangeFallsBackAndNormalizes() {
-        Schedule dueOnly = new Schedule();
+        ScheduleItem dueOnly = new ScheduleItem();
         dueOnly.setDueAt(LocalDateTime.of(2026, 4, 5, 23, 59));
 
         assertEquals(LocalDate.of(2026, 4, 5), dueOnly.getEffectiveStartDate());
         assertEquals(LocalDate.of(2026, 4, 5), dueOnly.getEffectiveEndDate());
         assertEquals(1, dueOnly.getEffectiveDurationDays());
 
-        Schedule reversed = new Schedule();
+        ScheduleItem reversed = new ScheduleItem();
         reversed.setStartAt(LocalDateTime.of(2026, 4, 8, 10, 0));
         reversed.setDueAt(LocalDateTime.of(2026, 4, 4, 9, 0));
 
@@ -46,7 +48,7 @@ class ScheduleTest {
 
     @Test
     void includesDateUsesNormalizedEffectiveRange() {
-        Schedule schedule = new Schedule();
+        ScheduleItem schedule = new ScheduleItem();
         schedule.setStartAt(LocalDateTime.of(2026, 4, 6, 8, 30));
         schedule.setDueAt(LocalDateTime.of(2026, 4, 4, 19, 0));
 
@@ -59,7 +61,7 @@ class ScheduleTest {
 
     @Test
     void includesDateReturnsFalseWhenNoDatesExist() {
-        Schedule schedule = new Schedule();
+        ScheduleItem schedule = new ScheduleItem();
 
         assertNull(schedule.getEffectiveStartDate());
         assertNull(schedule.getEffectiveEndDate());
@@ -69,10 +71,10 @@ class ScheduleTest {
 
     @Test
     void overdueUsesMinutePrecision() {
-        Schedule overdue = new Schedule();
+        ScheduleItem overdue = new ScheduleItem();
         overdue.setDueAt(LocalDateTime.now().minusMinutes(1));
 
-        Schedule upcoming = new Schedule();
+        ScheduleItem upcoming = new ScheduleItem();
         upcoming.setDueAt(LocalDateTime.now().plusMinutes(1));
 
         assertTrue(overdue.isOverdue());
@@ -81,10 +83,10 @@ class ScheduleTest {
 
     @Test
     void shortSchedulesAreUpcomingOnlyWhenDueToday() {
-        Schedule dueToday = new Schedule();
+        ScheduleItem dueToday = new ScheduleItem();
         dueToday.setDueAt(LocalDate.now().atTime(23, 59));
 
-        Schedule dueTomorrow = new Schedule();
+        ScheduleItem dueTomorrow = new ScheduleItem();
         dueTomorrow.setDueAt(LocalDate.now().plusDays(1).atTime(23, 59));
 
         assertTrue(dueToday.isUpcoming());
@@ -93,12 +95,12 @@ class ScheduleTest {
 
     @Test
     void normalizesCategoryAndTagsForFutureSearch() {
-        Schedule schedule = new Schedule();
+        ScheduleItem schedule = new ScheduleItem();
         schedule.setCategory("   ");
         schedule.setTags("论文, 学习，复盘, 学习");
 
-        assertEquals(Schedule.DEFAULT_CATEGORY, schedule.getCategory());
+        assertEquals(ScheduleItem.DEFAULT_CATEGORY, schedule.getCategory());
         assertEquals("论文, 学习, 复盘", schedule.getTags());
-        assertEquals(List.of("论文", "学习", "复盘"), Schedule.splitTags(schedule.getTags()));
+        assertEquals(List.of("论文", "学习", "复盘"), ScheduleItem.splitTags(schedule.getTags()));
     }
 }

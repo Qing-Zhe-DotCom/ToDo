@@ -4,13 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
-import com.example.model.Schedule;
+import com.example.model.ScheduleItem;
 
 class ScheduleDialogDefaultsTest {
 
     @Test
     void newSchedulesFallBackToUnclassifiedAndEmptyTags() {
-        assertEquals(Schedule.DEFAULT_CATEGORY, ScheduleDialog.resolveCategoryValue("   ", false));
+        assertEquals(ScheduleItem.DEFAULT_CATEGORY, ScheduleDialog.resolveCategoryValue("   ", false));
         assertEquals("", ScheduleDialog.resolveTagsValue("   ", false));
     }
 
