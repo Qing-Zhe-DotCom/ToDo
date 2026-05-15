@@ -24,10 +24,6 @@ public final class DatabaseProperties {
         this.sqlitePath = sqlitePath;
     }
 
-    public String getMode() {
-        return mode;
-    }
-
     public String getDriverClassName() {
         return driverClassName;
     }
@@ -36,23 +32,7 @@ public final class DatabaseProperties {
         return url;
     }
 
-    public String getUsername() {
-        return username;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
     public String getSqlitePath() {
         return sqlitePath;
-    }
-
-    public boolean isSqliteMode() {
-        return "sqlite".equalsIgnoreCase(mode);
-    }
-
-    public boolean isMysqlMode() {
-        return "mysql".equalsIgnoreCase(mode);
     }
 }

@@ -2,7 +2,18 @@
   "permissions": {
     "allow": [
       "Bash(xargs grep *)",
-      "Bash(xargs basename *)"
+      "Bash(xargs basename *)",
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(git restore *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(mvn -f pom.xml clean compile)",
+      "Bash(mvn compile *)",
+      "Bash(mvn -f pom.xml test)",
+      "Bash(mvn -f todo/pom.xml clean compile)",
+      "Bash(git *)",
+      "Bash(mvn -f pom.xml clean test)"
     ]
   }
 }
