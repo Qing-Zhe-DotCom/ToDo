@@ -8,8 +8,6 @@ import com.example.config.DatabaseProperties;
 import com.example.config.JavaPreferencesStore;
 import com.example.config.UserPreferencesStore;
 import com.example.data.ConnectionFactory;
-import com.example.data.JdbcConnectionFactory;
-import com.example.data.MysqlStageBSchemaManager;
 import com.example.data.ScheduleItemRepository;
 import com.example.data.SchemaManager;
 import com.example.data.SqlDialect;
@@ -83,23 +81,13 @@ public final class ApplicationContext {
         FontService fontService = new FontService(preferencesStore);
         ExperimentalFeaturesService experimentalFeaturesService = new ExperimentalFeaturesService(preferencesStore);
 
-        AppDataPaths appDataPaths = null;
-        ConnectionFactory connectionFactory;
-        SchemaManager schemaManager;
-        ScheduleItemRepository scheduleItemRepository;
-        if (databaseProperties.isSqliteMode()) {
-            appDataPaths = new AppDataPaths(
-                appProperties.getDataDirectoryOverride(),
-                databaseProperties.getSqlitePath()
-            );
-            connectionFactory = new SqliteConnectionFactory(databaseProperties, appDataPaths);
-            schemaManager = new SqliteStageBSchemaManager();
-            scheduleItemRepository = new SqlScheduleItemRepository(connectionFactory, schemaManager, SqlDialect.SQLITE);
-        } else {
-            connectionFactory = new JdbcConnectionFactory(databaseProperties);
-            schemaManager = new MysqlStageBSchemaManager();
-            scheduleItemRepository = new SqlScheduleItemRepository(connectionFactory, schemaManager, SqlDialect.MYSQL);
-        }
+        AppDataPaths appDataPaths = new AppDataPaths(
+            appProperties.getDataDirectoryOverride(),
+            databaseProperties.getSqlitePath()
+        );
+        ConnectionFactory connectionFactory = new SqliteConnectionFactory(databaseProperties, appDataPaths);
+        SchemaManager schemaManager = new SqliteStageBSchemaManager();
+        ScheduleItemRepository scheduleItemRepository = new SqlScheduleItemRepository(connectionFactory, schemaManager, SqlDialect.SQLITE);
 
         ScheduleItemService scheduleItemService = new ScheduleItemService(
             scheduleItemRepository,
