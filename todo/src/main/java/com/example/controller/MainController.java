@@ -47,7 +47,6 @@ import com.example.application.ThemeService;
 import com.example.application.WheelModifier;
 import com.example.config.UserPreferencesStore;
 import com.example.model.ScheduleItem;
-import com.example.model.Schedule;
 import com.example.model.RecurrenceRule;
 import com.example.view.HeatmapView;
 import com.example.view.InfoPanelView;
@@ -1079,31 +1078,31 @@ public class MainController {
         requestGlassRefresh();
     }
     
-    public void showScheduleDetails(Schedule schedule) {
-        if (schedule == null) {
+    public void showScheduleDetails(ScheduleItem item) {
+        if (item == null) {
             return;
         }
-        Schedule detailsSchedule = schedule;
-        if (schedule.hasRecurrence()
-            && schedule.getViewKey() != null
-            && schedule.getId() != null
-            && !schedule.getId().equals(schedule.getViewKey())) {
+        ScheduleItem detailsItem = item;
+        if (item.hasRecurrence()
+            && item.getViewKey() != null
+            && item.getId() != null
+            && !item.getId().equals(item.getViewKey())) {
             try {
-                Schedule baseSchedule = findScheduleById(schedule.getId());
-                if (baseSchedule != null) {
-                    detailsSchedule = baseSchedule;
+                ScheduleItem baseItem = findScheduleById(item.getId());
+                if (baseItem != null) {
+                    detailsItem = baseItem;
                 }
             } catch (SQLException ignored) {
             }
         }
-        navigationService.setSelectedSchedule(detailsSchedule);
-        infoPanelView.setSchedule(detailsSchedule);
+        navigationService.setSelectedScheduleItem(detailsItem);
+        infoPanelView.setSchedule(detailsItem);
         infoPanelView.showWithAnimation();
         requestGlassRefresh();
     }
 
-    public void showScheduleDetailsAndFocusTitle(Schedule schedule) {
-        showScheduleDetails(schedule);
+    public void showScheduleDetailsAndFocusTitle(ScheduleItem item) {
+        showScheduleDetails(item);
         infoPanelView.focusTitleEditor();
     }
 
@@ -1112,42 +1111,42 @@ public class MainController {
         requestGlassRefresh();
     }
 
-    public boolean isScheduleSelected(Schedule schedule) {
-        Schedule selectedSchedule = navigationService.getSelectedSchedule();
-        if (selectedSchedule == null || schedule == null) {
+    public boolean isScheduleSelected(ScheduleItem item) {
+        ScheduleItem selectedItem = navigationService.getSelectedScheduleItem();
+        if (selectedItem == null || item == null) {
             return false;
         }
-        if (selectedSchedule.getId() != null && !selectedSchedule.getId().isBlank()
-            && schedule.getId() != null && !schedule.getId().isBlank()) {
-            return selectedSchedule.getId().equals(schedule.getId());
+        if (selectedItem.getId() != null && !selectedItem.getId().isBlank()
+            && item.getId() != null && !item.getId().isBlank()) {
+            return selectedItem.getId().equals(item.getId());
         }
-        return selectedSchedule == schedule;
+        return selectedItem == item;
     }
     
-    public Schedule getSelectedSchedule() {
-        return navigationService.getSelectedSchedule();
+    public ScheduleItem getSelectedScheduleItem() {
+        return navigationService.getSelectedScheduleItem();
     }
 
     public ScheduleCompletionCoordinator.PendingCompletion prepareScheduleCompletion(
-        Schedule schedule,
+        ScheduleItem item,
         boolean targetCompleted
     ) {
-        return scheduleCompletionCoordinator.prepare(schedule, targetCompleted);
+        return scheduleCompletionCoordinator.prepare(item, targetCompleted);
     }
 
-    public boolean updateScheduleCompletion(Schedule schedule, boolean targetCompleted) {
-        if (schedule == null) {
+    public boolean updateScheduleCompletion(ScheduleItem item, boolean targetCompleted) {
+        if (item == null) {
             return false;
         }
-        return scheduleCompletionCoordinator.submitImmediate(schedule, targetCompleted);
-        /*    boolean updated = scheduleDAO.updateScheduleStatus(schedule.getId(), targetCompleted);
+        return scheduleCompletionCoordinator.submitImmediate(item, targetCompleted);
+        /*    boolean updated = scheduleDAO.updateScheduleStatus(item.getId(), targetCompleted);
             if (!updated) {
                 showError("更新状态失败", "未能保存日程状态变更。");
                 return false;
             }
 
-            schedule.setCompleted(targetCompleted);
-            if (selectedSchedule != null && isScheduleSelected(schedule)) {
+            item.setCompleted(targetCompleted);
+            if (selectedSchedule != null && isScheduleSelected(item)) {
                 selectedSchedule.setCompleted(targetCompleted);
             }
 
@@ -1193,35 +1192,35 @@ public class MainController {
         requestGlassRefresh();
     }
 
-    public String createSchedule(Schedule schedule) throws SQLException {
-        String createdId = scheduleItemService.addScheduleItem(schedule);
+    public String createSchedule(ScheduleItem item) throws SQLException {
+        String createdId = scheduleItemService.addScheduleItem(item);
         requestReminderResync();
         return createdId;
     }
 
-    public Schedule quickCreateSchedule(String rawTitle) throws SQLException {
+    public ScheduleItem quickCreateSchedule(String rawTitle) throws SQLException {
         String title = rawTitle == null ? "" : rawTitle.strip();
         if (title.isEmpty()) {
             return null;
         }
 
-        Schedule schedule = new Schedule();
-        schedule.setName(title);
-        schedule.setDescription("");
-        schedule.setStartAt(schedule.getCreatedAt().truncatedTo(ChronoUnit.MINUTES));
-        schedule.setDueAt(LocalDate.now().atTime(23, 59));
-        schedule.setCompleted(false);
-        schedule.setPriority(Schedule.DEFAULT_PRIORITY);
-        schedule.setCategory(Schedule.DEFAULT_CATEGORY);
-        schedule.setTags("");
-        schedule.setReminderTime(null);
-        createSchedule(schedule);
+        ScheduleItem item = new ScheduleItem();
+        item.setTitle(title);
+        item.setDescription("");
+        item.setStartAt(item.getCreatedAt().truncatedTo(ChronoUnit.MINUTES));
+        item.setDueAt(LocalDate.now().atTime(23, 59));
+        item.setCompleted(false);
+        item.setPriority(ScheduleItem.DEFAULT_PRIORITY);
+        item.setCategory(ScheduleItem.DEFAULT_CATEGORY);
+        item.setTags("");
+        item.setReminderTime(null);
+        createSchedule(item);
         refreshAllViews();
-        return schedule;
+        return item;
     }
 
-    public boolean saveSchedule(Schedule schedule) throws SQLException {
-        boolean updated = scheduleItemService.updateScheduleItem(schedule);
+    public boolean saveSchedule(ScheduleItem item) throws SQLException {
+        boolean updated = scheduleItemService.updateScheduleItem(item);
         if (updated) {
             requestReminderResync();
         }
@@ -1236,20 +1235,20 @@ public class MainController {
         return removed;
     }
 
-    public Schedule findScheduleById(String scheduleId) throws SQLException {
-        return toLegacySchedule(scheduleItemService.getScheduleItemById(scheduleId));
+    public ScheduleItem findScheduleById(String scheduleId) throws SQLException {
+        return scheduleItemService.getScheduleItemById(scheduleId);
     }
 
-    public List<Schedule> loadAllSchedules() throws SQLException {
-        return toLegacySchedules(scheduleItemService.getActiveScheduleItems());
+    public List<ScheduleItem> loadAllSchedules() throws SQLException {
+        return scheduleItemService.getActiveScheduleItems();
     }
 
-    public List<Schedule> searchSchedules(String keyword) throws SQLException {
-        return toLegacySchedules(scheduleItemService.searchActiveScheduleItems(keyword));
+    public List<ScheduleItem> searchSchedules(String keyword) throws SQLException {
+        return scheduleItemService.searchActiveScheduleItems(keyword);
     }
 
-    public List<Schedule> loadDeletedSchedules() throws SQLException {
-        return toLegacySchedules(scheduleItemService.getDeletedScheduleItems());
+    public List<ScheduleItem> loadDeletedSchedules() throws SQLException {
+        return scheduleItemService.getDeletedScheduleItems();
     }
 
     public boolean restoreDeletedSchedule(String scheduleId) throws SQLException {
@@ -1293,20 +1292,20 @@ public class MainController {
         }
     }
 
-    public List<Schedule> applyPendingCompletionMutations(List<Schedule> schedules) {
+    public List<ScheduleItem> applyPendingCompletionMutations(List<ScheduleItem> schedules) {
         if (schedules == null || schedules.isEmpty()) {
             return schedules;
         }
         for (ScheduleCompletionMutation mutation : scheduleCompletionCoordinator.snapshotCommittedMutations()) {
-            for (Schedule schedule : schedules) {
-                mutation.applyTo(schedule);
+            for (ScheduleItem item : schedules) {
+                mutation.applyTo(item);
             }
         }
         return schedules;
     }
 
     private void applyCompletionMutationLocally(ScheduleCompletionMutation mutation) {
-        mutation.applyTo(navigationService.getSelectedSchedule());
+        mutation.applyTo(navigationService.getSelectedScheduleItem());
         for (ScheduleCompletionParticipant participant : collectCompletionParticipants()) {
             participant.applyCompletionMutation(mutation);
         }
@@ -1315,7 +1314,7 @@ public class MainController {
     }
 
     private void confirmCompletionMutationLocally(ScheduleCompletionMutation mutation) {
-        mutation.applyTo(navigationService.getSelectedSchedule());
+        mutation.applyTo(navigationService.getSelectedScheduleItem());
         for (ScheduleCompletionParticipant participant : collectCompletionParticipants()) {
             participant.confirmCompletionMutation(mutation);
         }
@@ -1323,7 +1322,7 @@ public class MainController {
     }
 
     private void revertCompletionMutationLocally(ScheduleCompletionMutation mutation) {
-        mutation.revertOn(navigationService.getSelectedSchedule());
+        mutation.revertOn(navigationService.getSelectedScheduleItem());
         for (ScheduleCompletionParticipant participant : collectCompletionParticipants()) {
             participant.revertCompletionMutation(mutation);
         }
@@ -2057,8 +2056,8 @@ public class MainController {
         focusScheduleQuickAdd();
     }
     
-    public void openEditScheduleDialog(Schedule schedule) {
-        showScheduleDetailsAndFocusTitle(schedule);
+    public void openEditScheduleDialog(ScheduleItem item) {
+        showScheduleDetailsAndFocusTitle(item);
     }
     
     private void showSettingsDialog() {
@@ -3391,25 +3390,25 @@ public class MainController {
             return;
         }
 
-        List<Schedule> schedules = loadAllSchedules();
-        for (Schedule schedule : schedules) {
-            if (schedule == null) {
+        List<ScheduleItem> schedules = loadAllSchedules();
+        for (ScheduleItem item : schedules) {
+            if (item == null) {
                 continue;
             }
             boolean changed = false;
 
             if (hasTaskEdits || hasTaskDeletes) {
-                String category = schedule.getCategory();
-                if (!Schedule.isDefaultCategory(category)) {
+                String category = item.getCategory();
+                if (!ScheduleItem.isDefaultCategory(category)) {
                     String normalizedCategory = normalizeCustomOptionInput(category);
                     if (normalizedCategory != null) {
                         String key = customOptionKey(normalizedCategory);
                         String renamed = hasTaskEdits ? taskRenamesByKey.get(key) : null;
                         if (renamed != null) {
-                            schedule.setCategory(renamed);
+                            item.setCategory(renamed);
                             changed = true;
                         } else if (hasTaskDeletes && deletedTaskKeys.contains(key)) {
-                            schedule.setCategory(Schedule.DEFAULT_CATEGORY);
+                            item.setCategory(ScheduleItem.DEFAULT_CATEGORY);
                             changed = true;
                         }
                     }
@@ -3417,7 +3416,7 @@ public class MainController {
             }
 
             if (hasTagEdits || hasTagDeletes) {
-                List<String> existingTags = Schedule.splitTags(schedule.getTags());
+                List<String> existingTags = ScheduleItem.splitTags(item.getTags());
                 if (!existingTags.isEmpty()) {
                     LinkedHashSet<String> updated = new LinkedHashSet<>();
                     for (String tag : existingTags) {
@@ -3441,13 +3440,13 @@ public class MainController {
                         }
                     }
                     if (changed) {
-                        schedule.setTagNames(new ArrayList<>(updated));
+                        item.setTagNames(new ArrayList<>(updated));
                     }
                 }
             }
 
             if (changed) {
-                if (!saveSchedule(schedule)) {
+                if (!saveSchedule(item)) {
                     throw new SQLException(text("error.schedulePersist.message"));
                 }
             }
@@ -3564,7 +3563,7 @@ public class MainController {
     private void populateTrashSettingsList(VBox host, Label summaryLabel) {
         host.getChildren().clear();
         try {
-            List<Schedule> deletedSchedules = loadDeletedSchedules();
+            List<ScheduleItem> deletedSchedules = loadDeletedSchedules();
             summaryLabel.setText(text("trash.summary", deletedSchedules.size()));
             if (deletedSchedules.isEmpty()) {
                 Label emptyLabel = new Label(text("trash.empty"));
@@ -3573,7 +3572,7 @@ public class MainController {
                 return;
             }
 
-            for (Schedule schedule : deletedSchedules) {
+            for (ScheduleItem schedule : deletedSchedules) {
                 host.getChildren().add(createTrashRow(schedule, host, summaryLabel));
             }
         } catch (SQLException exception) {
@@ -3585,11 +3584,11 @@ public class MainController {
         }
     }
 
-    private Node createTrashRow(Schedule schedule, VBox host, Label summaryLabel) {
+    private Node createTrashRow(ScheduleItem item, VBox host, Label summaryLabel) {
         VBox textBox = new VBox(4);
-        Label titleLabel = new Label(schedule.getName());
+        Label titleLabel = new Label(item.getName());
         titleLabel.getStyleClass().add("settings-row-title");
-        Label metaLabel = new Label(buildTrashMetaText(schedule));
+        Label metaLabel = new Label(buildTrashMetaText(item));
         metaLabel.getStyleClass().add("settings-row-desc");
         metaLabel.setWrapText(true);
         textBox.getChildren().addAll(titleLabel, metaLabel);
@@ -3598,7 +3597,7 @@ public class MainController {
         restoreButton.getStyleClass().add("button-secondary");
         restoreButton.setOnAction(e -> {
             try {
-                if (restoreDeletedSchedule(schedule.getId())) {
+                if (restoreDeletedSchedule(item.getId())) {
                     populateTrashSettingsList(host, summaryLabel);
                     refreshDataViews();
                 }
@@ -3611,7 +3610,7 @@ public class MainController {
         purgeButton.getStyleClass().add("button-secondary");
         purgeButton.setOnAction(e -> {
             try {
-                if (!permanentlyDeleteSchedule(schedule.getId())) {
+                if (!permanentlyDeleteSchedule(item.getId())) {
                     showInfo(text("trash.purge.unavailable.title"), text("trash.purge.unavailable.message"));
                     return;
                 }
@@ -3634,10 +3633,10 @@ public class MainController {
         return row;
     }
 
-    private String buildTrashMetaText(Schedule schedule) {
-        LocalDateTime dueAt = schedule.getDueAt();
-        LocalDateTime startAt = schedule.getStartAt();
-        LocalDateTime deletedAt = schedule.getDeletedAt();
+    private String buildTrashMetaText(ScheduleItem item) {
+        LocalDateTime dueAt = item.getDueAt();
+        LocalDateTime startAt = item.getStartAt();
+        LocalDateTime deletedAt = item.getDeletedAt();
         String timeText;
         if (startAt != null && dueAt != null) {
             timeText = format("format.trash.dateTime", startAt) + " -> " + format("format.trash.dateTime", dueAt);
@@ -3996,27 +3995,6 @@ public class MainController {
             lastKnownPendingCount = 0;
             pendingCountListener.accept(0);
         }
-    }
-
-    private Schedule toLegacySchedule(ScheduleItem item) {
-        if (item == null) {
-            return null;
-        }
-        return item instanceof Schedule schedule ? new Schedule(schedule) : new Schedule(item);
-    }
-
-    private List<Schedule> toLegacySchedules(List<ScheduleItem> items) {
-        List<Schedule> schedules = new ArrayList<>();
-        if (items == null) {
-            return schedules;
-        }
-        for (ScheduleItem item : items) {
-            Schedule schedule = toLegacySchedule(item);
-            if (schedule != null) {
-                schedules.add(schedule);
-            }
-        }
-        return schedules;
     }
 
     private NavigationService.Screen resolveScreen(View view) {
