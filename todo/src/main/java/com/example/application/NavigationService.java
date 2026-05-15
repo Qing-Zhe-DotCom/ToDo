@@ -6,8 +6,7 @@ public final class NavigationService {
     public enum Screen {
         LIST,
         TIMELINE,
-        HEATMAP,
-        FLOWCHART
+        HEATMAP
     }
 
     private Screen currentScreen = Screen.LIST;

@@ -49,7 +49,6 @@ import com.example.config.UserPreferencesStore;
 import com.example.model.ScheduleItem;
 import com.example.model.Schedule;
 import com.example.model.RecurrenceRule;
-import com.example.view.FlowchartView;
 import com.example.view.HeatmapView;
 import com.example.view.InfoPanelView;
 import com.example.view.LabeledTextAutoFit;
@@ -163,7 +162,6 @@ public class MainController {
     private ScheduleListView scheduleListView;
     private TimelineView timelineView;
     private HeatmapView heatmapView;
-    private FlowchartView flowchartView;
     private InfoPanelView infoPanelView;
     
     // 当前选中的视图
@@ -184,8 +182,6 @@ public class MainController {
     private ToggleButton scheduleNavButton;
     private ToggleButton timelineNavButton;
     private ToggleButton heatmapNavButton;
-    private ToggleButton flowchartNavButton;
-    private Button loginActionButton;
     private Button settingsActionButton;
     private ToggleButton appearanceToggle;
     private Button exitActionButton;
@@ -321,7 +317,6 @@ public class MainController {
         scheduleListView = new ScheduleListView(this);
         timelineView = new TimelineView(this);
         heatmapView = new HeatmapView(this);
-        flowchartView = new FlowchartView(this);
         //infoPanelView = new InfoPanelView(this);
         
         // 默认显示日程列表视图
@@ -475,16 +470,12 @@ public class MainController {
         heatmapNavButton = createNavButton(IconKey.GRID_HEATMAP, text("nav.heatmap"), navGroup);
         heatmapNavButton.setOnAction(e -> showView(heatmapView));
 
-        flowchartNavButton = createNavButton(IconKey.FLOWCHART, text("nav.flowchart"), navGroup);
-        flowchartNavButton.setOnAction(e -> showView(flowchartView));
-
         Region spacer = new Region();
         VBox.setVgrow(spacer, Priority.ALWAYS);
 
         functionTitle = new Label(text("sidebar.functions"));
         functionTitle.getStyleClass().addAll("label-hint", "sidebar-function-title");
 
-        loginActionButton = createActionButton(IconKey.USER, text("sidebar.login"), this::showLoginDialog);
         settingsActionButton = createActionButton(IconKey.SETTINGS, text("sidebar.settings"), this::showSettingsDialog);
 
         appearanceToggle = new ToggleButton(text("sidebar.appearance.darkMode"));
@@ -504,7 +495,6 @@ public class MainController {
         bottomActions.getStyleClass().add("sidebar-bottom-actions");
         bottomActions.getChildren().addAll(
             functionTitle,
-            loginActionButton,
             settingsActionButton,
             appearanceToggle,
             exitActionButton
@@ -533,7 +523,6 @@ public class MainController {
             scheduleNavButton,
             timelineNavButton,
             heatmapNavButton,
-            flowchartNavButton,
             spacer,
             bottomActionsSeparator,
             bottomActions,
@@ -1641,9 +1630,6 @@ public class MainController {
         if (heatmapView != null) {
             heatmapView.refreshIcons();
         }
-        if (flowchartView != null) {
-            flowchartView.refreshIcons();
-        }
         if (infoPanelView != null) {
             infoPanelView.refreshIcons();
         }
@@ -1668,12 +1654,6 @@ public class MainController {
         }
         if (heatmapNavButton != null) {
             heatmapNavButton.setGraphic(createSvgIcon(IconKey.GRID_HEATMAP, text("nav.heatmap"), 24));
-        }
-        if (flowchartNavButton != null) {
-            flowchartNavButton.setGraphic(createSvgIcon(IconKey.FLOWCHART, text("nav.flowchart"), 24));
-        }
-        if (loginActionButton != null) {
-            loginActionButton.setGraphic(createSvgIcon(IconKey.USER, text("sidebar.login"), 24));
         }
         if (settingsActionButton != null) {
             settingsActionButton.setGraphic(createSvgIcon(IconKey.SETTINGS, text("sidebar.settings"), 24));
@@ -2079,15 +2059,6 @@ public class MainController {
     
     public void openEditScheduleDialog(Schedule schedule) {
         showScheduleDetailsAndFocusTitle(schedule);
-    }
-    
-    private void showLoginDialog() {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        applyDialogPreferences(alert.getDialogPane());
-        alert.setTitle(text("sidebar.login"));
-        alert.setHeaderText(text("login.dialog.title"));
-        alert.setContentText(text("login.dialog.message"));
-        alert.showAndWait();
     }
     
     private void showSettingsDialog() {
@@ -4054,9 +4025,6 @@ public class MainController {
         }
         if (view instanceof HeatmapView) {
             return NavigationService.Screen.HEATMAP;
-        }
-        if (view instanceof FlowchartView) {
-            return NavigationService.Screen.FLOWCHART;
         }
         return NavigationService.Screen.LIST;
     }
